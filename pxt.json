@@ -20,6 +20,11 @@
         "options.ts",
         "coreAssets.ts"
     ],
+    "yotta": {
+        "config": {
+            "DEVICE_BLE": 0
+        }
+    },
     "supportedTargets": [
         "microbit"
     ],
@@ -30,7 +35,7 @@
         "core": "*",
         "radio": "*",
         "microphone": "*",
-        "display-shield": "github:microbit-apps/display-shield#v1.0.9"
+        "display-shield": "github:microbit-apps/display-shield#v1.1.4"
     },
     "testDependencies": {}
 }
