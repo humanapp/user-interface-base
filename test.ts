@@ -1179,6 +1179,554 @@ namespace ui {
     assertFocusResult(scrollState.hitTest(1, 1), { kind: "miss", reason: "empty" }, "clear removes targets")
     assertFocusResult(scrollState.activate(), { kind: "notActivated", reason: "missingActive" }, "clear removes focus")
   }
+
+  interface FocusPolicyFixture {
+    name: string
+    result: UiFocusMoveResult
+    expectedResult: any
+  }
+
+  function policyTarget(
+    id: UiFocusId,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    disabled?: boolean,
+    hidden?: boolean,
+    scrollOwnerId?: UiFocusScrollOwnerId
+  ): UiFocusPolicyTarget {
+    return {
+      id,
+      rect: new Rect(x, y, width, height),
+      disabled,
+      hidden,
+      scrollOwnerId
+    }
+  }
+
+  function assertFocusMoveResult(result: UiFocusMoveResult, expected: any, name: string): void {
+    const actual: any = result
+    const fields = [
+      "kind",
+      "scopeId",
+      "targetId",
+      "reason",
+      "direction",
+      "fromScopeId",
+      "fromTargetId",
+      "toScopeId",
+      "toTargetId"
+    ]
+
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i]
+      control.assert(actual[field] == expected[field], name + " result " + field)
+    }
+
+    if (expected.scrollRequest) {
+      control.assert(result.kind == "moved" && !!result.scrollRequest, name + " scroll exists")
+      if (result.kind == "moved" && result.scrollRequest) {
+        assertFocusScrollRequest(result.scrollRequest, expected.scrollRequest, name)
+      }
+    } else {
+      control.assert(result.kind != "moved" || !result.scrollRequest, name + " no scroll")
+    }
+  }
+
+  function runFocusPolicyFixtures(fixtures: FocusPolicyFixture[]): void {
+    for (let i = 0; i < fixtures.length; i++) {
+      runFocusPolicyFixture(fixtures[i])
+    }
+  }
+
+  function runFocusPolicyFixture(fixture: FocusPolicyFixture): void {
+    assertFocusMoveResult(fixture.result, fixture.expectedResult, fixture.name)
+  }
+
+  /**
+   * Smoke harness for row, column, grid, and ragged-grid focus movement policies.
+   */
+  export function runFocusPolicySmokeTest(): void {
+    const menuA = policyTarget("menu-a", 0, 0, 10, 10)
+    const menuDisabled = policyTarget("menu-disabled", 12, 0, 10, 10, true)
+    const menuHidden = policyTarget("menu-hidden", 24, 0, 10, 10, false, true)
+    const menuD = policyTarget("menu-d", 36, 0, 10, 10, false, false, "menu-scroll")
+    const menuRow = [menuA, menuDisabled, menuHidden, menuD]
+
+    runFocusPolicyFixtures([
+      {
+        name: "row right skips disabled hidden and scrolls",
+        result: moveFocusInRow({ scopeId: "menu", currentTargetId: "menu-a", direction: "right", targets: menuRow }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "menu",
+          fromTargetId: "menu-a",
+          toScopeId: "menu",
+          toTargetId: "menu-d",
+          scrollRequest: {
+            scopeId: "menu",
+            targetId: "menu-d",
+            scrollOwnerId: "menu-scroll",
+            targetRect: new Rect(36, 0, 10, 10),
+            reason: "focus"
+          }
+        }
+      },
+      {
+        name: "row unsupported up",
+        result: moveFocusInRow({ scopeId: "menu", currentTargetId: "menu-a", direction: "up", targets: menuRow }),
+        expectedResult: { kind: "stayed", scopeId: "menu", targetId: "menu-a", reason: "boundary" }
+      },
+      {
+        name: "row unsupported down",
+        result: moveFocusInRow({ scopeId: "menu", currentTargetId: "menu-a", direction: "down", targets: menuRow }),
+        expectedResult: { kind: "stayed", scopeId: "menu", targetId: "menu-a", reason: "boundary" }
+      },
+      {
+        name: "row boundary exit",
+        result: moveFocusInRow({ scopeId: "menu", currentTargetId: "menu-a", direction: "left", targets: menuRow }),
+        expectedResult: { kind: "exited", scopeId: "menu", targetId: "menu-a", direction: "left" }
+      },
+      {
+        name: "row wrap",
+        result: moveFocusInRow({
+          scopeId: "menu",
+          currentTargetId: "menu-a",
+          direction: "left",
+          wrap: true,
+          targets: menuRow
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "menu",
+          fromTargetId: "menu-a",
+          toScopeId: "menu",
+          toTargetId: "menu-d",
+          scrollRequest: {
+            scopeId: "menu",
+            targetId: "menu-d",
+            scrollOwnerId: "menu-scroll",
+            targetRect: new Rect(36, 0, 10, 10),
+            reason: "focus"
+          }
+        }
+      },
+      {
+        name: "row empty",
+        result: moveFocusInRow({ scopeId: "menu", currentTargetId: "menu-a", direction: "right", targets: [] }),
+        expectedResult: { kind: "stayed", scopeId: "menu", reason: "empty" }
+      },
+      {
+        name: "row missing active",
+        result: moveFocusInRow({ scopeId: "menu", currentTargetId: "missing", direction: "right", targets: menuRow }),
+        expectedResult: { kind: "stayed", scopeId: "menu", targetId: "missing", reason: "missingActive" }
+      },
+      {
+        name: "row single wrap boundary",
+        result: moveFocusInRow({
+          scopeId: "menu",
+          currentTargetId: "menu-a",
+          direction: "right",
+          wrap: true,
+          targets: [menuA]
+        }),
+        expectedResult: { kind: "stayed", scopeId: "menu", targetId: "menu-a", reason: "boundary" }
+      }
+    ])
+
+    const listA = policyTarget("list-a", 0, 0, 20, 8)
+    const listB = policyTarget("list-b", 0, 10, 20, 8, true)
+    const listC = policyTarget("list-c", 0, 20, 20, 8, false, true)
+    const listD = policyTarget("list-d", 0, 30, 20, 8, false, false, "list-scroll")
+    const textList = [listA, listB, listC, listD]
+
+    runFocusPolicyFixtures([
+      {
+        name: "column down skips disabled hidden and scrolls",
+        result: moveFocusInColumn({ scopeId: "list", currentTargetId: "list-a", direction: "down", targets: textList }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "list",
+          fromTargetId: "list-a",
+          toScopeId: "list",
+          toTargetId: "list-d",
+          scrollRequest: {
+            scopeId: "list",
+            targetId: "list-d",
+            scrollOwnerId: "list-scroll",
+            targetRect: new Rect(0, 30, 20, 8),
+            reason: "focus"
+          }
+        }
+      },
+      {
+        name: "column unsupported right",
+        result: moveFocusInColumn({ scopeId: "list", currentTargetId: "list-a", direction: "right", targets: textList }),
+        expectedResult: { kind: "stayed", scopeId: "list", targetId: "list-a", reason: "boundary" }
+      },
+      {
+        name: "column unsupported left",
+        result: moveFocusInColumn({ scopeId: "list", currentTargetId: "list-a", direction: "left", targets: textList }),
+        expectedResult: { kind: "stayed", scopeId: "list", targetId: "list-a", reason: "boundary" }
+      },
+      {
+        name: "column boundary exit",
+        result: moveFocusInColumn({ scopeId: "list", currentTargetId: "list-a", direction: "up", targets: textList }),
+        expectedResult: { kind: "exited", scopeId: "list", targetId: "list-a", direction: "up" }
+      },
+      {
+        name: "column wrap",
+        result: moveFocusInColumn({
+          scopeId: "list",
+          currentTargetId: "list-a",
+          direction: "up",
+          wrap: true,
+          targets: textList
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "list",
+          fromTargetId: "list-a",
+          toScopeId: "list",
+          toTargetId: "list-d",
+          scrollRequest: {
+            scopeId: "list",
+            targetId: "list-d",
+            scrollOwnerId: "list-scroll",
+            targetRect: new Rect(0, 30, 20, 8),
+            reason: "focus"
+          }
+        }
+      },
+      {
+        name: "column empty",
+        result: moveFocusInColumn({ scopeId: "list", currentTargetId: "list-a", direction: "down", targets: [] }),
+        expectedResult: { kind: "stayed", scopeId: "list", reason: "empty" }
+      },
+      {
+        name: "column missing active",
+        result: moveFocusInColumn({ scopeId: "list", currentTargetId: "missing", direction: "down", targets: textList }),
+        expectedResult: { kind: "stayed", scopeId: "list", targetId: "missing", reason: "missingActive" }
+      },
+      {
+        name: "column single wrap boundary",
+        result: moveFocusInColumn({
+          scopeId: "list",
+          currentTargetId: "list-a",
+          direction: "down",
+          wrap: true,
+          targets: [listA]
+        }),
+        expectedResult: { kind: "stayed", scopeId: "list", targetId: "list-a", reason: "boundary" }
+      }
+    ])
+
+    const gridA = policyTarget("grid-a", 0, 0, 10, 10)
+    const gridB = policyTarget("grid-b", 12, 0, 10, 10)
+    const gridDuplicate = policyTarget("grid-duplicate", 12, 0, 10, 10)
+    const gridC = policyTarget("grid-c", 36, 0, 10, 10)
+    const gridDisabled = policyTarget("grid-disabled", 0, 12, 10, 10, true)
+    const gridHidden = policyTarget("grid-hidden", 12, 12, 10, 10, false, true)
+    const gridD = policyTarget("grid-d", 0, 24, 10, 10, false, false, "grid-scroll")
+    const gridCells: UiFocusGridPolicyCell[] = [
+      { row: 0, column: 0, target: gridA },
+      { row: 0, column: 1, target: gridB },
+      { row: 0, column: 1, target: gridDuplicate },
+      { row: 0, column: 3, target: gridC },
+      { row: 1, column: 0, target: gridDisabled },
+      { row: 1, column: 1, target: gridHidden },
+      { row: 2, column: 0, target: gridD }
+    ]
+
+    runFocusPolicyFixtures([
+      {
+        name: "grid duplicate coordinate uses earliest eligible",
+        result: moveFocusInGrid({ scopeId: "grid", currentTargetId: "grid-a", direction: "right", cells: gridCells }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "grid",
+          fromTargetId: "grid-a",
+          toScopeId: "grid",
+          toTargetId: "grid-b"
+        }
+      },
+      {
+        name: "grid skips missing and hidden cells",
+        result: moveFocusInGrid({ scopeId: "grid", currentTargetId: "grid-b", direction: "right", cells: gridCells }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "grid",
+          fromTargetId: "grid-b",
+          toScopeId: "grid",
+          toTargetId: "grid-c"
+        }
+      },
+      {
+        name: "grid skips disabled vertical and scrolls",
+        result: moveFocusInGrid({ scopeId: "grid", currentTargetId: "grid-a", direction: "down", cells: gridCells }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "grid",
+          fromTargetId: "grid-a",
+          toScopeId: "grid",
+          toTargetId: "grid-d",
+          scrollRequest: {
+            scopeId: "grid",
+            targetId: "grid-d",
+            scrollOwnerId: "grid-scroll",
+            targetRect: new Rect(0, 24, 10, 10),
+            reason: "focus"
+          }
+        }
+      },
+      {
+        name: "grid row local wrap",
+        result: moveFocusInGrid({
+          scopeId: "grid",
+          currentTargetId: "grid-c",
+          direction: "right",
+          wrap: true,
+          cells: gridCells
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "grid",
+          fromTargetId: "grid-c",
+          toScopeId: "grid",
+          toTargetId: "grid-a"
+        }
+      },
+      {
+        name: "grid column local wrap",
+        result: moveFocusInGrid({
+          scopeId: "grid",
+          currentTargetId: "grid-d",
+          direction: "down",
+          wrap: true,
+          cells: gridCells
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "grid",
+          fromTargetId: "grid-d",
+          toScopeId: "grid",
+          toTargetId: "grid-a"
+        }
+      },
+      {
+        name: "grid boundary exit",
+        result: moveFocusInGrid({ scopeId: "grid", currentTargetId: "grid-c", direction: "right", cells: gridCells }),
+        expectedResult: { kind: "exited", scopeId: "grid", targetId: "grid-c", direction: "right" }
+      },
+      {
+        name: "grid empty",
+        result: moveFocusInGrid({ scopeId: "grid", currentTargetId: "grid-a", direction: "right", cells: [] }),
+        expectedResult: { kind: "stayed", scopeId: "grid", reason: "empty" }
+      },
+      {
+        name: "grid missing active",
+        result: moveFocusInGrid({ scopeId: "grid", currentTargetId: "missing", direction: "right", cells: gridCells }),
+        expectedResult: { kind: "stayed", scopeId: "grid", targetId: "missing", reason: "missingActive" }
+      },
+      {
+        name: "grid single wrap boundary",
+        result: moveFocusInGrid({
+          scopeId: "grid",
+          currentTargetId: "grid-a",
+          direction: "right",
+          wrap: true,
+          cells: [{ row: 0, column: 0, target: gridA }]
+        }),
+        expectedResult: { kind: "stayed", scopeId: "grid", targetId: "grid-a", reason: "boundary" }
+      }
+    ])
+
+    const keyA = policyTarget("key-a", 0, 0, 10, 10)
+    const keyB = policyTarget("key-b", 12, 0, 10, 10, true)
+    const keyC = policyTarget("key-c", 24, 0, 10, 10, false, true)
+    const keyD = policyTarget("key-d", 36, 0, 10, 10)
+    const keyE = policyTarget("key-e", 2, 20, 10, 10)
+    const keyF = policyTarget("key-f", 30, 20, 10, 10, false, false, "key-scroll")
+    const keyG = policyTarget("key-g", 10, 40, 10, 10)
+    const keyH = policyTarget("key-h", 50, 40, 10, 10)
+    const raggedRows = [[keyA, keyB, keyC, keyD], [], [keyE, keyF], [keyG, keyH]]
+
+    runFocusPolicyFixtures([
+      {
+        name: "ragged horizontal skips disabled hidden",
+        result: moveFocusInRaggedGrid({
+          scopeId: "keys",
+          currentTargetId: "key-a",
+          direction: "right",
+          rows: raggedRows
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "keys",
+          fromTargetId: "key-a",
+          toScopeId: "keys",
+          toTargetId: "key-d"
+        }
+      },
+      {
+        name: "ragged vertical exact column and skipped empty row",
+        result: moveFocusInRaggedGrid({
+          scopeId: "keys",
+          currentTargetId: "key-a",
+          direction: "down",
+          rows: raggedRows
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "keys",
+          fromTargetId: "key-a",
+          toScopeId: "keys",
+          toTargetId: "key-e"
+        }
+      },
+      {
+        name: "ragged vertical column intent",
+        result: moveFocusInRaggedGrid({
+          scopeId: "keys",
+          currentTargetId: "key-a",
+          direction: "down",
+          columnIntent: 1,
+          rows: raggedRows
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "keys",
+          fromTargetId: "key-a",
+          toScopeId: "keys",
+          toTargetId: "key-f",
+          scrollRequest: {
+            scopeId: "keys",
+            targetId: "key-f",
+            scrollOwnerId: "key-scroll",
+            targetRect: new Rect(30, 20, 10, 10),
+            reason: "focus"
+          }
+        }
+      },
+      {
+        name: "ragged nearest center fallback",
+        result: moveFocusInRaggedGrid({
+          scopeId: "keys",
+          currentTargetId: "key-d",
+          direction: "down",
+          columnIntent: 3,
+          rows: raggedRows
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "keys",
+          fromTargetId: "key-d",
+          toScopeId: "keys",
+          toTargetId: "key-f",
+          scrollRequest: {
+            scopeId: "keys",
+            targetId: "key-f",
+            scrollOwnerId: "key-scroll",
+            targetRect: new Rect(30, 20, 10, 10),
+            reason: "focus"
+          }
+        }
+      },
+      {
+        name: "ragged nearest center tie uses earliest",
+        result: moveFocusInRaggedGrid({
+          scopeId: "keys",
+          currentTargetId: "key-f",
+          direction: "down",
+          columnIntent: 3,
+          rows: raggedRows
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "keys",
+          fromTargetId: "key-f",
+          toScopeId: "keys",
+          toTargetId: "key-g"
+        }
+      },
+      {
+        name: "ragged wrap",
+        result: moveFocusInRaggedGrid({
+          scopeId: "keys",
+          currentTargetId: "key-g",
+          direction: "down",
+          wrap: true,
+          rows: raggedRows
+        }),
+        expectedResult: {
+          kind: "moved",
+          fromScopeId: "keys",
+          fromTargetId: "key-g",
+          toScopeId: "keys",
+          toTargetId: "key-a"
+        }
+      },
+      {
+        name: "ragged boundary exit",
+        result: moveFocusInRaggedGrid({
+          scopeId: "keys",
+          currentTargetId: "key-g",
+          direction: "down",
+          rows: raggedRows
+        }),
+        expectedResult: { kind: "exited", scopeId: "keys", targetId: "key-g", direction: "down" }
+      },
+      {
+        name: "ragged empty",
+        result: moveFocusInRaggedGrid({ scopeId: "keys", currentTargetId: "key-a", direction: "right", rows: [] }),
+        expectedResult: { kind: "stayed", scopeId: "keys", reason: "empty" }
+      },
+      {
+        name: "ragged missing active",
+        result: moveFocusInRaggedGrid({ scopeId: "keys", currentTargetId: "missing", direction: "right", rows: raggedRows }),
+        expectedResult: { kind: "stayed", scopeId: "keys", targetId: "missing", reason: "missingActive" }
+      },
+      {
+        name: "ragged single wrap boundary",
+        result: moveFocusInRaggedGrid({
+          scopeId: "keys",
+          currentTargetId: "key-a",
+          direction: "right",
+          wrap: true,
+          rows: [[keyA]]
+        }),
+        expectedResult: { kind: "stayed", scopeId: "keys", targetId: "key-a", reason: "boundary" }
+      }
+    ])
+
+    const retainedDestination = policyTarget("retained-b", 10, 10, 12, 12, false, false, "retained-scroll")
+    const retainedResult = moveFocusInRow({
+      scopeId: "retained",
+      currentTargetId: "retained-a",
+      direction: "right",
+      targets: [policyTarget("retained-a", 0, 0, 10, 10), retainedDestination]
+    })
+    retainedDestination.rect.set(0, 0, 1, 1)
+    assertFocusMoveResult(
+      retainedResult,
+      {
+        kind: "moved",
+        fromScopeId: "retained",
+        fromTargetId: "retained-a",
+        toScopeId: "retained",
+        toTargetId: "retained-b",
+        scrollRequest: {
+          scopeId: "retained",
+          targetId: "retained-b",
+          scrollOwnerId: "retained-scroll",
+          targetRect: new Rect(10, 10, 12, 12),
+          reason: "focus"
+        }
+      },
+      "policy scroll rect copied"
+    )
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
@@ -1188,5 +1736,6 @@ ui.runPrimitiveLayoutSmokeTest()
 ui.runStructuredLayoutSmokeTest()
 ui.runScrollLayoutSmokeTest()
 ui.runFocusStateMachineSmokeTest()
+ui.runFocusPolicySmokeTest()
 
 control.__log(1, "All tests passed!")
