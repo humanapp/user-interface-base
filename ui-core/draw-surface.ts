@@ -59,6 +59,12 @@ namespace ui {
      * `false`.
      */
     allowDownscale?: boolean
+
+    /**
+     * Allows source pixels to scale above their requested size on larger
+     * physical targets. Defaults to `true`.
+     */
+    allowUpscale?: boolean
   }
 
   /**
@@ -86,6 +92,12 @@ namespace ui {
      * `false`.
      */
     allowDownscale?: boolean
+
+    /**
+     * Allows glyph pixels to scale above their font size on larger physical
+     * targets. Defaults to `true`.
+     */
+    allowUpscale?: boolean
   }
 
   /**

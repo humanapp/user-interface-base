@@ -135,7 +135,7 @@ namespace ui {
     public drawBitmap(bitmap: Bitmap, x: number, y: number, options?: DrawBitmapOptions): void {
       const destX = this.roundPixel(x)
       const destY = this.roundPixel(y)
-      const scale = this.logicalBitmapScale(options) * this.bitmapMinimumLogicalScale(options)
+      const scale = this.logicalBitmapScale(options) * this.bitmapViewportLogicalScale(options)
       const transparent = !options || options.transparent !== false
       const logicalWidth = bitmap.width * scale
       const logicalHeight = bitmap.height * scale
@@ -423,20 +423,30 @@ namespace ui {
       return scale
     }
 
-    private bitmapMinimumLogicalScale(options?: DrawBitmapOptions): number {
-      if (options && options.allowDownscale) return 1
-      return this.minimumPhysicalPixelLogicalScale()
+    private bitmapViewportLogicalScale(options?: DrawBitmapOptions): number {
+      return this.viewportLogicalScale(
+        !!(options && options.allowDownscale),
+        !options || options.allowUpscale !== false
+      )
     }
 
     private textLogicalScale(options?: DrawTextOptions): number {
-      if (options && options.allowDownscale) return 1
-      return this.minimumPhysicalPixelLogicalScale()
+      return this.viewportLogicalScale(
+        !!(options && options.allowDownscale),
+        !options || options.allowUpscale !== false
+      )
     }
 
-    private minimumPhysicalPixelLogicalScale(): number {
+    private viewportLogicalScale(allowDownscale: boolean, allowUpscale: boolean): number {
       const scale = this.scale()
-      if (scale >= 1) return 1
-      return Math.ceil(1 / scale)
+      let logicalScale = 1
+      if (!allowDownscale && scale < 1) {
+        logicalScale = Math.ceil(1 / scale)
+      }
+      if (!allowUpscale && logicalScale * scale > 1) {
+        logicalScale = 1 / scale
+      }
+      return logicalScale
     }
 
     private textFont(text: string, font?: TextFont): TextFont {
