@@ -1,8 +1,8 @@
 namespace ui {
   /**
-   * Focus target entry used by movement policies.
+   * Focus target entry used by directional navigation.
    */
-  export interface UiFocusPolicyTarget {
+  export interface UiFocusNavigationTarget {
     /**
      * Stable focus target id.
      */
@@ -30,12 +30,12 @@ namespace ui {
   }
 
   /**
-   * Ordered target snapshot for row and column focus movement.
+   * Ordered target record for row and column focus movement.
    *
    * The `targets` array defines movement order. Disabled and hidden targets in
    * that array are skipped as destinations.
    */
-  export interface UiFocusLinearPolicyInput {
+  export interface UiFocusLinearMoveInput {
     /**
      * Scope that owns the targets.
      */
@@ -53,20 +53,20 @@ namespace ui {
     direction: UiFocusDirection
 
     /**
-     * Whether movement may wrap inside this snapshot. Defaults to `false`.
+     * Whether movement may wrap inside this target order. Defaults to `false`.
      */
     wrap?: boolean
 
     /**
      * Targets in caller-defined movement order.
      */
-    targets: UiFocusPolicyTarget[]
+    targets: UiFocusNavigationTarget[]
   }
 
   /**
    * Positioned target entry for grid focus movement.
    */
-  export interface UiFocusGridPolicyCell {
+  export interface UiFocusGridNavigationCell {
     /**
      * Non-negative integer row coordinate.
      */
@@ -80,16 +80,16 @@ namespace ui {
     /**
      * Target stored at this grid coordinate.
      */
-    target: UiFocusPolicyTarget
+    target: UiFocusNavigationTarget
   }
 
   /**
-   * Grid target snapshot for directional focus movement.
+   * Grid target record for directional focus movement.
    *
    * The `cells` array supplies sparse row and column coordinates. Disabled and
    * hidden targets are skipped as destinations.
    */
-  export interface UiFocusGridPolicyInput {
+  export interface UiFocusGridMoveInput {
     /**
      * Scope that owns the targets.
      */
@@ -115,16 +115,16 @@ namespace ui {
     /**
      * Target cells in caller-defined coordinate order.
      */
-    cells: UiFocusGridPolicyCell[]
+    cells: UiFocusGridNavigationCell[]
   }
 
   /**
-   * Ragged row snapshot for directional focus movement.
+   * Ragged row record for directional focus movement.
    *
    * Each nested array is one row in movement order. Disabled and hidden targets
    * are skipped as destinations.
    */
-  export interface UiFocusRaggedGridPolicyInput {
+  export interface UiFocusRaggedGridMoveInput {
     /**
      * Scope that owns the targets.
      */
@@ -142,14 +142,14 @@ namespace ui {
     direction: UiFocusDirection
 
     /**
-     * Whether movement may wrap inside this snapshot. Defaults to `false`.
+   * Whether movement may wrap inside this row set. Defaults to `false`.
      */
     wrap?: boolean
 
     /**
      * Rows in caller-defined movement order.
      */
-    rows: UiFocusPolicyTarget[][]
+    rows: UiFocusNavigationTarget[][]
 
     /**
      * Preferred column for vertical movement. When omitted, vertical movement
@@ -161,13 +161,13 @@ namespace ui {
   interface UiResolvedGridCell {
     row: number
     column: number
-    target: UiFocusPolicyTarget
+    target: UiFocusNavigationTarget
   }
 
   interface UiResolvedRaggedCell {
     row: number
     column: number
-    target: UiFocusPolicyTarget
+    target: UiFocusNavigationTarget
   }
 
   /**
@@ -176,8 +176,8 @@ namespace ui {
    * Left and right requests move through `targets` order. Up and down requests
    * return a boundary result. Callers apply moved results to focus state.
    */
-  export function moveFocusInRow(input: UiFocusLinearPolicyInput): UiFocusMoveResult {
-    return moveFocusInLinearPolicy(input, input.direction == "left", input.direction == "right")
+  export function moveFocusInRow(input: UiFocusLinearMoveInput): UiFocusMoveResult {
+    return moveFocusInLinearOrder(input, input.direction == "left", input.direction == "right")
   }
 
   /**
@@ -186,8 +186,8 @@ namespace ui {
    * Up and down requests move through `targets` order. Left and right requests
    * return a boundary result. Callers apply moved results to focus state.
    */
-  export function moveFocusInColumn(input: UiFocusLinearPolicyInput): UiFocusMoveResult {
-    return moveFocusInLinearPolicy(input, input.direction == "up", input.direction == "down")
+  export function moveFocusInColumn(input: UiFocusLinearMoveInput): UiFocusMoveResult {
+    return moveFocusInLinearOrder(input, input.direction == "up", input.direction == "down")
   }
 
   /**
@@ -197,7 +197,7 @@ namespace ui {
    * disabled, and hidden cells are skipped. Callers apply moved results to
    * focus state.
    */
-  export function moveFocusInGrid(input: UiFocusGridPolicyInput): UiFocusMoveResult {
+  export function moveFocusInGrid(input: UiFocusGridMoveInput): UiFocusMoveResult {
     const current = currentGridCell(input)
 
     if (!hasEligibleGridTarget(input.cells)) return emptyMoveResult(input.scopeId)
@@ -222,7 +222,7 @@ namespace ui {
    * `columnIntent` when present, then falls back to the nearest horizontal
    * center in each candidate row. Callers apply moved results to focus state.
    */
-  export function moveFocusInRaggedGrid(input: UiFocusRaggedGridPolicyInput): UiFocusMoveResult {
+  export function moveFocusInRaggedGrid(input: UiFocusRaggedGridMoveInput): UiFocusMoveResult {
     const current = currentRaggedCell(input)
 
     if (!hasEligibleRaggedTarget(input.rows)) return emptyMoveResult(input.scopeId)
@@ -240,8 +240,8 @@ namespace ui {
     return exitedMoveResult(input.scopeId, input.currentTargetId, input.direction)
   }
 
-  function moveFocusInLinearPolicy(
-    input: UiFocusLinearPolicyInput,
+  function moveFocusInLinearOrder(
+    input: UiFocusLinearMoveInput,
     ownsBackward: boolean,
     ownsForward: boolean
   ): UiFocusMoveResult {
@@ -267,7 +267,7 @@ namespace ui {
   }
 
   function findNextLinearTargetIndex(
-    targets: UiFocusPolicyTarget[],
+    targets: UiFocusNavigationTarget[],
     currentIndex: number,
     step: number,
     wrap: boolean
@@ -276,14 +276,14 @@ namespace ui {
     const end = wrap ? currentIndex : step < 0 ? -1 : targets.length
 
     while (index != end) {
-      if (isEligiblePolicyTarget(targets[index])) return index
+      if (isEligibleNavigationTarget(targets[index])) return index
       index += step
     }
 
     return -1
   }
 
-  function scanGridRow(input: UiFocusGridPolicyInput, current: UiResolvedGridCell): UiResolvedGridCell | undefined {
+  function scanGridRow(input: UiFocusGridMoveInput, current: UiResolvedGridCell): UiResolvedGridCell | undefined {
     const step = input.direction == "left" ? -1 : 1
     const min = minGridColumn(input.cells, current.row)
     const max = maxGridColumn(input.cells, current.row)
@@ -299,7 +299,7 @@ namespace ui {
   }
 
   function scanGridColumn(
-    input: UiFocusGridPolicyInput,
+    input: UiFocusGridMoveInput,
     current: UiResolvedGridCell
   ): UiResolvedGridCell | undefined {
     const step = input.direction == "up" ? -1 : 1
@@ -323,7 +323,7 @@ namespace ui {
   }
 
   function scanGridRowRange(
-    cells: UiFocusGridPolicyCell[],
+    cells: UiFocusGridNavigationCell[],
     row: number,
     start: number,
     end: number,
@@ -338,7 +338,7 @@ namespace ui {
   }
 
   function scanGridColumnRange(
-    cells: UiFocusGridPolicyCell[],
+    cells: UiFocusGridNavigationCell[],
     column: number,
     start: number,
     end: number,
@@ -352,14 +352,14 @@ namespace ui {
     return undefined
   }
 
-  function currentGridCell(input: UiFocusGridPolicyInput): UiResolvedGridCell | undefined {
+  function currentGridCell(input: UiFocusGridMoveInput): UiResolvedGridCell | undefined {
     for (let i = 0; i < input.cells.length; i++) {
       const cell = input.cells[i]
       if (
         isValidGridCoordinate(cell.row) &&
         isValidGridCoordinate(cell.column) &&
         cell.target.id == input.currentTargetId &&
-        isEligiblePolicyTarget(cell.target)
+        isEligibleNavigationTarget(cell.target)
       ) {
         return { row: cell.row, column: cell.column, target: cell.target }
       }
@@ -369,7 +369,7 @@ namespace ui {
   }
 
   function firstEligibleGridCellAt(
-    cells: UiFocusGridPolicyCell[],
+    cells: UiFocusGridNavigationCell[],
     row: number,
     column: number
   ): UiResolvedGridCell | undefined {
@@ -380,7 +380,7 @@ namespace ui {
         cell.column == column &&
         isValidGridCoordinate(cell.row) &&
         isValidGridCoordinate(cell.column) &&
-        isEligiblePolicyTarget(cell.target)
+        isEligibleNavigationTarget(cell.target)
       ) {
         return { row, column, target: cell.target }
       }
@@ -389,7 +389,7 @@ namespace ui {
     return undefined
   }
 
-  function minGridColumn(cells: UiFocusGridPolicyCell[], row: number): number {
+  function minGridColumn(cells: UiFocusGridNavigationCell[], row: number): number {
     let value = -1
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i]
@@ -400,7 +400,7 @@ namespace ui {
     return value
   }
 
-  function maxGridColumn(cells: UiFocusGridPolicyCell[], row: number): number {
+  function maxGridColumn(cells: UiFocusGridNavigationCell[], row: number): number {
     let value = -1
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i]
@@ -409,7 +409,7 @@ namespace ui {
     return value
   }
 
-  function minGridRow(cells: UiFocusGridPolicyCell[], column: number): number {
+  function minGridRow(cells: UiFocusGridNavigationCell[], column: number): number {
     let value = -1
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i]
@@ -420,7 +420,7 @@ namespace ui {
     return value
   }
 
-  function maxGridRow(cells: UiFocusGridPolicyCell[], column: number): number {
+  function maxGridRow(cells: UiFocusGridNavigationCell[], column: number): number {
     let value = -1
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i]
@@ -430,7 +430,7 @@ namespace ui {
   }
 
   function scanRaggedRow(
-    input: UiFocusRaggedGridPolicyInput,
+    input: UiFocusRaggedGridMoveInput,
     current: UiResolvedRaggedCell
   ): UiResolvedRaggedCell | undefined {
     const step = input.direction == "left" ? -1 : 1
@@ -447,21 +447,21 @@ namespace ui {
   }
 
   function scanRaggedRowRange(
-    row: UiFocusPolicyTarget[],
+    row: UiFocusNavigationTarget[],
     rowIndex: number,
     start: number,
     end: number,
     step: number
   ): UiResolvedRaggedCell | undefined {
     for (let column = start; column != end; column += step) {
-      if (isEligiblePolicyTarget(row[column])) return { row: rowIndex, column, target: row[column] }
+      if (isEligibleNavigationTarget(row[column])) return { row: rowIndex, column, target: row[column] }
     }
 
     return undefined
   }
 
   function scanRaggedRows(
-    input: UiFocusRaggedGridPolicyInput,
+    input: UiFocusRaggedGridMoveInput,
     current: UiResolvedRaggedCell
   ): UiResolvedRaggedCell | undefined {
     const step = input.direction == "up" ? -1 : 1
@@ -477,7 +477,7 @@ namespace ui {
   }
 
   function scanRaggedRowSet(
-    input: UiFocusRaggedGridPolicyInput,
+    input: UiFocusRaggedGridMoveInput,
     current: UiResolvedRaggedCell,
     start: number,
     end: number,
@@ -489,7 +489,7 @@ namespace ui {
     for (let rowIndex = start; rowIndex != end; rowIndex += step) {
       const row = input.rows[rowIndex]
       if (!row) continue
-      if (columnIntent >= 0 && columnIntent < row.length && isEligiblePolicyTarget(row[columnIntent])) {
+      if (columnIntent >= 0 && columnIntent < row.length && isEligibleNavigationTarget(row[columnIntent])) {
         return { row: rowIndex, column: columnIntent, target: row[columnIntent] }
       }
 
@@ -500,12 +500,12 @@ namespace ui {
     return undefined
   }
 
-  function currentRaggedCell(input: UiFocusRaggedGridPolicyInput): UiResolvedRaggedCell | undefined {
+  function currentRaggedCell(input: UiFocusRaggedGridMoveInput): UiResolvedRaggedCell | undefined {
     for (let rowIndex = 0; rowIndex < input.rows.length; rowIndex++) {
       const row = input.rows[rowIndex]
       for (let column = 0; column < row.length; column++) {
         const target = row[column]
-        if (target.id == input.currentTargetId && isEligiblePolicyTarget(target)) {
+        if (target.id == input.currentTargetId && isEligibleNavigationTarget(target)) {
           return { row: rowIndex, column, target }
         }
       }
@@ -515,7 +515,7 @@ namespace ui {
   }
 
   function nearestEligibleTargetInRow(
-    row: UiFocusPolicyTarget[],
+    row: UiFocusNavigationTarget[],
     rowIndex: number,
     sourceCenterX: number
   ): UiResolvedRaggedCell | undefined {
@@ -524,7 +524,7 @@ namespace ui {
 
     for (let column = 0; column < row.length; column++) {
       const target = row[column]
-      if (!isEligiblePolicyTarget(target)) continue
+      if (!isEligibleNavigationTarget(target)) continue
 
       const distance = Math.abs(target.rect.x + target.rect.width / 2 - sourceCenterX)
       if (!best || distance < bestDistance) {
@@ -536,20 +536,20 @@ namespace ui {
     return best
   }
 
-  function hasEligibleTarget(targets: UiFocusPolicyTarget[]): boolean {
+  function hasEligibleTarget(targets: UiFocusNavigationTarget[]): boolean {
     for (let i = 0; i < targets.length; i++) {
-      if (isEligiblePolicyTarget(targets[i])) return true
+      if (isEligibleNavigationTarget(targets[i])) return true
     }
     return false
   }
 
-  function hasEligibleGridTarget(cells: UiFocusGridPolicyCell[]): boolean {
+  function hasEligibleGridTarget(cells: UiFocusGridNavigationCell[]): boolean {
     for (let i = 0; i < cells.length; i++) {
       const cell = cells[i]
       if (
         isValidGridCoordinate(cell.row) &&
         isValidGridCoordinate(cell.column) &&
-        isEligiblePolicyTarget(cell.target)
+        isEligibleNavigationTarget(cell.target)
       ) {
         return true
       }
@@ -557,23 +557,23 @@ namespace ui {
     return false
   }
 
-  function hasEligibleRaggedTarget(rows: UiFocusPolicyTarget[][]): boolean {
+  function hasEligibleRaggedTarget(rows: UiFocusNavigationTarget[][]): boolean {
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       if (hasEligibleTarget(rows[rowIndex])) return true
     }
     return false
   }
 
-  function findEligibleTargetIndex(targets: UiFocusPolicyTarget[], targetId: UiFocusId | undefined): number {
+  function findEligibleTargetIndex(targets: UiFocusNavigationTarget[], targetId: UiFocusId | undefined): number {
     if (targetId === undefined) return -1
     for (let i = 0; i < targets.length; i++) {
       const target = targets[i]
-      if (target.id == targetId && isEligiblePolicyTarget(target)) return i
+      if (target.id == targetId && isEligibleNavigationTarget(target)) return i
     }
     return -1
   }
 
-  function isEligiblePolicyTarget(target: UiFocusPolicyTarget): boolean {
+  function isEligibleNavigationTarget(target: UiFocusNavigationTarget): boolean {
     return !!target && !target.disabled && !target.hidden
   }
 
@@ -603,8 +603,8 @@ namespace ui {
 
   function movedResult(
     scopeId: UiFocusScopeId,
-    fromTarget: UiFocusPolicyTarget,
-    toTarget: UiFocusPolicyTarget
+    fromTarget: UiFocusNavigationTarget,
+    toTarget: UiFocusNavigationTarget
   ): UiFocusMoveResult {
     const result: UiFocusMoveResult = {
       kind: "moved",

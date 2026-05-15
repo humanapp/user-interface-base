@@ -39,9 +39,9 @@ namespace ui {
       while (this.actionHandlers_.length) this.actionHandlers_.pop()
     }
 
-    public dispatchAction(action: UiInputAction): void {
+    public dispatchAction(action: UiInputAction, source?: UiInputSource, phase?: UiInputPhase): void {
       if (this.disposed_) return
-      this.runtime_.dispatchInput({ action })
+      this.runtime_.dispatchInput({ action, source, phase })
     }
 
     public deliver(event: UiInputEvent): boolean {
@@ -224,12 +224,25 @@ namespace ui {
     }
 
     private bindDefaultControllerActions(input: UiInputScopeState): void {
-      context.onEvent(ControllerButtonEvent.Pressed, controller.up.id, () => input.dispatchAction("up"))
-      context.onEvent(ControllerButtonEvent.Pressed, controller.down.id, () => input.dispatchAction("down"))
-      context.onEvent(ControllerButtonEvent.Pressed, controller.left.id, () => input.dispatchAction("left"))
-      context.onEvent(ControllerButtonEvent.Pressed, controller.right.id, () => input.dispatchAction("right"))
-      context.onEvent(ControllerButtonEvent.Pressed, controller.A.id, () => input.dispatchAction("activate"))
-      context.onEvent(ControllerButtonEvent.Pressed, controller.B.id, () => input.dispatchAction("cancel"))
+      this.bindDefaultControllerAction(input, controller.up.id, "up")
+      this.bindDefaultControllerAction(input, controller.down.id, "down")
+      this.bindDefaultControllerAction(input, controller.left.id, "left")
+      this.bindDefaultControllerAction(input, controller.right.id, "right")
+      this.bindDefaultControllerAction(input, controller.A.id, "activate")
+      this.bindDefaultControllerAction(input, controller.B.id, "cancel")
+      this.bindDefaultControllerAction(input, controller.menu.id, "menu")
+    }
+
+    private bindDefaultControllerAction(input: UiInputScopeState, buttonId: number, action: UiInputAction): void {
+      context.onEvent(ControllerButtonEvent.Pressed, buttonId, () => {
+        input.dispatchAction(action, "displayShieldController", "pressed")
+      })
+      context.onEvent(ControllerButtonEvent.Released, buttonId, () => {
+        input.dispatchAction(action, "displayShieldController", "released")
+      })
+      context.onEvent(ControllerButtonEvent.Repeated, buttonId, () => {
+        input.dispatchAction(action, "displayShieldController", "repeated")
+      })
     }
   }
 }

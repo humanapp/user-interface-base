@@ -9,9 +9,29 @@ namespace ui {
     "right" |
     "activate" |
     "cancel" |
+    "menu" |
     "pointerMove" |
     "pointerClick" |
     "wheel"
+
+  /**
+   * Physical or synthetic source that produced a semantic input action.
+   */
+  export type UiInputSource =
+    "displayShieldController" |
+    "microbitButton" |
+    "keyboard" |
+    "pointer" |
+    "wheel" |
+    "synthetic"
+
+  /**
+   * Phase for pressable input actions. Missing phase is treated as `pressed`.
+   */
+  export type UiInputPhase =
+    "pressed" |
+    "released" |
+    "repeated"
 
   /**
    * Queued input payload delivered during `runFrame()`.
@@ -21,6 +41,16 @@ namespace ui {
      * Kind of input that occurred.
      */
     action: UiInputAction
+
+    /**
+     * Physical or synthetic source for the semantic action.
+     */
+    source?: UiInputSource
+
+    /**
+     * Press lifecycle phase for button-like input.
+     */
+    phase?: UiInputPhase
 
     /**
      * Pointer x coordinate in logical viewport pixels.

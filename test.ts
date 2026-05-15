@@ -792,7 +792,8 @@ namespace ui {
     UiFocusActivationResult |
     UiFocusCancelResult |
     UiFocusHitTestResult |
-    UiFocusTargetUpdateResult
+    UiFocusTargetUpdateResult |
+    UiFocusInputResult
 
   interface FocusStateMachineFixture {
     name: string
@@ -1180,13 +1181,13 @@ namespace ui {
     assertFocusResult(scrollState.activate(), { kind: "notActivated", reason: "missingActive" }, "clear removes focus")
   }
 
-  interface FocusPolicyFixture {
+  interface FocusMovementFixture {
     name: string
     result: UiFocusMoveResult
     expectedResult: any
   }
 
-  function policyTarget(
+  function navigationTarget(
     id: UiFocusId,
     x: number,
     y: number,
@@ -1195,7 +1196,7 @@ namespace ui {
     disabled?: boolean,
     hidden?: boolean,
     scrollOwnerId?: UiFocusScrollOwnerId
-  ): UiFocusPolicyTarget {
+  ): UiFocusNavigationTarget {
     return {
       id,
       rect: new Rect(x, y, width, height),
@@ -1234,27 +1235,92 @@ namespace ui {
     }
   }
 
-  function runFocusPolicyFixtures(fixtures: FocusPolicyFixture[]): void {
+  function runFocusMovementFixtures(fixtures: FocusMovementFixture[]): void {
     for (let i = 0; i < fixtures.length; i++) {
-      runFocusPolicyFixture(fixtures[i])
+      runFocusMovementFixture(fixtures[i])
     }
   }
 
-  function runFocusPolicyFixture(fixture: FocusPolicyFixture): void {
+  function runFocusMovementFixture(fixture: FocusMovementFixture): void {
     assertFocusMoveResult(fixture.result, fixture.expectedResult, fixture.name)
   }
 
+  function assertFocusInputResult(result: UiFocusInputResult, expected: any, name: string): void {
+    const actual: any = result
+    const fields = [
+      "action",
+      "handled",
+      "kind",
+      "reason"
+    ]
+
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i]
+      control.assert(actual[field] == expected[field], name + " result " + field)
+    }
+
+    const detail = result.detail
+    const expectedDetail = expected.detail
+    if (expectedDetail) {
+      control.assert(!!detail, name + " detail exists")
+    } else {
+      control.assert(!detail, name + " no detail")
+    }
+
+    if (expectedDetail && expectedDetail.moveResult) {
+      control.assert(!!detail.moveResult, name + " move exists")
+      assertFocusMoveResult(detail.moveResult, expectedDetail.moveResult, name)
+    } else {
+      control.assert(!detail || !detail.moveResult, name + " no move")
+    }
+
+    if (expectedDetail && expectedDetail.focusResult) {
+      control.assert(!!detail.focusResult, name + " focus exists")
+      assertFocusResult(detail.focusResult, expectedDetail.focusResult, name)
+    } else {
+      control.assert(!detail || !detail.focusResult, name + " no focus")
+    }
+
+    if (expectedDetail && expectedDetail.activationResult) {
+      control.assert(!!detail.activationResult, name + " activation exists")
+      assertFocusResult(detail.activationResult, expectedDetail.activationResult, name)
+    } else {
+      control.assert(!detail || !detail.activationResult, name + " no activation")
+    }
+
+    if (expectedDetail && expectedDetail.cancelResult) {
+      control.assert(!!detail.cancelResult, name + " cancel exists")
+      assertFocusResult(detail.cancelResult, expectedDetail.cancelResult, name)
+    } else {
+      control.assert(!detail || !detail.cancelResult, name + " no cancel")
+    }
+
+    if (expectedDetail && expectedDetail.hitTestResult) {
+      control.assert(!!detail.hitTestResult, name + " hit test exists")
+      assertFocusResult(detail.hitTestResult, expectedDetail.hitTestResult, name)
+    } else {
+      control.assert(!detail || !detail.hitTestResult, name + " no hit test")
+    }
+
+    if (expected.scrollRequest) {
+      control.assert(!!result.scrollRequest, name + " input scroll exists")
+      assertFocusScrollRequest(result.scrollRequest, expected.scrollRequest, name)
+    } else {
+      control.assert(!result.scrollRequest, name + " no input scroll")
+    }
+  }
+
   /**
-   * Smoke harness for row, column, grid, and ragged-grid focus movement policies.
+   * Smoke harness for row, column, grid, and ragged-grid focus movement.
    */
-  export function runFocusPolicySmokeTest(): void {
-    const menuA = policyTarget("menu-a", 0, 0, 10, 10)
-    const menuDisabled = policyTarget("menu-disabled", 12, 0, 10, 10, true)
-    const menuHidden = policyTarget("menu-hidden", 24, 0, 10, 10, false, true)
-    const menuD = policyTarget("menu-d", 36, 0, 10, 10, false, false, "menu-scroll")
+  export function runFocusMovementSmokeTest(): void {
+    const menuA = navigationTarget("menu-a", 0, 0, 10, 10)
+    const menuDisabled = navigationTarget("menu-disabled", 12, 0, 10, 10, true)
+    const menuHidden = navigationTarget("menu-hidden", 24, 0, 10, 10, false, true)
+    const menuD = navigationTarget("menu-d", 36, 0, 10, 10, false, false, "menu-scroll")
     const menuRow = [menuA, menuDisabled, menuHidden, menuD]
 
-    runFocusPolicyFixtures([
+    runFocusMovementFixtures([
       {
         name: "row right skips disabled hidden and scrolls",
         result: moveFocusInRow({ scopeId: "menu", currentTargetId: "menu-a", direction: "right", targets: menuRow }),
@@ -1335,13 +1401,13 @@ namespace ui {
       }
     ])
 
-    const listA = policyTarget("list-a", 0, 0, 20, 8)
-    const listB = policyTarget("list-b", 0, 10, 20, 8, true)
-    const listC = policyTarget("list-c", 0, 20, 20, 8, false, true)
-    const listD = policyTarget("list-d", 0, 30, 20, 8, false, false, "list-scroll")
+    const listA = navigationTarget("list-a", 0, 0, 20, 8)
+    const listB = navigationTarget("list-b", 0, 10, 20, 8, true)
+    const listC = navigationTarget("list-c", 0, 20, 20, 8, false, true)
+    const listD = navigationTarget("list-d", 0, 30, 20, 8, false, false, "list-scroll")
     const textList = [listA, listB, listC, listD]
 
-    runFocusPolicyFixtures([
+    runFocusMovementFixtures([
       {
         name: "column down skips disabled hidden and scrolls",
         result: moveFocusInColumn({ scopeId: "list", currentTargetId: "list-a", direction: "down", targets: textList }),
@@ -1422,14 +1488,14 @@ namespace ui {
       }
     ])
 
-    const gridA = policyTarget("grid-a", 0, 0, 10, 10)
-    const gridB = policyTarget("grid-b", 12, 0, 10, 10)
-    const gridDuplicate = policyTarget("grid-duplicate", 12, 0, 10, 10)
-    const gridC = policyTarget("grid-c", 36, 0, 10, 10)
-    const gridDisabled = policyTarget("grid-disabled", 0, 12, 10, 10, true)
-    const gridHidden = policyTarget("grid-hidden", 12, 12, 10, 10, false, true)
-    const gridD = policyTarget("grid-d", 0, 24, 10, 10, false, false, "grid-scroll")
-    const gridCells: UiFocusGridPolicyCell[] = [
+    const gridA = navigationTarget("grid-a", 0, 0, 10, 10)
+    const gridB = navigationTarget("grid-b", 12, 0, 10, 10)
+    const gridDuplicate = navigationTarget("grid-duplicate", 12, 0, 10, 10)
+    const gridC = navigationTarget("grid-c", 36, 0, 10, 10)
+    const gridDisabled = navigationTarget("grid-disabled", 0, 12, 10, 10, true)
+    const gridHidden = navigationTarget("grid-hidden", 12, 12, 10, 10, false, true)
+    const gridD = navigationTarget("grid-d", 0, 24, 10, 10, false, false, "grid-scroll")
+    const gridCells: UiFocusGridNavigationCell[] = [
       { row: 0, column: 0, target: gridA },
       { row: 0, column: 1, target: gridB },
       { row: 0, column: 1, target: gridDuplicate },
@@ -1439,7 +1505,7 @@ namespace ui {
       { row: 2, column: 0, target: gridD }
     ]
 
-    runFocusPolicyFixtures([
+    runFocusMovementFixtures([
       {
         name: "grid duplicate coordinate uses earliest eligible",
         result: moveFocusInGrid({ scopeId: "grid", currentTargetId: "grid-a", direction: "right", cells: gridCells }),
@@ -1542,17 +1608,17 @@ namespace ui {
       }
     ])
 
-    const keyA = policyTarget("key-a", 0, 0, 10, 10)
-    const keyB = policyTarget("key-b", 12, 0, 10, 10, true)
-    const keyC = policyTarget("key-c", 24, 0, 10, 10, false, true)
-    const keyD = policyTarget("key-d", 36, 0, 10, 10)
-    const keyE = policyTarget("key-e", 2, 20, 10, 10)
-    const keyF = policyTarget("key-f", 30, 20, 10, 10, false, false, "key-scroll")
-    const keyG = policyTarget("key-g", 10, 40, 10, 10)
-    const keyH = policyTarget("key-h", 50, 40, 10, 10)
+    const keyA = navigationTarget("key-a", 0, 0, 10, 10)
+    const keyB = navigationTarget("key-b", 12, 0, 10, 10, true)
+    const keyC = navigationTarget("key-c", 24, 0, 10, 10, false, true)
+    const keyD = navigationTarget("key-d", 36, 0, 10, 10)
+    const keyE = navigationTarget("key-e", 2, 20, 10, 10)
+    const keyF = navigationTarget("key-f", 30, 20, 10, 10, false, false, "key-scroll")
+    const keyG = navigationTarget("key-g", 10, 40, 10, 10)
+    const keyH = navigationTarget("key-h", 50, 40, 10, 10)
     const raggedRows = [[keyA, keyB, keyC, keyD], [], [keyE, keyF], [keyG, keyH]]
 
-    runFocusPolicyFixtures([
+    runFocusMovementFixtures([
       {
         name: "ragged horizontal skips disabled hidden",
         result: moveFocusInRaggedGrid({
@@ -1700,12 +1766,12 @@ namespace ui {
       }
     ])
 
-    const retainedDestination = policyTarget("retained-b", 10, 10, 12, 12, false, false, "retained-scroll")
+    const retainedDestination = navigationTarget("retained-b", 10, 10, 12, 12, false, false, "retained-scroll")
     const retainedResult = moveFocusInRow({
       scopeId: "retained",
       currentTargetId: "retained-a",
       direction: "right",
-      targets: [policyTarget("retained-a", 0, 0, 10, 10), retainedDestination]
+      targets: [navigationTarget("retained-a", 0, 0, 10, 10), retainedDestination]
     })
     retainedDestination.rect.set(0, 0, 1, 1)
     assertFocusMoveResult(
@@ -1724,8 +1790,689 @@ namespace ui {
           reason: "focus"
         }
       },
-      "policy scroll rect copied"
+      "navigation scroll rect copied"
     )
+  }
+
+  function createFocusInputState(handlesCancel?: boolean): UiFocusState {
+    const state = new UiFocusState()
+    state.setScope({ id: "main", handlesCancel })
+    state.setTarget({ id: "a", scopeId: "main", rect: new Rect(0, 0, 10, 10), activatable: true })
+    state.setTarget({
+      id: "b",
+      scopeId: "main",
+      rect: new Rect(20, 0, 10, 10),
+      activatable: true,
+      scrollOwnerId: "main-scroll"
+    })
+    state.setTarget({ id: "plain", scopeId: "main", rect: new Rect(40, 0, 10, 10) })
+    state.setTarget({ id: "disabled", scopeId: "main", rect: new Rect(60, 0, 10, 10), disabled: true })
+    state.setTarget({ id: "hidden", scopeId: "main", rect: new Rect(80, 0, 10, 10), hidden: true })
+    state.setActiveTarget("main", "a")
+    return state
+  }
+
+  function createFocusInputController(
+    state: UiFocusState,
+    navigation?: UiFocusNavigation,
+    scrollLog?: (request: UiFocusScrollRequest) => void,
+    wheelHandler?: UiFocusWheelHandler
+  ): UiFocusInputController {
+    const controller = new UiFocusInputController({
+      focus: state,
+      scroll: scrollLog,
+      wheel: wheelHandler
+    })
+    if (navigation) controller.setNavigation("main", navigation)
+    return controller
+  }
+
+  function focusInputRowNavigation(includeGhost?: boolean): UiFocusNavigation {
+    const targets = [
+      navigationTarget("a", 0, 0, 10, 10),
+      navigationTarget("b", 20, 0, 10, 10, false, false, "main-scroll")
+    ]
+
+    if (includeGhost) targets.push(navigationTarget("ghost", 40, 0, 10, 10))
+
+    return {
+      kind: "row",
+      targets
+    }
+  }
+
+  function assertActiveTarget(state: UiFocusState, targetId: UiFocusId, name: string): void {
+    control.assert(state.getActiveScopeId() == "main", name + " active scope")
+    control.assert(state.getActiveTargetId("main") == targetId, name + " active target")
+  }
+
+  function assertInputSourcePreserved(event: UiInputEvent, source: UiInputSource, name: string): void {
+    control.assert(event.source == source, name + " source")
+  }
+
+  class ActivationResultFocusState extends UiFocusState {
+    private result_: UiFocusActivationResult
+
+    constructor(result: UiFocusActivationResult) {
+      super()
+      this.result_ = result
+    }
+
+    public activate(): UiFocusActivationResult {
+      return this.result_
+    }
+  }
+
+  class RejectingPointerFocusState extends UiFocusState {
+    public setActiveTarget(scopeId: UiFocusScopeId, targetId: UiFocusId): UiFocusSetResult {
+      return { kind: "rejected", scopeId, targetId, reason: "missingTarget" }
+    }
+  }
+
+  /**
+   * Smoke harness for focus input runtime composition.
+   */
+  export function runFocusInputRuntimeSmokeTest(): void {
+    let scrollCount = 0
+    let lastScrollRequest: UiFocusScrollRequest = undefined
+    const scrollLog = (request: UiFocusScrollRequest) => {
+      scrollCount++
+      lastScrollRequest = request
+    }
+
+    let state = createFocusInputState()
+    let controller = createFocusInputController(state, focusInputRowNavigation(), scrollLog)
+    assertFocusInputResult(
+      controller.handleInput({ action: "right", source: "displayShieldController" }),
+      {
+        action: "right",
+        handled: true,
+        kind: "moved",
+        detail: {
+          moveResult: {
+            kind: "moved",
+            fromScopeId: "main",
+            fromTargetId: "a",
+            toScopeId: "main",
+            toTargetId: "b",
+            scrollRequest: {
+              scopeId: "main",
+              targetId: "b",
+              scrollOwnerId: "main-scroll",
+              targetRect: new Rect(20, 0, 10, 10),
+              reason: "focus"
+            }
+          },
+          focusResult: {
+            kind: "focused",
+            scopeId: "main",
+            targetId: "b",
+            previousScopeId: "main",
+            previousTargetId: "a",
+            scrollRequest: {
+              scopeId: "main",
+              targetId: "b",
+              scrollOwnerId: "main-scroll",
+              targetRect: new Rect(20, 0, 10, 10),
+              reason: "focus"
+            }
+          }
+        },
+        scrollRequest: {
+          scopeId: "main",
+          targetId: "b",
+          scrollOwnerId: "main-scroll",
+          targetRect: new Rect(20, 0, 10, 10),
+          reason: "focus"
+        }
+      },
+      "directional moved"
+    )
+    assertActiveTarget(state, "b", "directional moved")
+    control.assert(scrollCount == 1, "directional scroll delivered")
+    assertFocusScrollRequest(lastScrollRequest, {
+      scopeId: "main",
+      targetId: "b",
+      scrollOwnerId: "main-scroll",
+      targetRect: new Rect(20, 0, 10, 10),
+      reason: "focus"
+    }, "directional scroll callback")
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "right", source: "synthetic", phase: "repeated" }),
+      {
+        action: "right",
+        handled: true,
+        kind: "moved",
+        detail: {
+          moveResult: {
+            kind: "moved",
+            fromScopeId: "main",
+            fromTargetId: "a",
+            toScopeId: "main",
+            toTargetId: "b",
+            scrollRequest: {
+              scopeId: "main",
+              targetId: "b",
+              scrollOwnerId: "main-scroll",
+              targetRect: new Rect(20, 0, 10, 10),
+              reason: "focus"
+            }
+          },
+          focusResult: {
+            kind: "focused",
+            scopeId: "main",
+            targetId: "b",
+            previousScopeId: "main",
+            previousTargetId: "a",
+            scrollRequest: {
+              scopeId: "main",
+              targetId: "b",
+              scrollOwnerId: "main-scroll",
+              targetRect: new Rect(20, 0, 10, 10),
+              reason: "focus"
+            }
+          }
+        },
+        scrollRequest: {
+          scopeId: "main",
+          targetId: "b",
+          scrollOwnerId: "main-scroll",
+          targetRect: new Rect(20, 0, 10, 10),
+          reason: "focus"
+        }
+      },
+      "directional repeated"
+    )
+    assertActiveTarget(state, "b", "directional repeated")
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "right", phase: "released" }),
+      { action: "right", handled: false, kind: "ignored", reason: "unsupportedPhase" },
+      "directional released"
+    )
+    assertActiveTarget(state, "a", "directional released")
+
+    state = createFocusInputState()
+    state.clearActiveScope()
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "right" }),
+      { action: "right", handled: false, kind: "ignored", reason: "missingActiveScope" },
+      "directional missing active scope"
+    )
+
+    state = createFocusInputState()
+    controller = new UiFocusInputController({ focus: state })
+    assertFocusInputResult(
+      controller.handleInput({ action: "right" }),
+      { action: "right", handled: false, kind: "ignored", reason: "missingNavigation" },
+      "directional missing navigation"
+    )
+
+    controller.setNavigation("main", focusInputRowNavigation())
+    controller.clearNavigation("main")
+    assertFocusInputResult(
+      controller.handleInput({ action: "right" }),
+      { action: "right", handled: false, kind: "ignored", reason: "missingNavigation" },
+      "directional cleared navigation"
+    )
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, {
+      move: (request: UiFocusNavigationRequest): UiFocusMoveResult => {
+        control.assert(request.scopeId == "main", "provider request scope")
+        control.assert(request.direction == "right", "provider request direction")
+        control.assert(request.currentTargetId == "a", "provider request current target")
+        return { kind: "exited", scopeId: request.scopeId, targetId: request.currentTargetId, direction: request.direction }
+      }
+    })
+    assertFocusInputResult(
+      controller.handleInput({ action: "right" }),
+      {
+        action: "right",
+        handled: false,
+        kind: "exited",
+        reason: "movementExited",
+        detail: {
+          moveResult: { kind: "exited", scopeId: "main", targetId: "a", direction: "right" }
+        }
+      },
+      "directional provider"
+    )
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "up" }),
+      {
+        action: "up",
+        handled: true,
+        kind: "stayed",
+        detail: {
+          moveResult: { kind: "stayed", scopeId: "main", targetId: "a", reason: "boundary" }
+        }
+      },
+      "directional stayed"
+    )
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "left" }),
+      {
+        action: "left",
+        handled: false,
+        kind: "exited",
+        reason: "movementExited",
+        detail: {
+          moveResult: { kind: "exited", scopeId: "main", targetId: "a", direction: "left" }
+        }
+      },
+      "directional exited"
+    )
+
+    state = createFocusInputState()
+    state.setActiveTarget("main", "b")
+    controller = createFocusInputController(state, focusInputRowNavigation(true))
+    assertFocusInputResult(
+      controller.handleInput({ action: "right" }),
+      {
+        action: "right",
+        handled: false,
+        kind: "ignored",
+        reason: "focusRejected",
+        detail: {
+          moveResult: {
+            kind: "moved",
+            fromScopeId: "main",
+            fromTargetId: "b",
+            toScopeId: "main",
+            toTargetId: "ghost"
+          },
+          focusResult: { kind: "rejected", scopeId: "main", targetId: "ghost", reason: "missingTarget" }
+        }
+      },
+      "directional rejected focus"
+    )
+
+    const semanticSources: UiInputSource[] = [
+      "displayShieldController",
+      "microbitButton",
+      "keyboard",
+      "synthetic"
+    ]
+    for (let i = 0; i < semanticSources.length; i++) {
+      state = createFocusInputState()
+      controller = createFocusInputController(state, focusInputRowNavigation())
+      controller.handleInput({ action: "right", source: semanticSources[i] })
+      assertActiveTarget(state, "b", "source neutral " + semanticSources[i])
+    }
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "activate", source: "displayShieldController" }),
+      {
+        action: "activate",
+        handled: true,
+        kind: "activated",
+        detail: {
+          activationResult: { kind: "activated", scopeId: "main", targetId: "a" }
+        }
+      },
+      "activate pressed"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "activate", phase: "released" }),
+      { action: "activate", handled: false, kind: "ignored", reason: "unsupportedPhase" },
+      "activate released"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "activate", phase: "repeated" }),
+      { action: "activate", handled: false, kind: "ignored", reason: "unsupportedPhase" },
+      "activate repeated"
+    )
+    state.setActiveTarget("main", "plain")
+    assertFocusInputResult(
+      controller.handleInput({ action: "activate" }),
+      {
+        action: "activate",
+        handled: false,
+        kind: "notActivated",
+        detail: {
+          activationResult: { kind: "notActivated", scopeId: "main", targetId: "plain", reason: "notActivatable" }
+        }
+      },
+      "activate not activatable"
+    )
+    state.removeTarget("plain")
+    assertFocusInputResult(
+      controller.handleInput({ action: "activate" }),
+      {
+        action: "activate",
+        handled: false,
+        kind: "notActivated",
+        detail: {
+          activationResult: { kind: "notActivated", scopeId: "main", reason: "missingActive" }
+        }
+      },
+      "activate missing target"
+    )
+
+    controller = createFocusInputController(
+      new ActivationResultFocusState({
+        kind: "notActivated",
+        scopeId: "main",
+        targetId: "disabled",
+        reason: "disabled"
+      }),
+      focusInputRowNavigation()
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "activate" }),
+      {
+        action: "activate",
+        handled: false,
+        kind: "notActivated",
+        detail: {
+          activationResult: { kind: "notActivated", scopeId: "main", targetId: "disabled", reason: "disabled" }
+        }
+      },
+      "activate disabled target result"
+    )
+
+    controller = createFocusInputController(
+      new ActivationResultFocusState({
+        kind: "notActivated",
+        scopeId: "main",
+        targetId: "hidden",
+        reason: "hidden"
+      }),
+      focusInputRowNavigation()
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "activate" }),
+      {
+        action: "activate",
+        handled: false,
+        kind: "notActivated",
+        detail: {
+          activationResult: { kind: "notActivated", scopeId: "main", targetId: "hidden", reason: "hidden" }
+        }
+      },
+      "activate hidden target result"
+    )
+
+    state = createFocusInputState(true)
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "cancel", source: "displayShieldController" }),
+      {
+        action: "cancel",
+        handled: true,
+        kind: "cancelled",
+        detail: { cancelResult: { kind: "handled", scopeId: "main" } }
+      },
+      "cancel handled"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "cancel", phase: "released" }),
+      { action: "cancel", handled: false, kind: "ignored", reason: "unsupportedPhase" },
+      "cancel released"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "cancel", phase: "repeated" }),
+      { action: "cancel", handled: false, kind: "ignored", reason: "unsupportedPhase" },
+      "cancel repeated"
+    )
+
+    state = createFocusInputState(false)
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "cancel" }),
+      {
+        action: "cancel",
+        handled: false,
+        kind: "notCancelled",
+        detail: { cancelResult: { kind: "unhandled", scopeId: "main", reason: "notHandled" } }
+      },
+      "cancel unhandled"
+    )
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerMove", source: "pointer", x: 21, y: 1 }),
+      {
+        action: "pointerMove",
+        handled: false,
+        kind: "hit",
+        detail: {
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "b", disabled: false }
+        }
+      },
+      "pointer move hit"
+    )
+    assertActiveTarget(state, "a", "pointer move no focus change")
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerMove", source: "pointer" }),
+      { action: "pointerMove", handled: false, kind: "ignored", reason: "missingPointerCoordinates" },
+      "pointer move missing coordinates"
+    )
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, focusInputRowNavigation(), scrollLog)
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerClick", source: "pointer", x: 200, y: 200 }),
+      {
+        action: "pointerClick",
+        handled: false,
+        kind: "miss",
+        detail: { hitTestResult: { kind: "miss", reason: "outside" } }
+      },
+      "pointer click miss"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerClick", source: "pointer", x: 61, y: 1 }),
+      {
+        action: "pointerClick",
+        handled: true,
+        kind: "hit",
+        detail: {
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "disabled", disabled: true }
+        }
+      },
+      "pointer click disabled"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerClick", source: "pointer", x: 1, y: 1 }),
+      {
+        action: "pointerClick",
+        handled: true,
+        kind: "activated",
+        detail: {
+          activationResult: { kind: "activated", scopeId: "main", targetId: "a" },
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "a", disabled: false }
+        }
+      },
+      "pointer click active target"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerClick", source: "pointer", x: 21, y: 1 }),
+      {
+        action: "pointerClick",
+        handled: true,
+        kind: "activated",
+        detail: {
+          focusResult: {
+            kind: "focused",
+            scopeId: "main",
+            targetId: "b",
+            previousScopeId: "main",
+            previousTargetId: "a",
+            scrollRequest: {
+              scopeId: "main",
+              targetId: "b",
+              scrollOwnerId: "main-scroll",
+              targetRect: new Rect(20, 0, 10, 10),
+              reason: "focus"
+            }
+          },
+          activationResult: { kind: "activated", scopeId: "main", targetId: "b" },
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "b", disabled: false }
+        },
+        scrollRequest: {
+          scopeId: "main",
+          targetId: "b",
+          scrollOwnerId: "main-scroll",
+          targetRect: new Rect(20, 0, 10, 10),
+          reason: "focus"
+        }
+      },
+      "pointer click inactive target"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerClick", x: 41, y: 1 }),
+      {
+        action: "pointerClick",
+        handled: true,
+        kind: "notActivated",
+        detail: {
+          focusResult: {
+            kind: "focused",
+            scopeId: "main",
+            targetId: "plain",
+            previousScopeId: "main",
+            previousTargetId: "b"
+          },
+          activationResult: {
+            kind: "notActivated",
+            scopeId: "main",
+            targetId: "plain",
+            reason: "notActivatable"
+          },
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "plain", disabled: false }
+        }
+      },
+      "pointer click non activatable"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerClick" }),
+      { action: "pointerClick", handled: false, kind: "ignored", reason: "missingPointerCoordinates" },
+      "pointer click missing coordinates"
+    )
+
+    state = new RejectingPointerFocusState()
+    state.setScope({ id: "main" })
+    state.setTarget({ id: "a", scopeId: "main", rect: new Rect(0, 0, 10, 10), activatable: true })
+    state.setTarget({ id: "b", scopeId: "main", rect: new Rect(20, 0, 10, 10), activatable: true })
+    state.setActiveTarget("main", "a")
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    assertFocusInputResult(
+      controller.handleInput({ action: "pointerClick", x: 21, y: 1 }),
+      {
+        action: "pointerClick",
+        handled: false,
+        kind: "ignored",
+        reason: "focusRejected",
+        detail: {
+          focusResult: { kind: "rejected", scopeId: "main", targetId: "b", reason: "missingTarget" },
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "b", disabled: false }
+        }
+      },
+      "pointer click rejected transition"
+    )
+
+    let wheelEvent: UiInputEvent = undefined
+    controller = new UiFocusInputController({
+      focus: new UiFocusState(),
+      wheel: (event: UiInputEvent) => {
+        wheelEvent = event
+        return true
+      }
+    })
+    assertFocusInputResult(
+      controller.handleInput({ action: "wheel", source: "wheel", dx: 1, dy: -2 }),
+      { action: "wheel", handled: true, kind: "wheel" },
+      "wheel handled"
+    )
+    assertInputSourcePreserved(wheelEvent, "wheel", "wheel handled")
+
+    controller = new UiFocusInputController({
+      focus: new UiFocusState(),
+      wheel: (event: UiInputEvent) => false
+    })
+    assertFocusInputResult(
+      controller.handleInput({ action: "wheel", source: "wheel" }),
+      { action: "wheel", handled: false, kind: "wheel", reason: "wheelUnhandled" },
+      "wheel unhandled callback"
+    )
+    controller = new UiFocusInputController({
+      focus: new UiFocusState()
+    })
+    assertFocusInputResult(
+      controller.handleInput({ action: "wheel", source: "wheel" }),
+      { action: "wheel", handled: false, kind: "wheel", reason: "wheelUnhandled" },
+      "wheel unhandled missing callback"
+    )
+    assertFocusInputResult(
+      controller.handleInput({ action: "menu", source: "displayShieldController" }),
+      { action: "menu", handled: false, kind: "ignored", reason: "unsupportedAction" },
+      "menu unsupported by focus"
+    )
+
+    state = createFocusInputState()
+    controller = createFocusInputController(state, focusInputRowNavigation())
+    let scopeFallbackCount = 0
+    const input = new TestInputScope()
+    controller.register(input)
+    input.onAction("activate", (event: UiInputEvent): boolean => {
+      scopeFallbackCount++
+      return false
+    })
+    input.onAction("menu", (event: UiInputEvent): boolean => {
+      scopeFallbackCount++
+      return true
+    })
+    control.assert(input.deliver({ action: "activate", phase: "repeated" }) == false, "long press falls through")
+    control.assert(scopeFallbackCount == 1, "long press caller handler")
+    control.assert(input.deliver({ action: "menu", source: "displayShieldController" }), "menu caller handler")
+    control.assert(scopeFallbackCount == 2, "menu not registered by focus")
+  }
+
+  class TestInputScope implements UiInputScope {
+    private actions_: UiInputAction[]
+    private handlers_: UiInputHandler[]
+    private disposed_: boolean
+
+    constructor() {
+      this.actions_ = []
+      this.handlers_ = []
+      this.disposed_ = false
+    }
+
+    public onAction(action: UiInputAction, handler: UiInputHandler): void {
+      if (this.disposed_) return
+      this.actions_.push(action)
+      this.handlers_.push(handler)
+    }
+
+    public dispose(): void {
+      this.disposed_ = true
+    }
+
+    public deliver(event: UiInputEvent): boolean {
+      if (this.disposed_) return false
+      for (let i = 0; i < this.actions_.length; i++) {
+        if (this.actions_[i] == event.action && this.handlers_[i](event)) return true
+      }
+      return false
+    }
   }
 }
 
@@ -1736,6 +2483,7 @@ ui.runPrimitiveLayoutSmokeTest()
 ui.runStructuredLayoutSmokeTest()
 ui.runScrollLayoutSmokeTest()
 ui.runFocusStateMachineSmokeTest()
-ui.runFocusPolicySmokeTest()
+ui.runFocusMovementSmokeTest()
+ui.runFocusInputRuntimeSmokeTest()
 
 control.__log(1, "All tests passed!")
