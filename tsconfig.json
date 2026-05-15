@@ -1,7 +1,9 @@
 {
     "compilerOptions": {
         "target": "ES5",
+        "ignoreDeprecations": "6.0",
         "noImplicitAny": true,
+        "strictNullChecks": false,
         "outDir": "built",
         "rootDir": "."
     },

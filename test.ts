@@ -186,9 +186,144 @@ namespace ui {
     runtime.pop()
     control.assert(runtime.depth() == 0, "stack empty")
   }
+
+  class LayoutSmokeNode implements UiLayoutNode {
+    public readonly layoutSpec: UiLayoutSpec
+    public readonly finalRect: Rect
+    public layoutDirty: boolean
+    public receivedMaxWidth: number
+    public receivedMaxHeight: number
+    private contentMinWidth_: number
+    private contentMinHeight_: number
+    private contentPreferredWidth_: number
+    private contentPreferredHeight_: number
+
+    constructor(
+      layoutSpec: UiLayoutSpec,
+      contentMinWidth: number,
+      contentMinHeight: number,
+      contentPreferredWidth: number,
+      contentPreferredHeight: number
+    ) {
+      this.layoutSpec = layoutSpec
+      this.finalRect = new Rect()
+      this.layoutDirty = true
+      this.receivedMaxWidth = 0
+      this.receivedMaxHeight = 0
+      this.contentMinWidth_ = contentMinWidth
+      this.contentMinHeight_ = contentMinHeight
+      this.contentPreferredWidth_ = contentPreferredWidth
+      this.contentPreferredHeight_ = contentPreferredHeight
+    }
+
+    public measure(constraints: UiLayoutConstraints, output: UiMeasuredSize): void {
+      this.receivedMaxWidth = constraints.maxWidth
+      this.receivedMaxHeight = constraints.maxHeight
+      measureLayoutSpec(
+        this.layoutSpec,
+        constraints,
+        this.contentMinWidth_,
+        this.contentMinHeight_,
+        this.contentPreferredWidth_,
+        this.contentPreferredHeight_,
+        output
+      )
+      this.clearLayoutInvalidation()
+    }
+
+    public arrange(rect: Rect): void {
+      copyArrangedLayoutRect(this.finalRect, rect)
+      this.clearLayoutInvalidation()
+    }
+
+    public invalidateLayout(): void {
+      this.layoutDirty = true
+    }
+
+    public clearLayoutInvalidation(): void {
+      this.layoutDirty = false
+    }
+  }
+
+  /**
+   * Smoke harness for measured layout contracts and final rectangle storage.
+   */
+  export function runLayoutSmokeTest(): void {
+    const measured = new UiMeasuredSize()
+    const contentNode = new LayoutSmokeNode(
+      {
+        width: { mode: "content" },
+        height: { mode: "content" }
+      },
+      12,
+      5,
+      30,
+      10
+    )
+
+    contentNode.measure({ maxWidth: 40.4, maxHeight: 8.2 }, measured)
+    control.assert(contentNode.receivedMaxWidth == 40.4, "content constraints width")
+    control.assert(contentNode.receivedMaxHeight == 8.2, "content constraints height")
+    control.assert(measured.minWidth == 12, "content min width")
+    control.assert(measured.minHeight == 5, "content min height")
+    control.assert(measured.preferredWidth == 30, "content preferred width")
+    control.assert(measured.preferredHeight == 8, "content preferred height")
+    control.assert(!contentNode.layoutDirty, "content measure clears dirty")
+
+    contentNode.invalidateLayout()
+    control.assert(contentNode.layoutDirty, "content invalidates")
+    const arranged = new Rect(3.4, 4.6, 30.2, 8.8)
+    contentNode.arrange(arranged)
+    arranged.set(0, 0, 1, 1)
+    control.assert(contentNode.finalRect.x == 3, "content final x")
+    control.assert(contentNode.finalRect.y == 5, "content final y")
+    control.assert(contentNode.finalRect.width == 30, "content final width")
+    control.assert(contentNode.finalRect.height == 9, "content final height")
+
+    const fixedNode = new LayoutSmokeNode(
+      {
+        width: { mode: "fixed", value: 99.4, min: 10, max: 44.2 },
+        height: { mode: "fixed", value: -5, min: 7, max: 3 }
+      },
+      1,
+      1,
+      2,
+      2
+    )
+
+    fixedNode.measure({ maxWidth: 40.6, maxHeight: 100 }, measured)
+    control.assert(measured.minWidth == 41, "fixed constrained min width")
+    control.assert(measured.preferredWidth == 41, "fixed constrained preferred width")
+    control.assert(measured.minHeight == 7, "fixed constrained min height")
+    control.assert(measured.preferredHeight == 7, "fixed constrained preferred height")
+
+    fixedNode.arrange(new Rect(-2.2, 6.6, -8, 12.3))
+    control.assert(fixedNode.finalRect.x == -2, "fixed final x")
+    control.assert(fixedNode.finalRect.y == 7, "fixed final y")
+    control.assert(fixedNode.finalRect.width == 0, "fixed final width")
+    control.assert(fixedNode.finalRect.height == 12, "fixed final height")
+
+    const fillNode = new LayoutSmokeNode(
+      {
+        width: { mode: "fill", min: 4 },
+        height: { mode: "fill", max: 6.2 }
+      },
+      2,
+      3,
+      11,
+      9
+    )
+
+    fillNode.measure({ maxWidth: 50, maxHeight: 50 }, measured)
+    control.assert(measured.minWidth == 4, "fill min width")
+    control.assert(measured.preferredWidth == 11, "fill preferred width")
+    control.assert(measured.minHeight == 3, "fill min height")
+    control.assert(measured.preferredHeight == 6, "fill preferred height")
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
 ui.runRuntimeSmokeTest()
+ui.runLayoutSmokeTest()
 
 control.__log(1, "All tests passed!")
