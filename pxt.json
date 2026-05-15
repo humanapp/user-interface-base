@@ -28,7 +28,8 @@
         "ui-core/input.ts",
         "ui-core/scene-stack.ts",
         "ui-core/layout.ts",
-        "ui-core/layout-containers.ts"
+        "ui-core/layout-containers.ts",
+        "ui-core/layout-structured.ts"
     ],
     "yotta": {
         "config": {

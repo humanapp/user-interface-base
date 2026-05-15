@@ -518,11 +518,131 @@ namespace ui {
     assertLayoutRect(menuC.finalRect, 51, 6, 18, 18, "menu C")
     assertLayoutRect(menuD.finalRect, 71, 6, 18, 18, "menu D")
   }
+
+  /**
+   * Smoke harness for structured layout containers.
+   */
+  export function runStructuredLayoutSmokeTest(): void {
+    const measured = new UiMeasuredSize()
+
+    const pickerA = new LayoutSmokeNode(layoutFixedSpec(12, 10), 1, 1, 1, 1)
+    const pickerB = new LayoutSmokeNode(layoutFixedSpec(20, 8), 1, 1, 1, 1)
+    const pickerC = new LayoutSmokeNode(layoutFixedSpec(14, 18), 1, 1, 1, 1)
+    const pickerD = new LayoutSmokeNode(layoutFixedSpec(16, 12), 1, 1, 1, 1)
+    const pickerE = new LayoutSmokeNode(layoutFixedSpec(10, 14), 1, 1, 1, 1)
+    const pickerGrid = new UiGridLayout({
+      layoutSpec: layoutContentSpec(),
+      columnCount: 3,
+      children: [pickerA, pickerB, pickerC, pickerD],
+      rowGap: 5,
+      columnGap: 3,
+      horizontalAlignment: "center",
+      verticalAlignment: "center"
+    })
+
+    control.assert(pickerGrid.childCount == 4, "picker grid initial count")
+    control.assert(pickerGrid.childAt(2) == pickerC, "picker grid order")
+    pickerGrid.appendChild(pickerE)
+    control.assert(pickerGrid.childCount == 5, "picker grid appended count")
+    control.assert(pickerGrid.rowCount == 2, "picker grid row count")
+    control.assert(pickerGrid.layoutDirty, "picker grid append invalidates")
+    pickerGrid.measure({ maxWidth: 200, maxHeight: 100 }, measured)
+    control.assert(measured.preferredWidth == 56, "picker grid preferred width")
+    control.assert(measured.preferredHeight == 37, "picker grid preferred height")
+    pickerGrid.arrange(new Rect(10, 10, 200, 100))
+    assertLayoutRect(pickerA.finalRect, 12, 14, 12, 10, "picker grid A")
+    assertLayoutRect(pickerB.finalRect, 29, 15, 20, 8, "picker grid B")
+    assertLayoutRect(pickerC.finalRect, 52, 10, 14, 18, "picker grid C")
+    assertLayoutRect(pickerD.finalRect, 10, 34, 16, 12, "picker grid D")
+    assertLayoutRect(pickerE.finalRect, 34, 33, 10, 14, "picker grid E")
+
+    const sensorA = new LayoutSmokeNode(layoutFixedSpec(72, 44), 1, 1, 1, 1)
+    const sensorB = new LayoutSmokeNode(layoutFixedSpec(72, 44), 1, 1, 1, 1)
+    const sensorC = new LayoutSmokeNode(layoutFixedSpec(72, 44), 1, 1, 1, 1)
+    const sensorD = new LayoutSmokeNode(layoutFixedSpec(72, 44), 1, 1, 1, 1)
+    const sensorGrid = new UiGridLayout({
+      layoutSpec: layoutContentSpec(),
+      columnCount: 2,
+      children: [sensorA, sensorB, sensorC, sensorD],
+      rowGap: 6,
+      columnGap: 8
+    })
+
+    sensorGrid.arrange(new Rect(12, 70, 200, 120))
+    assertLayoutRect(sensorA.finalRect, 12, 70, 72, 44, "sensor grid A")
+    assertLayoutRect(sensorB.finalRect, 92, 70, 72, 44, "sensor grid B")
+    assertLayoutRect(sensorC.finalRect, 12, 120, 72, 44, "sensor grid C")
+    assertLayoutRect(sensorD.finalRect, 92, 120, 72, 44, "sensor grid D")
+
+    const keyA = new LayoutSmokeNode(layoutFixedSpec(12, 10), 1, 1, 1, 1)
+    const keyB = new LayoutSmokeNode(layoutFixedSpec(20, 14), 1, 1, 1, 1)
+    const keyC = new LayoutSmokeNode(layoutFixedSpec(12, 8), 1, 1, 1, 1)
+    const keyD = new LayoutSmokeNode(layoutFixedSpec(30, 12), 1, 1, 1, 1)
+    const keyE = new LayoutSmokeNode(layoutFixedSpec(18, 6), 1, 1, 1, 1)
+    const keyF = new LayoutSmokeNode(layoutFixedSpec(10, 8), 1, 1, 1, 1)
+    const keyG = new LayoutSmokeNode(layoutFixedSpec(10, 8), 1, 1, 1, 1)
+    const keyH = new LayoutSmokeNode(layoutFixedSpec(10, 8), 1, 1, 1, 1)
+    const keyI = new LayoutSmokeNode(layoutFixedSpec(10, 8), 1, 1, 1, 1)
+    const keyboard = new UiRaggedGridLayout({
+      layoutSpec: layoutContentSpec(),
+      rows: [[keyA, keyB]],
+      rowGap: 3,
+      columnGap: 2,
+      verticalAlignment: "center"
+    })
+
+    control.assert(keyboard.rowCount == 1, "keyboard initial row count")
+    control.assert(keyboard.childAt(0, 1) == keyB, "keyboard initial order")
+    control.assert(keyboard.appendChildToRow(0, keyC), "keyboard append child")
+    keyboard.appendRow([keyD, keyE])
+    keyboard.appendRow([keyF, keyG, keyH, keyI])
+    control.assert(keyboard.childCountInRow(0) == 3, "keyboard first row count")
+    control.assert(keyboard.childAt(2, 3) == keyI, "keyboard appended order")
+    keyboard.measure({ maxWidth: 200, maxHeight: 100 }, measured)
+    control.assert(measured.preferredWidth == 50, "keyboard preferred width")
+    control.assert(measured.preferredHeight == 40, "keyboard preferred height")
+    keyboard.arrange(new Rect(40, 120, 200, 100))
+    assertLayoutRect(keyA.finalRect, 40, 122, 12, 10, "keyboard A")
+    assertLayoutRect(keyB.finalRect, 54, 120, 20, 14, "keyboard B")
+    assertLayoutRect(keyC.finalRect, 76, 123, 12, 8, "keyboard C")
+    assertLayoutRect(keyD.finalRect, 40, 137, 30, 12, "keyboard D")
+    assertLayoutRect(keyE.finalRect, 72, 140, 18, 6, "keyboard E")
+    assertLayoutRect(keyF.finalRect, 40, 152, 10, 8, "keyboard F")
+    assertLayoutRect(keyG.finalRect, 52, 152, 10, 8, "keyboard G")
+    assertLayoutRect(keyH.finalRect, 64, 152, 10, 8, "keyboard H")
+    assertLayoutRect(keyI.finalRect, 76, 152, 10, 8, "keyboard I")
+
+    const overlayContent = new LayoutSmokeNode(layoutContentSpec(), 320, 240, 320, 240)
+    const overlayPanel = new LayoutSmokeNode(layoutFixedSpec(100, 80), 1, 1, 1, 1)
+    const centeredPanel = new UiAlignLayout({
+      layoutSpec: layoutContentSpec(),
+      child: overlayPanel,
+      horizontalAlignment: "center",
+      verticalAlignment: "center"
+    })
+    const overlayStack = new UiStackLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [overlayContent]
+    })
+
+    overlayStack.appendChild(centeredPanel)
+    control.assert(overlayStack.childCount == 2, "overlay stack count")
+    control.assert(overlayStack.childAt(0) == overlayContent, "overlay lower layer")
+    control.assert(overlayStack.childAt(1) == centeredPanel, "overlay higher layer")
+    overlayStack.measure({ maxWidth: 320, maxHeight: 240 }, measured)
+    control.assert(measured.preferredWidth == 320, "overlay preferred width")
+    control.assert(measured.preferredHeight == 240, "overlay preferred height")
+    overlayStack.arrange(new Rect(0, 0, 320, 240))
+    assertLayoutRect(overlayContent.finalRect, 0, 0, 320, 240, "overlay content")
+    assertLayoutRect(centeredPanel.finalRect, 0, 0, 320, 240, "overlay panel layer")
+    assertLayoutRect(overlayPanel.finalRect, 110, 80, 100, 80, "overlay panel")
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
 ui.runRuntimeSmokeTest()
 ui.runLayoutSmokeTest()
 ui.runPrimitiveLayoutSmokeTest()
+ui.runStructuredLayoutSmokeTest()
 
 control.__log(1, "All tests passed!")
