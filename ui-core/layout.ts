@@ -5,6 +5,11 @@ namespace ui {
   export type UiLayoutSizeMode = "content" | "fixed" | "fill"
 
   /**
+   * Child placement behavior used by layout containers.
+   */
+  export type UiLayoutAlignment = "start" | "center" | "end" | "stretch"
+
+  /**
    * Size request for one layout axis in logical viewport pixels.
    */
   export interface UiLayoutAxisSpec {
@@ -61,6 +66,51 @@ namespace ui {
   }
 
   /**
+   * Insets in logical viewport pixels.
+   */
+  export interface UiLayoutEdgeInsets {
+    /**
+     * Inset from the top edge.
+     */
+    top: number
+
+    /**
+     * Inset from the right edge.
+     */
+    right: number
+
+    /**
+     * Inset from the bottom edge.
+     */
+    bottom: number
+
+    /**
+     * Inset from the left edge.
+     */
+    left: number
+  }
+
+  /**
+   * Construction options for a retained layout pass owner.
+   */
+  export interface UiLayoutOwnerOptions {
+    /**
+     * Root node measured and arranged by `runLayout()`.
+     */
+    root: UiLayoutNode
+
+    /**
+     * Measurement limits used for root layout passes.
+     */
+    constraints: UiLayoutConstraints
+
+    /**
+     * Final rectangle assigned to the root during layout passes.
+     */
+    rect: Rect
+  }
+
+  /**
    * Reusable output object for node measurement.
    */
   export class UiMeasuredSize {
@@ -101,10 +151,10 @@ namespace ui {
       preferredWidth: number,
       preferredHeight: number
     ): UiMeasuredSize {
-      this.minWidth = sanitizeLayoutDimension(minWidth)
-      this.minHeight = sanitizeLayoutDimension(minHeight)
-      this.preferredWidth = Math.max(this.minWidth, sanitizeLayoutDimension(preferredWidth))
-      this.preferredHeight = Math.max(this.minHeight, sanitizeLayoutDimension(preferredHeight))
+      this.minWidth = _uiLayout.sanitizeDimension(minWidth)
+      this.minHeight = _uiLayout.sanitizeDimension(minHeight)
+      this.preferredWidth = Math.max(this.minWidth, _uiLayout.sanitizeDimension(preferredWidth))
+      this.preferredHeight = Math.max(this.minHeight, _uiLayout.sanitizeDimension(preferredHeight))
       return this
     }
   }
@@ -191,11 +241,92 @@ namespace ui {
    */
   export function copyArrangedLayoutRect(target: Rect, rect: Rect): Rect {
     return target.set(
-      sanitizeLayoutCoordinate(rect.x),
-      sanitizeLayoutCoordinate(rect.y),
-      sanitizeLayoutDimension(rect.width),
-      sanitizeLayoutDimension(rect.height)
+      _uiLayout.sanitizeCoordinate(rect.x),
+      _uiLayout.sanitizeCoordinate(rect.y),
+      _uiLayout.sanitizeDimension(rect.width),
+      _uiLayout.sanitizeDimension(rect.height)
     )
+  }
+
+  /**
+   * Retains the root, bounds, and dirty state for explicit layout passes.
+   */
+  export class UiLayoutOwner {
+    private root_: UiLayoutNode
+    private constraints_: UiLayoutConstraints
+    private rect_: Rect
+    private measured_: UiMeasuredSize
+    private layoutDirty_: boolean
+
+    constructor(options: UiLayoutOwnerOptions) {
+      this.root_ = options.root
+      this.constraints_ = { maxWidth: 0, maxHeight: 0 }
+      this.rect_ = new Rect()
+      this.measured_ = new UiMeasuredSize()
+      this.layoutDirty_ = true
+      this.copyConstraints(options.constraints)
+      copyArrangedLayoutRect(this.rect_, options.rect)
+    }
+
+    /**
+     * Root node used by `runLayout()`.
+     */
+    public get root(): UiLayoutNode {
+      return this.root_
+    }
+
+    /**
+     * Whether another root layout pass is needed.
+     */
+    public get layoutDirty(): boolean {
+      return this.layoutDirty_
+    }
+
+    /**
+     * Replaces the root node and marks the owner dirty.
+     */
+    public setRoot(root: UiLayoutNode): void {
+      this.root_ = root
+      this.invalidateLayout()
+    }
+
+    /**
+     * Copies new root measurement constraints and marks the owner dirty.
+     */
+    public setConstraints(constraints: UiLayoutConstraints): void {
+      this.copyConstraints(constraints)
+      this.invalidateLayout()
+    }
+
+    /**
+     * Copies a new root arrangement rectangle and marks the owner dirty.
+     */
+    public setRect(rect: Rect): void {
+      copyArrangedLayoutRect(this.rect_, rect)
+      this.invalidateLayout()
+    }
+
+    /**
+     * Marks the owner as needing a root layout pass.
+     */
+    public invalidateLayout(): void {
+      this.layoutDirty_ = true
+    }
+
+    /**
+     * Measures and arranges the root when the owner or root is dirty.
+     */
+    public runLayout(): void {
+      if (!this.layoutDirty_ && !this.root_.layoutDirty) return
+      this.root_.measure(this.constraints_, this.measured_)
+      this.root_.arrange(this.rect_)
+      this.layoutDirty_ = false
+    }
+
+    private copyConstraints(constraints: UiLayoutConstraints): void {
+      this.constraints_.maxWidth = _uiLayout.sanitizeDimension(constraints.maxWidth)
+      this.constraints_.maxHeight = _uiLayout.sanitizeDimension(constraints.maxHeight)
+    }
   }
 
   class UiMeasuredAxis {
@@ -218,21 +349,21 @@ namespace ui {
     parentMax: number,
     output: UiMeasuredAxis
   ): void {
-    const parentLimit = sanitizeLayoutDimension(parentMax)
-    const axisMin = sanitizeLayoutDimension(spec.min)
+    const parentLimit = _uiLayout.sanitizeDimension(parentMax)
+    const axisMin = _uiLayout.sanitizeDimension(spec.min)
     let axisMax = parentLimit
 
     if (spec.max !== undefined) {
-      axisMax = sanitizeLayoutDimension(spec.max)
+      axisMax = _uiLayout.sanitizeDimension(spec.max)
       if (axisMax < axisMin) axisMax = axisMin
       axisMax = Math.min(axisMax, parentLimit)
     }
 
-    let measuredMin = sanitizeLayoutDimension(contentMin)
-    let measuredPreferred = Math.max(measuredMin, sanitizeLayoutDimension(contentPreferred))
+    let measuredMin = _uiLayout.sanitizeDimension(contentMin)
+    let measuredPreferred = Math.max(measuredMin, _uiLayout.sanitizeDimension(contentPreferred))
 
     if (spec.mode == "fixed") {
-      measuredPreferred = sanitizeLayoutDimension(spec.value)
+      measuredPreferred = _uiLayout.sanitizeDimension(spec.value)
       measuredMin = measuredPreferred
     }
 
@@ -251,13 +382,59 @@ namespace ui {
     return Math.min(Math.max(value, min), max)
   }
 
-  function sanitizeLayoutDimension(value: number | undefined): number {
-    value = sanitizeLayoutCoordinate(value)
+}
+
+namespace _uiLayout {
+  export function sanitizeCoordinate(value: number | undefined): number {
+    if (value === undefined || value != value) return 0
+    return Math.round(value)
+  }
+
+  export function sanitizeDimension(value: number | undefined): number {
+    value = sanitizeCoordinate(value)
     return value < 0 ? 0 : value
   }
 
-  function sanitizeLayoutCoordinate(value: number | undefined): number {
-    if (value === undefined || value != value) return 0
-    return Math.round(value)
+  export function alignedSize(
+    containerSize: number,
+    preferredSize: number,
+    alignment: ui.UiLayoutAlignment
+  ): number {
+    if (alignment == "stretch") return containerSize
+    return preferredSize
+  }
+
+  export function alignedOffset(
+    containerStart: number,
+    containerSize: number,
+    childSize: number,
+    alignment: ui.UiLayoutAlignment
+  ): number {
+    if (alignment == "center") return containerStart + Math.round((containerSize - childSize) / 2)
+    if (alignment == "end") return containerStart + containerSize - childSize
+    return containerStart
+  }
+
+  export function copyEdgeInsets(
+    target: ui.UiLayoutEdgeInsets,
+    padding: number | ui.UiLayoutEdgeInsets | undefined
+  ): void {
+    if (typeof padding == "number") {
+      const value = sanitizeDimension(padding)
+      target.top = value
+      target.right = value
+      target.bottom = value
+      target.left = value
+    } else if (padding) {
+      target.top = sanitizeDimension(padding.top)
+      target.right = sanitizeDimension(padding.right)
+      target.bottom = sanitizeDimension(padding.bottom)
+      target.left = sanitizeDimension(padding.left)
+    } else {
+      target.top = 0
+      target.right = 0
+      target.bottom = 0
+      target.left = 0
+    }
   }
 }

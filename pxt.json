@@ -29,7 +29,8 @@
         "ui-core/scene-stack.ts",
         "ui-core/layout.ts",
         "ui-core/layout-containers.ts",
-        "ui-core/layout-structured.ts"
+        "ui-core/layout-structured.ts",
+        "ui-core/layout-scroll.ts"
     ],
     "yotta": {
         "config": {

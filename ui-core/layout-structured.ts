@@ -130,9 +130,9 @@ namespace ui {
       this.finalRect = new Rect()
       this.layoutDirty = true
       this.children_ = []
-      this.columnCount_ = sanitizeStructuredDimension(options.columnCount)
-      this.rowGap_ = sanitizeStructuredDimension(options.rowGap)
-      this.columnGap_ = sanitizeStructuredDimension(options.columnGap)
+      this.columnCount_ = _uiLayout.sanitizeDimension(options.columnCount)
+      this.rowGap_ = _uiLayout.sanitizeDimension(options.rowGap)
+      this.columnGap_ = _uiLayout.sanitizeDimension(options.columnGap)
       this.horizontalAlignment_ = options.horizontalAlignment || "start"
       this.verticalAlignment_ = options.verticalAlignment || "start"
       this.constraintsScratch_ = { maxWidth: 0, maxHeight: 0 }
@@ -222,7 +222,7 @@ namespace ui {
      * Updates the number of columns.
      */
     public setColumnCount(columnCount: number): void {
-      this.columnCount_ = sanitizeStructuredDimension(columnCount)
+      this.columnCount_ = _uiLayout.sanitizeDimension(columnCount)
       this.invalidateLayout()
     }
 
@@ -230,7 +230,7 @@ namespace ui {
      * Updates the space between adjacent rows.
      */
     public setRowGap(rowGap: number): void {
-      this.rowGap_ = sanitizeStructuredDimension(rowGap)
+      this.rowGap_ = _uiLayout.sanitizeDimension(rowGap)
       this.invalidateLayout()
     }
 
@@ -238,7 +238,7 @@ namespace ui {
      * Updates the space between adjacent columns.
      */
     public setColumnGap(columnGap: number): void {
-      this.columnGap_ = sanitizeStructuredDimension(columnGap)
+      this.columnGap_ = _uiLayout.sanitizeDimension(columnGap)
       this.invalidateLayout()
     }
 
@@ -262,10 +262,10 @@ namespace ui {
       const rowCount = this.effectiveRowCount()
       this.measureTracks(constraints, rowCount)
       const columnGap = this.totalColumnGap(rowCount)
-      const minWidth = this.sumTracks(this.columnMinWidths_, this.columnCount_) + columnGap
-      const preferredWidth = this.sumTracks(this.columnPreferredWidths_, this.columnCount_) + columnGap
-      const minHeight = this.sumTracks(this.rowMinHeights_, rowCount) + this.totalRowGap(rowCount)
-      const preferredHeight = this.sumTracks(this.rowPreferredHeights_, rowCount) + this.totalRowGap(rowCount)
+      const minWidth = sumLayoutTracks(this.columnMinWidths_, this.columnCount_) + columnGap
+      const preferredWidth = sumLayoutTracks(this.columnPreferredWidths_, this.columnCount_) + columnGap
+      const minHeight = sumLayoutTracks(this.rowMinHeights_, rowCount) + this.totalRowGap(rowCount)
+      const preferredHeight = sumLayoutTracks(this.rowPreferredHeights_, rowCount) + this.totalRowGap(rowCount)
 
       measureLayoutSpec(this.layoutSpec, constraints, minWidth, minHeight, preferredWidth, preferredHeight, output)
       this.clearLayoutInvalidation()
@@ -320,19 +320,19 @@ namespace ui {
     }
 
     private measureTracks(constraints: UiLayoutConstraints, rowCount: number): void {
-      this.ensureTrackCount(this.columnMinWidths_, this.columnCount_)
-      this.ensureTrackCount(this.columnPreferredWidths_, this.columnCount_)
-      this.ensureTrackCount(this.rowMinHeights_, rowCount)
-      this.ensureTrackCount(this.rowPreferredHeights_, rowCount)
-      this.clearTrackValues(this.columnMinWidths_, this.columnCount_)
-      this.clearTrackValues(this.columnPreferredWidths_, this.columnCount_)
-      this.clearTrackValues(this.rowMinHeights_, rowCount)
-      this.clearTrackValues(this.rowPreferredHeights_, rowCount)
+      ensureLayoutTrackCount(this.columnMinWidths_, this.columnCount_)
+      ensureLayoutTrackCount(this.columnPreferredWidths_, this.columnCount_)
+      ensureLayoutTrackCount(this.rowMinHeights_, rowCount)
+      ensureLayoutTrackCount(this.rowPreferredHeights_, rowCount)
+      clearLayoutTrackValues(this.columnMinWidths_, this.columnCount_)
+      clearLayoutTrackValues(this.columnPreferredWidths_, this.columnCount_)
+      clearLayoutTrackValues(this.rowMinHeights_, rowCount)
+      clearLayoutTrackValues(this.rowPreferredHeights_, rowCount)
 
       if (this.columnCount_ <= 0) return
 
-      this.constraintsScratch_.maxWidth = sanitizeStructuredDimension(constraints.maxWidth - this.totalColumnGap(rowCount))
-      this.constraintsScratch_.maxHeight = sanitizeStructuredDimension(constraints.maxHeight - this.totalRowGap(rowCount))
+      this.constraintsScratch_.maxWidth = _uiLayout.sanitizeDimension(constraints.maxWidth - this.totalColumnGap(rowCount))
+      this.constraintsScratch_.maxHeight = _uiLayout.sanitizeDimension(constraints.maxHeight - this.totalRowGap(rowCount))
 
       for (let i = 0; i < this.children_.length; i++) {
         const row = Math.idiv(i, this.columnCount_)
@@ -346,20 +346,6 @@ namespace ui {
         this.rowMinHeights_[row] = Math.max(this.rowMinHeights_[row], this.measureScratch_.minHeight)
         this.rowPreferredHeights_[row] = Math.max(this.rowPreferredHeights_[row], this.measureScratch_.preferredHeight)
       }
-    }
-
-    private ensureTrackCount(values: number[], count: number): void {
-      while (values.length < count) values.push(0)
-    }
-
-    private clearTrackValues(values: number[], count: number): void {
-      for (let i = 0; i < count; i++) values[i] = 0
-    }
-
-    private sumTracks(values: number[], count: number): number {
-      let result = 0
-      for (let i = 0; i < count; i++) result += values[i]
-      return result
     }
 
     private totalColumnGap(rowCount: number): number {
@@ -378,11 +364,11 @@ namespace ui {
       cellWidth: number,
       cellHeight: number
     ): void {
-      const childWidth = structuredAlignedSize(cellWidth, this.measureScratch_.preferredWidth, this.horizontalAlignment_)
-      const childHeight = structuredAlignedSize(cellHeight, this.measureScratch_.preferredHeight, this.verticalAlignment_)
+      const childWidth = _uiLayout.alignedSize(cellWidth, this.measureScratch_.preferredWidth, this.horizontalAlignment_)
+      const childHeight = _uiLayout.alignedSize(cellHeight, this.measureScratch_.preferredHeight, this.verticalAlignment_)
       this.rectScratch_.set(
-        structuredAlignedOffset(x, cellWidth, childWidth, this.horizontalAlignment_),
-        structuredAlignedOffset(y, cellHeight, childHeight, this.verticalAlignment_),
+        _uiLayout.alignedOffset(x, cellWidth, childWidth, this.horizontalAlignment_),
+        _uiLayout.alignedOffset(y, cellHeight, childHeight, this.verticalAlignment_),
         childWidth,
         childHeight
       )
@@ -415,8 +401,8 @@ namespace ui {
       this.finalRect = new Rect()
       this.layoutDirty = true
       this.rows_ = []
-      this.rowGap_ = sanitizeStructuredDimension(options.rowGap)
-      this.columnGap_ = sanitizeStructuredDimension(options.columnGap)
+      this.rowGap_ = _uiLayout.sanitizeDimension(options.rowGap)
+      this.columnGap_ = _uiLayout.sanitizeDimension(options.columnGap)
       this.horizontalAlignment_ = options.horizontalAlignment || "start"
       this.verticalAlignment_ = options.verticalAlignment || "start"
       this.constraintsScratch_ = { maxWidth: 0, maxHeight: 0 }
@@ -516,7 +502,7 @@ namespace ui {
      * Updates the space between adjacent rows.
      */
     public setRowGap(rowGap: number): void {
-      this.rowGap_ = sanitizeStructuredDimension(rowGap)
+      this.rowGap_ = _uiLayout.sanitizeDimension(rowGap)
       this.invalidateLayout()
     }
 
@@ -524,7 +510,7 @@ namespace ui {
      * Updates the space between adjacent columns.
      */
     public setColumnGap(columnGap: number): void {
-      this.columnGap_ = sanitizeStructuredDimension(columnGap)
+      this.columnGap_ = _uiLayout.sanitizeDimension(columnGap)
       this.invalidateLayout()
     }
 
@@ -546,10 +532,10 @@ namespace ui {
 
     public measure(constraints: UiLayoutConstraints, output: UiMeasuredSize): void {
       this.measureRows(constraints)
-      const minWidth = this.maxTrack(this.rowMinWidths_, this.rows_.length)
-      const preferredWidth = this.maxTrack(this.rowPreferredWidths_, this.rows_.length)
-      const minHeight = this.sumTracks(this.rowMinHeights_, this.rows_.length) + this.totalRowGap()
-      const preferredHeight = this.sumTracks(this.rowPreferredHeights_, this.rows_.length) + this.totalRowGap()
+      const minWidth = maxLayoutTrack(this.rowMinWidths_, this.rows_.length)
+      const preferredWidth = maxLayoutTrack(this.rowPreferredWidths_, this.rows_.length)
+      const minHeight = sumLayoutTracks(this.rowMinHeights_, this.rows_.length) + this.totalRowGap()
+      const preferredHeight = sumLayoutTracks(this.rowPreferredHeights_, this.rows_.length) + this.totalRowGap()
 
       measureLayoutSpec(this.layoutSpec, constraints, minWidth, minHeight, preferredWidth, preferredHeight, output)
       this.clearLayoutInvalidation()
@@ -598,17 +584,17 @@ namespace ui {
     }
 
     private measureRows(constraints: UiLayoutConstraints): void {
-      this.ensureTrackCount(this.rowMinWidths_, this.rows_.length)
-      this.ensureTrackCount(this.rowPreferredWidths_, this.rows_.length)
-      this.ensureTrackCount(this.rowMinHeights_, this.rows_.length)
-      this.ensureTrackCount(this.rowPreferredHeights_, this.rows_.length)
-      this.clearTrackValues(this.rowMinWidths_, this.rows_.length)
-      this.clearTrackValues(this.rowPreferredWidths_, this.rows_.length)
-      this.clearTrackValues(this.rowMinHeights_, this.rows_.length)
-      this.clearTrackValues(this.rowPreferredHeights_, this.rows_.length)
+      ensureLayoutTrackCount(this.rowMinWidths_, this.rows_.length)
+      ensureLayoutTrackCount(this.rowPreferredWidths_, this.rows_.length)
+      ensureLayoutTrackCount(this.rowMinHeights_, this.rows_.length)
+      ensureLayoutTrackCount(this.rowPreferredHeights_, this.rows_.length)
+      clearLayoutTrackValues(this.rowMinWidths_, this.rows_.length)
+      clearLayoutTrackValues(this.rowPreferredWidths_, this.rows_.length)
+      clearLayoutTrackValues(this.rowMinHeights_, this.rows_.length)
+      clearLayoutTrackValues(this.rowPreferredHeights_, this.rows_.length)
 
-      this.constraintsScratch_.maxWidth = sanitizeStructuredDimension(constraints.maxWidth)
-      this.constraintsScratch_.maxHeight = sanitizeStructuredDimension(constraints.maxHeight - this.totalRowGap())
+      this.constraintsScratch_.maxWidth = _uiLayout.sanitizeDimension(constraints.maxWidth)
+      this.constraintsScratch_.maxHeight = _uiLayout.sanitizeDimension(constraints.maxHeight - this.totalRowGap())
 
       for (let row = 0; row < this.rows_.length; row++) {
         const rowChildren = this.rows_[row]
@@ -638,26 +624,6 @@ namespace ui {
       }
     }
 
-    private ensureTrackCount(values: number[], count: number): void {
-      while (values.length < count) values.push(0)
-    }
-
-    private clearTrackValues(values: number[], count: number): void {
-      for (let i = 0; i < count; i++) values[i] = 0
-    }
-
-    private sumTracks(values: number[], count: number): number {
-      let result = 0
-      for (let i = 0; i < count; i++) result += values[i]
-      return result
-    }
-
-    private maxTrack(values: number[], count: number): number {
-      let result = 0
-      for (let i = 0; i < count; i++) result = Math.max(result, values[i])
-      return result
-    }
-
     private totalRowGap(): number {
       return this.rowGap_ * Math.max(0, this.rows_.length - 1)
     }
@@ -669,11 +635,11 @@ namespace ui {
       cellWidth: number,
       cellHeight: number
     ): void {
-      const childWidth = structuredAlignedSize(cellWidth, this.measureScratch_.preferredWidth, this.horizontalAlignment_)
-      const childHeight = structuredAlignedSize(cellHeight, this.measureScratch_.preferredHeight, this.verticalAlignment_)
+      const childWidth = _uiLayout.alignedSize(cellWidth, this.measureScratch_.preferredWidth, this.horizontalAlignment_)
+      const childHeight = _uiLayout.alignedSize(cellHeight, this.measureScratch_.preferredHeight, this.verticalAlignment_)
       this.rectScratch_.set(
-        structuredAlignedOffset(x, cellWidth, childWidth, this.horizontalAlignment_),
-        structuredAlignedOffset(y, cellHeight, childHeight, this.verticalAlignment_),
+        _uiLayout.alignedOffset(x, cellWidth, childWidth, this.horizontalAlignment_),
+        _uiLayout.alignedOffset(y, cellHeight, childHeight, this.verticalAlignment_),
         childWidth,
         childHeight
       )
@@ -707,7 +673,7 @@ namespace ui {
       this.constraintsScratch_ = { maxWidth: 0, maxHeight: 0 }
       this.measureScratch_ = new UiMeasuredSize()
       this.rectScratch_ = new Rect()
-      this.copyPadding(options.padding)
+      _uiLayout.copyEdgeInsets(this.padding_, options.padding)
       this.appendInitialChildren(options.children)
     }
 
@@ -772,7 +738,7 @@ namespace ui {
      * Updates the edge insets.
      */
     public setPadding(padding: number | UiLayoutEdgeInsets): void {
-      this.copyPadding(padding)
+      _uiLayout.copyEdgeInsets(this.padding_, padding)
       this.invalidateLayout()
     }
 
@@ -800,8 +766,8 @@ namespace ui {
       let preferredWidth = 0
       let preferredHeight = 0
 
-      this.constraintsScratch_.maxWidth = sanitizeStructuredDimension(constraints.maxWidth - horizontalPadding)
-      this.constraintsScratch_.maxHeight = sanitizeStructuredDimension(constraints.maxHeight - verticalPadding)
+      this.constraintsScratch_.maxWidth = _uiLayout.sanitizeDimension(constraints.maxWidth - horizontalPadding)
+      this.constraintsScratch_.maxHeight = _uiLayout.sanitizeDimension(constraints.maxHeight - verticalPadding)
 
       for (let i = 0; i < this.children_.length; i++) {
         this.children_[i].measure(this.constraintsScratch_, this.measureScratch_)
@@ -827,8 +793,8 @@ namespace ui {
       copyArrangedLayoutRect(this.finalRect, rect)
       const contentX = this.finalRect.x + this.padding_.left
       const contentY = this.finalRect.y + this.padding_.top
-      const contentWidth = sanitizeStructuredDimension(this.finalRect.width - this.padding_.left - this.padding_.right)
-      const contentHeight = sanitizeStructuredDimension(this.finalRect.height - this.padding_.top - this.padding_.bottom)
+      const contentWidth = _uiLayout.sanitizeDimension(this.finalRect.width - this.padding_.left - this.padding_.right)
+      const contentHeight = _uiLayout.sanitizeDimension(this.finalRect.height - this.padding_.top - this.padding_.bottom)
 
       this.constraintsScratch_.maxWidth = contentWidth
       this.constraintsScratch_.maxHeight = contentHeight
@@ -836,11 +802,11 @@ namespace ui {
       for (let i = 0; i < this.children_.length; i++) {
         const child = this.children_[i]
         child.measure(this.constraintsScratch_, this.measureScratch_)
-        const childWidth = structuredAlignedSize(contentWidth, this.measureScratch_.preferredWidth, this.horizontalAlignment_)
-        const childHeight = structuredAlignedSize(contentHeight, this.measureScratch_.preferredHeight, this.verticalAlignment_)
+        const childWidth = _uiLayout.alignedSize(contentWidth, this.measureScratch_.preferredWidth, this.horizontalAlignment_)
+        const childHeight = _uiLayout.alignedSize(contentHeight, this.measureScratch_.preferredHeight, this.verticalAlignment_)
         this.rectScratch_.set(
-          structuredAlignedOffset(contentX, contentWidth, childWidth, this.horizontalAlignment_),
-          structuredAlignedOffset(contentY, contentHeight, childHeight, this.verticalAlignment_),
+          _uiLayout.alignedOffset(contentX, contentWidth, childWidth, this.horizontalAlignment_),
+          _uiLayout.alignedOffset(contentY, contentHeight, childHeight, this.verticalAlignment_),
           childWidth,
           childHeight
         )
@@ -863,50 +829,25 @@ namespace ui {
       for (let i = 0; i < children.length; i++) this.children_.push(children[i])
     }
 
-    private copyPadding(padding: number | UiLayoutEdgeInsets | undefined): void {
-      if (typeof padding == "number") {
-        const value = sanitizeStructuredDimension(padding)
-        this.padding_.top = value
-        this.padding_.right = value
-        this.padding_.bottom = value
-        this.padding_.left = value
-      } else if (padding) {
-        this.padding_.top = sanitizeStructuredDimension(padding.top)
-        this.padding_.right = sanitizeStructuredDimension(padding.right)
-        this.padding_.bottom = sanitizeStructuredDimension(padding.bottom)
-        this.padding_.left = sanitizeStructuredDimension(padding.left)
-      } else {
-        this.padding_.top = 0
-        this.padding_.right = 0
-        this.padding_.bottom = 0
-        this.padding_.left = 0
-      }
-    }
   }
 
-  function structuredAlignedSize(containerSize: number, preferredSize: number, alignment: UiLayoutAlignment): number {
-    if (alignment == "stretch") return containerSize
-    return preferredSize
+  function ensureLayoutTrackCount(values: number[], count: number): void {
+    while (values.length < count) values.push(0)
   }
 
-  function structuredAlignedOffset(
-    containerStart: number,
-    containerSize: number,
-    childSize: number,
-    alignment: UiLayoutAlignment
-  ): number {
-    if (alignment == "center") return containerStart + Math.round((containerSize - childSize) / 2)
-    if (alignment == "end") return containerStart + containerSize - childSize
-    return containerStart
+  function clearLayoutTrackValues(values: number[], count: number): void {
+    for (let i = 0; i < count; i++) values[i] = 0
   }
 
-  function sanitizeStructuredDimension(value: number | undefined): number {
-    value = sanitizeStructuredCoordinate(value)
-    return value < 0 ? 0 : value
+  function sumLayoutTracks(values: number[], count: number): number {
+    let result = 0
+    for (let i = 0; i < count; i++) result += values[i]
+    return result
   }
 
-  function sanitizeStructuredCoordinate(value: number | undefined): number {
-    if (value === undefined || value != value) return 0
-    return Math.round(value)
+  function maxLayoutTrack(values: number[], count: number): number {
+    let result = 0
+    for (let i = 0; i < count; i++) result = Math.max(result, values[i])
+    return result
   }
 }

@@ -1,35 +1,5 @@
 namespace ui {
   /**
-   * Cross-axis or child placement behavior for primitive layout containers.
-   */
-  export type UiLayoutAlignment = "start" | "center" | "end" | "stretch"
-
-  /**
-   * Insets in logical viewport pixels.
-   */
-  export interface UiLayoutEdgeInsets {
-    /**
-     * Inset from the top edge.
-     */
-    top: number
-
-    /**
-     * Inset from the right edge.
-     */
-    right: number
-
-    /**
-     * Inset from the bottom edge.
-     */
-    bottom: number
-
-    /**
-     * Inset from the left edge.
-     */
-    left: number
-  }
-
-  /**
    * Construction options for row and column layout containers.
    */
   export interface UiLinearLayoutOptions {
@@ -148,7 +118,7 @@ namespace ui {
       this.finalRect = new Rect()
       this.layoutDirty = true
       this.children_ = []
-      this.gap_ = sanitizeContainerDimension(options.gap)
+      this.gap_ = _uiLayout.sanitizeDimension(options.gap)
       this.crossAxisAlignment_ = options.crossAxisAlignment || "start"
       this.constraintsScratch_ = { maxWidth: 0, maxHeight: 0 }
       this.measureScratch_ = new UiMeasuredSize()
@@ -205,7 +175,7 @@ namespace ui {
      * Updates the gap between adjacent children.
      */
     public setGap(gap: number): void {
-      this.gap_ = sanitizeContainerDimension(gap)
+      this.gap_ = _uiLayout.sanitizeDimension(gap)
       this.invalidateLayout()
     }
 
@@ -219,8 +189,8 @@ namespace ui {
 
     public measure(constraints: UiLayoutConstraints, output: UiMeasuredSize): void {
       const gap = this.totalGap()
-      this.constraintsScratch_.maxWidth = sanitizeContainerDimension(constraints.maxWidth - gap)
-      this.constraintsScratch_.maxHeight = sanitizeContainerDimension(constraints.maxHeight)
+      this.constraintsScratch_.maxWidth = _uiLayout.sanitizeDimension(constraints.maxWidth - gap)
+      this.constraintsScratch_.maxHeight = _uiLayout.sanitizeDimension(constraints.maxHeight)
       let minWidth = gap
       let preferredWidth = gap
       let minHeight = 0
@@ -300,7 +270,7 @@ namespace ui {
       this.finalRect = new Rect()
       this.layoutDirty = true
       this.children_ = []
-      this.gap_ = sanitizeContainerDimension(options.gap)
+      this.gap_ = _uiLayout.sanitizeDimension(options.gap)
       this.crossAxisAlignment_ = options.crossAxisAlignment || "start"
       this.constraintsScratch_ = { maxWidth: 0, maxHeight: 0 }
       this.measureScratch_ = new UiMeasuredSize()
@@ -357,7 +327,7 @@ namespace ui {
      * Updates the gap between adjacent children.
      */
     public setGap(gap: number): void {
-      this.gap_ = sanitizeContainerDimension(gap)
+      this.gap_ = _uiLayout.sanitizeDimension(gap)
       this.invalidateLayout()
     }
 
@@ -371,8 +341,8 @@ namespace ui {
 
     public measure(constraints: UiLayoutConstraints, output: UiMeasuredSize): void {
       const gap = this.totalGap()
-      this.constraintsScratch_.maxWidth = sanitizeContainerDimension(constraints.maxWidth)
-      this.constraintsScratch_.maxHeight = sanitizeContainerDimension(constraints.maxHeight - gap)
+      this.constraintsScratch_.maxWidth = _uiLayout.sanitizeDimension(constraints.maxWidth)
+      this.constraintsScratch_.maxHeight = _uiLayout.sanitizeDimension(constraints.maxHeight - gap)
       let minWidth = 0
       let preferredWidth = 0
       let minHeight = gap
@@ -455,7 +425,7 @@ namespace ui {
       this.constraintsScratch_ = { maxWidth: 0, maxHeight: 0 }
       this.measureScratch_ = new UiMeasuredSize()
       this.rectScratch_ = new Rect()
-      this.copyPadding(options.padding)
+      _uiLayout.copyEdgeInsets(this.padding_, options.padding)
     }
 
     /**
@@ -495,7 +465,7 @@ namespace ui {
      * Updates the edge insets.
      */
     public setPadding(padding: number | UiLayoutEdgeInsets): void {
-      this.copyPadding(padding)
+      _uiLayout.copyEdgeInsets(this.padding_, padding)
       this.invalidateLayout()
     }
 
@@ -508,8 +478,8 @@ namespace ui {
       let preferredHeight = verticalPadding
 
       if (this.child_) {
-        this.constraintsScratch_.maxWidth = sanitizeContainerDimension(constraints.maxWidth - horizontalPadding)
-        this.constraintsScratch_.maxHeight = sanitizeContainerDimension(constraints.maxHeight - verticalPadding)
+        this.constraintsScratch_.maxWidth = _uiLayout.sanitizeDimension(constraints.maxWidth - horizontalPadding)
+        this.constraintsScratch_.maxHeight = _uiLayout.sanitizeDimension(constraints.maxHeight - verticalPadding)
         this.child_.measure(this.constraintsScratch_, this.measureScratch_)
         minWidth += this.measureScratch_.minWidth
         minHeight += this.measureScratch_.minHeight
@@ -528,8 +498,8 @@ namespace ui {
         this.rectScratch_.set(
           this.finalRect.x + this.padding_.left,
           this.finalRect.y + this.padding_.top,
-          sanitizeContainerDimension(this.finalRect.width - this.padding_.left - this.padding_.right),
-          sanitizeContainerDimension(this.finalRect.height - this.padding_.top - this.padding_.bottom)
+          _uiLayout.sanitizeDimension(this.finalRect.width - this.padding_.left - this.padding_.right),
+          _uiLayout.sanitizeDimension(this.finalRect.height - this.padding_.top - this.padding_.bottom)
         )
         this.child_.arrange(this.rectScratch_)
       }
@@ -545,25 +515,6 @@ namespace ui {
       this.layoutDirty = false
     }
 
-    private copyPadding(padding: number | UiLayoutEdgeInsets | undefined): void {
-      if (typeof padding == "number") {
-        const value = sanitizeContainerDimension(padding)
-        this.padding_.top = value
-        this.padding_.right = value
-        this.padding_.bottom = value
-        this.padding_.left = value
-      } else if (padding) {
-        this.padding_.top = sanitizeContainerDimension(padding.top)
-        this.padding_.right = sanitizeContainerDimension(padding.right)
-        this.padding_.bottom = sanitizeContainerDimension(padding.bottom)
-        this.padding_.left = sanitizeContainerDimension(padding.left)
-      } else {
-        this.padding_.top = 0
-        this.padding_.right = 0
-        this.padding_.bottom = 0
-        this.padding_.left = 0
-      }
-    }
   }
 
   /**
@@ -670,19 +621,19 @@ namespace ui {
         this.constraintsScratch_.maxWidth = this.finalRect.width
         this.constraintsScratch_.maxHeight = this.finalRect.height
         this.child_.measure(this.constraintsScratch_, this.measureScratch_)
-        const childWidth = alignedChildSize(
+        const childWidth = _uiLayout.alignedSize(
           this.finalRect.width,
           this.measureScratch_.preferredWidth,
           this.horizontalAlignment_
         )
-        const childHeight = alignedChildSize(
+        const childHeight = _uiLayout.alignedSize(
           this.finalRect.height,
           this.measureScratch_.preferredHeight,
           this.verticalAlignment_
         )
         this.rectScratch_.set(
-          alignedChildOffset(this.finalRect.x, this.finalRect.width, childWidth, this.horizontalAlignment_),
-          alignedChildOffset(this.finalRect.y, this.finalRect.height, childHeight, this.verticalAlignment_),
+          _uiLayout.alignedOffset(this.finalRect.x, this.finalRect.width, childWidth, this.horizontalAlignment_),
+          _uiLayout.alignedOffset(this.finalRect.y, this.finalRect.height, childHeight, this.verticalAlignment_),
           childWidth,
           childHeight
         )
@@ -708,7 +659,7 @@ namespace ui {
     constructor(node: UiLayoutNode, rect: Rect) {
       this.node = node
       this.rect = new Rect()
-      copyAbsoluteChildRect(this.rect, rect)
+      copyArrangedLayoutRect(this.rect, rect)
     }
   }
 
@@ -760,7 +711,7 @@ namespace ui {
      */
     public setChildRectAt(index: number, rect: Rect): boolean {
       if (index < 0 || index >= this.children_.length) return false
-      copyAbsoluteChildRect(this.children_[index].rect, rect)
+      copyArrangedLayoutRect(this.children_[index].rect, rect)
       this.invalidateLayout()
       return true
     }
@@ -787,8 +738,8 @@ namespace ui {
 
       for (let i = 0; i < this.children_.length; i++) {
         const rect = this.children_[i].rect
-        width = Math.max(width, sanitizeContainerDimension(rect.x + rect.width))
-        height = Math.max(height, sanitizeContainerDimension(rect.y + rect.height))
+        width = Math.max(width, _uiLayout.sanitizeDimension(rect.x + rect.width))
+        height = Math.max(height, _uiLayout.sanitizeDimension(rect.y + rect.height))
       }
 
       measureLayoutSpec(this.layoutSpec, constraints, width, height, width, height, output)
@@ -842,8 +793,8 @@ namespace ui {
     const totalGap = gap * Math.max(0, children.length - 1)
     const mainSize = row ? finalRect.width : finalRect.height
     const crossSize = row ? finalRect.height : finalRect.width
-    childConstraints.maxWidth = row ? sanitizeContainerDimension(finalRect.width - totalGap) : finalRect.width
-    childConstraints.maxHeight = row ? finalRect.height : sanitizeContainerDimension(finalRect.height - totalGap)
+    childConstraints.maxWidth = row ? _uiLayout.sanitizeDimension(finalRect.width - totalGap) : finalRect.width
+    childConstraints.maxHeight = row ? finalRect.height : _uiLayout.sanitizeDimension(finalRect.height - totalGap)
     let nonFillPreferred = 0
     let fillMinimum = 0
     let fillCount = 0
@@ -878,8 +829,8 @@ namespace ui {
       }
 
       const preferredCross = row ? measureScratch.preferredHeight : measureScratch.preferredWidth
-      const childCross = alignedChildSize(crossSize, preferredCross, crossAxisAlignment)
-      const crossOffset = alignedChildOffset(
+      const childCross = _uiLayout.alignedSize(crossSize, preferredCross, crossAxisAlignment)
+      const crossOffset = _uiLayout.alignedOffset(
         row ? finalRect.y : finalRect.x,
         crossSize,
         childCross,
@@ -901,38 +852,4 @@ namespace ui {
     return row ? spec.width.mode == "fill" : spec.height.mode == "fill"
   }
 
-  function alignedChildSize(containerSize: number, preferredSize: number, alignment: UiLayoutAlignment): number {
-    if (alignment == "stretch") return containerSize
-    return preferredSize
-  }
-
-  function alignedChildOffset(
-    containerStart: number,
-    containerSize: number,
-    childSize: number,
-    alignment: UiLayoutAlignment
-  ): number {
-    if (alignment == "center") return containerStart + Math.round((containerSize - childSize) / 2)
-    if (alignment == "end") return containerStart + containerSize - childSize
-    return containerStart
-  }
-
-  function copyAbsoluteChildRect(target: Rect, rect: Rect): void {
-    target.set(
-      sanitizeContainerCoordinate(rect.x),
-      sanitizeContainerCoordinate(rect.y),
-      sanitizeContainerDimension(rect.width),
-      sanitizeContainerDimension(rect.height)
-    )
-  }
-
-  function sanitizeContainerDimension(value: number | undefined): number {
-    value = sanitizeContainerCoordinate(value)
-    return value < 0 ? 0 : value
-  }
-
-  function sanitizeContainerCoordinate(value: number | undefined): number {
-    if (value === undefined || value != value) return 0
-    return Math.round(value)
-  }
 }

@@ -245,6 +245,27 @@ namespace ui {
     }
   }
 
+  class CountingLayoutSmokeNode extends LayoutSmokeNode {
+    public measureCount: number
+    public arrangeCount: number
+
+    constructor(layoutSpec: UiLayoutSpec, width: number, height: number) {
+      super(layoutSpec, width, height, width, height)
+      this.measureCount = 0
+      this.arrangeCount = 0
+    }
+
+    public measure(constraints: UiLayoutConstraints, output: UiMeasuredSize): void {
+      this.measureCount++
+      super.measure(constraints, output)
+    }
+
+    public arrange(rect: Rect): void {
+      this.arrangeCount++
+      super.arrange(rect)
+    }
+  }
+
   /**
    * Smoke harness for measured layout contracts and final rectangle storage.
    */
@@ -637,6 +658,134 @@ namespace ui {
     assertLayoutRect(centeredPanel.finalRect, 0, 0, 320, 240, "overlay panel layer")
     assertLayoutRect(overlayPanel.finalRect, 110, 80, 100, 80, "overlay panel")
   }
+
+  /**
+   * Smoke harness for scroll viewport geometry and bounded layout invalidation.
+   */
+  export function runScrollLayoutSmokeTest(): void {
+    const measured = new UiMeasuredSize()
+    const viewportRect = new Rect()
+    const contentRect = new Rect()
+    const visibleContentRect = new Rect()
+    const padding = { top: 2, right: 3, bottom: 4, left: 5 }
+
+    const editorRows = new UiColumnLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [
+        new LayoutSmokeNode(layoutFixedSpec(100, 18), 1, 1, 1, 1),
+        new LayoutSmokeNode(layoutFixedSpec(100, 18), 1, 1, 1, 1),
+        new LayoutSmokeNode(layoutFixedSpec(100, 18), 1, 1, 1, 1),
+        new LayoutSmokeNode(layoutFixedSpec(100, 18), 1, 1, 1, 1),
+        new LayoutSmokeNode(layoutFixedSpec(100, 18), 1, 1, 1, 1)
+      ],
+      gap: 2
+    })
+    const editorScroll = new UiScrollViewportLayout({
+      layoutSpec: layoutContentSpec(),
+      child: editorRows,
+      padding
+    })
+
+    editorScroll.measure({ maxWidth: 80, maxHeight: 50 }, measured)
+    control.assert(measured.preferredWidth == 80, "editor scroll preferred width")
+    control.assert(measured.preferredHeight == 50, "editor scroll preferred height")
+    editorScroll.arrange(new Rect(10, 20, 80, 50))
+    editorScroll.getViewportRect(viewportRect)
+    editorScroll.getContentRect(contentRect)
+    editorScroll.getVisibleContentRect(visibleContentRect)
+    assertLayoutRect(viewportRect, 15, 22, 72, 44, "editor viewport")
+    assertLayoutRect(contentRect, 15, 22, 72, 98, "editor content")
+    assertLayoutRect(visibleContentRect, 15, 22, 72, 44, "editor visible")
+    assertLayoutRect(editorRows.finalRect, 15, 22, 72, 98, "editor child")
+    control.assert(editorScroll.contentOffsetY == 0, "editor initial offset")
+
+    editorScroll.setContentOffset(0, 30)
+    editorScroll.arrange(new Rect(10, 20, 80, 50))
+    editorScroll.getContentRect(contentRect)
+    editorScroll.getVisibleContentRect(visibleContentRect)
+    assertLayoutRect(contentRect, 15, -8, 72, 98, "editor scrolled content")
+    assertLayoutRect(visibleContentRect, 15, 22, 72, 44, "editor scrolled visible")
+    assertLayoutRect(editorRows.finalRect, 15, -8, 72, 98, "editor scrolled child")
+    control.assert(editorScroll.contentOffsetY == 30, "editor retained offset")
+
+    const shortList = new LayoutSmokeNode(layoutFixedSpec(60, 30), 1, 1, 1, 1)
+    const listScroll = new UiScrollViewportLayout({
+      layoutSpec: layoutContentSpec(),
+      child: shortList,
+      contentOffsetY: 40
+    })
+
+    listScroll.arrange(new Rect(0, 0, 100, 80))
+    listScroll.getContentRect(contentRect)
+    listScroll.getVisibleContentRect(visibleContentRect)
+    assertLayoutRect(contentRect, 0, 0, 60, 30, "short list content")
+    assertLayoutRect(visibleContentRect, 0, 0, 60, 30, "short list visible")
+    control.assert(listScroll.contentOffsetY == 0, "short list clamped offset")
+
+    const table = new LayoutSmokeNode(layoutFixedSpec(180, 140), 1, 1, 1, 1)
+    const tableScroll = new UiScrollViewportLayout({
+      layoutSpec: layoutContentSpec(),
+      child: table,
+      contentOffsetX: 30,
+      contentOffsetY: 45,
+      scrollX: true,
+      scrollY: true
+    })
+
+    tableScroll.arrange(new Rect(50, 60, 100, 70))
+    tableScroll.getContentRect(contentRect)
+    tableScroll.getVisibleContentRect(visibleContentRect)
+    assertLayoutRect(contentRect, 20, 15, 180, 140, "table content")
+    assertLayoutRect(visibleContentRect, 50, 60, 100, 70, "table visible")
+    assertLayoutRect(table.finalRect, 20, 15, 180, 140, "table child")
+    control.assert(tableScroll.contentOffsetX == 30, "table offset x")
+    control.assert(tableScroll.contentOffsetY == 45, "table offset y")
+
+    tableScroll.setContentOffset(0, 0)
+    tableScroll.scrollContentRectIntoView(new Rect(10, 10, 20, 10))
+    control.assert(tableScroll.contentOffsetX == 0, "scroll into view fully visible x")
+    control.assert(tableScroll.contentOffsetY == 0, "scroll into view fully visible y")
+    tableScroll.scrollContentRectIntoView(new Rect(120, 20, 20, 10))
+    control.assert(tableScroll.contentOffsetX == 40, "scroll into view partial x")
+    control.assert(tableScroll.contentOffsetY == 0, "scroll into view partial y")
+    tableScroll.setContentOffset(0, 0)
+    tableScroll.scrollContentRectIntoView(new Rect(20, 80, 120, 80))
+    control.assert(tableScroll.contentOffsetX == 20, "scroll into view oversized x")
+    control.assert(tableScroll.contentOffsetY == 70, "scroll into view oversized y")
+    tableScroll.setContentOffset(0, 0)
+    tableScroll.scrollContentRectIntoView(new Rect(500, 500, 10, 10))
+    control.assert(tableScroll.contentOffsetX == 80, "scroll into view clamped x")
+    control.assert(tableScroll.contentOffsetY == 70, "scroll into view clamped y")
+    tableScroll.setScrollAxes(false, true)
+    tableScroll.setContentOffset(0, 0)
+    tableScroll.arrange(new Rect(50, 60, 100, 70))
+    tableScroll.scrollContentRectIntoView(new Rect(120, 90, 20, 10))
+    control.assert(tableScroll.contentOffsetX == 0, "scroll into view disabled x")
+    control.assert(tableScroll.contentOffsetY == 30, "scroll into view enabled y")
+
+    const countedRoot = new CountingLayoutSmokeNode(layoutFixedSpec(50, 20), 50, 20)
+    const owner = new UiLayoutOwner({
+      root: countedRoot,
+      constraints: { maxWidth: 100, maxHeight: 80 },
+      rect: new Rect(3, 4, 50, 20)
+    })
+
+    owner.runLayout()
+    control.assert(countedRoot.measureCount == 1, "owner first measure")
+    control.assert(countedRoot.arrangeCount == 1, "owner first arrange")
+    control.assert(!owner.layoutDirty, "owner clean after pass")
+    owner.runLayout()
+    control.assert(countedRoot.measureCount == 1, "owner clean skips measure")
+    control.assert(countedRoot.arrangeCount == 1, "owner clean skips arrange")
+    countedRoot.invalidateLayout()
+    owner.runLayout()
+    control.assert(countedRoot.measureCount == 2, "owner observes dirty root measure")
+    control.assert(countedRoot.arrangeCount == 2, "owner observes dirty root arrange")
+    owner.invalidateLayout()
+    owner.runLayout()
+    control.assert(countedRoot.measureCount == 3, "owner explicit invalidate measure")
+    control.assert(countedRoot.arrangeCount == 3, "owner explicit invalidate arrange")
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
@@ -644,5 +793,6 @@ ui.runRuntimeSmokeTest()
 ui.runLayoutSmokeTest()
 ui.runPrimitiveLayoutSmokeTest()
 ui.runStructuredLayoutSmokeTest()
+ui.runScrollLayoutSmokeTest()
 
 control.__log(1, "All tests passed!")
