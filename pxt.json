@@ -18,7 +18,12 @@
         "navigator.ts",
         "cursorscene.ts",
         "options.ts",
-        "coreAssets.ts"
+        "coreAssets.ts",
+        "ui-core/geometry.ts",
+        "ui-core/viewport.ts",
+        "ui-core/draw-surface.ts",
+        "ui-core/bitmap-draw-surface.ts",
+        "ui-core/display-shield-frame-adapter.ts"
     ],
     "yotta": {
         "config": {
