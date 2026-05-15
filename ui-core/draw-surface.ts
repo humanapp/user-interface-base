@@ -16,7 +16,7 @@ namespace ui {
   }
 
   /**
-   * Bitmap font metrics and glyph data used by text drawing.
+   * Bitmap font metrics and glyph data for text measurement and rendering.
    */
   export interface TextFont {
     /**
@@ -82,8 +82,8 @@ namespace ui {
     font?: TextFont
 
     /**
-     * Reserved transparency flag for text renderers. Phase 1 text draws glyph
-     * pixels only.
+     * Whether text drawing should avoid filling background pixels. Text drawing
+     * emits glyph pixels only.
      */
     transparent?: boolean
 
@@ -101,7 +101,7 @@ namespace ui {
   }
 
   /**
-   * Immediate drawing surface that receives logical viewport coordinates.
+   * Immediate-mode drawing target that accepts logical viewport coordinates.
    */
   export interface DrawSurface {
     /**

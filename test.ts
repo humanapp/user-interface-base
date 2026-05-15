@@ -57,6 +57,138 @@ namespace ui {
     surface.drawText("downscaled text", 12, 36, { color: 0, allowDownscale: true })
     adapter.commit()
   }
+
+  class RuntimeSmokeDisplayAdapter implements UiDisplayAdapter {
+    private inner_: DisplayShieldFrameAdapter
+    private onCommit_: () => void
+
+    constructor(onCommit: () => void) {
+      this.inner_ = new DisplayShieldFrameAdapter({ scaleMode: "cover" })
+      this.onCommit_ = onCommit
+    }
+
+    public get surface(): DrawSurface {
+      return this.inner_.surface
+    }
+
+    public commit(): Bitmap {
+      this.onCommit_()
+      return this.inner_.commit()
+    }
+  }
+
+  class RuntimeSmokeScreen implements UiScreen {
+    public backgroundColor: number
+    public exitCount: number
+    private prefix_: string
+    private log_: (name: string) => void
+
+    constructor(prefix: string, backgroundColor: number, log: (name: string) => void) {
+      this.prefix_ = prefix
+      this.backgroundColor = backgroundColor
+      this.log_ = log
+      this.exitCount = 0
+    }
+
+    public enter(runtime: UiRuntime, input: UiInputScope): void {
+      this.log_(this.prefix_ + "enter")
+      input.onAction("activate", (event: UiInputEvent) => {
+        this.log_(this.prefix_ + "scope")
+        return true
+      })
+    }
+
+    public exit(): void {
+      this.exitCount++
+      this.log_(this.prefix_ + "exit")
+    }
+
+    public activate(): void {
+      this.log_(this.prefix_ + "activate")
+    }
+
+    public deactivate(): void {
+      this.log_(this.prefix_ + "deactivate")
+    }
+
+    public handleInput(event: UiInputEvent): boolean {
+      this.log_(this.prefix_ + "handle")
+      return false
+    }
+
+    public update(): void {
+      this.log_(this.prefix_ + "update")
+    }
+
+    public render(surface: DrawSurface): void {
+      this.log_(this.prefix_ + "render")
+      surface.drawText(this.prefix_, 16, 16, { color: 15 })
+    }
+  }
+
+  /**
+   * Smoke harness for runtime stack lifecycle and scoped input delivery.
+   */
+  export function runRuntimeSmokeTest(): void {
+    let log = ""
+    const appendLog = (name: string) => {
+      log += name + ";"
+    }
+    const display = new RuntimeSmokeDisplayAdapter(() => appendLog("commit"))
+    const runtime = new UiRuntime({ display, clearColor: 0 })
+    const base = new RuntimeSmokeScreen("base", 1, appendLog)
+    const overlay = new RuntimeSmokeScreen("overlay", 2, appendLog)
+    const replacement = new RuntimeSmokeScreen("replace", 3, appendLog)
+
+    runtime.push(base)
+    control.assert(log == "baseenter;baseactivate;", "base push order")
+
+    runtime.push(overlay)
+    control.assert(base.exitCount == 0, "covered screen not exited")
+    control.assert(
+      log == "baseenter;baseactivate;basedeactivate;overlayenter;overlayactivate;",
+      "overlay push order"
+    )
+
+    runtime.dispatchInput({ action: "activate" })
+    runtime.runFrame()
+    control.assert(
+      log ==
+        "baseenter;baseactivate;basedeactivate;overlayenter;overlayactivate;" +
+        "overlayscope;overlayupdate;overlayrender;commit;",
+      "input frame order"
+    )
+
+    runtime.pop()
+    control.assert(overlay.exitCount == 1, "popped screen exited")
+    control.assert(runtime.top() == base, "base restored")
+    control.assert(
+      log ==
+        "baseenter;baseactivate;basedeactivate;overlayenter;overlayactivate;" +
+        "overlayscope;overlayupdate;overlayrender;commit;" +
+        "overlaydeactivate;overlayexit;baseactivate;",
+      "pop order"
+    )
+
+    runtime.dispatchInput({ action: "activate" })
+    runtime.runFrame()
+    control.assert(
+      log ==
+        "baseenter;baseactivate;basedeactivate;overlayenter;overlayactivate;" +
+        "overlayscope;overlayupdate;overlayrender;commit;" +
+        "overlaydeactivate;overlayexit;baseactivate;" +
+        "basescope;baseupdate;baserender;commit;",
+      "popped input disposed"
+    )
+
+    runtime.replace(replacement)
+    control.assert(runtime.top() == replacement, "replacement active")
+    runtime.pop()
+    control.assert(runtime.depth() == 0, "stack empty")
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
+ui.runRuntimeSmokeTest()
+
+control.__log(1, "All tests passed!")

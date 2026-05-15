@@ -1,6 +1,6 @@
 namespace ui {
   /**
-   * DrawSurface implementation that maps logical drawing into a physical Bitmap.
+   * Draw surface that maps logical coordinates into a physical bitmap.
    */
   export class PhysicalBitmapDrawSurface implements DrawSurface {
     private bitmap_: Bitmap
@@ -24,28 +24,29 @@ namespace ui {
     }
 
     /**
-     * Physical bitmap that receives all drawing operations.
+     * Physical bitmap that receives mapped drawing operations.
      */
     public get bitmap(): Bitmap {
       return this.bitmap_
     }
 
     /**
-     * Current logical-to-physical scaling policy.
+     * Logical-to-physical scaling policy for draw calls.
      */
     public get scaleMode(): ViewportScaleMode {
       return this.scaleMode_
     }
 
     /**
-     * Updates the logical-to-physical scaling policy.
+     * Changes how the logical viewport is mapped into the physical bitmap.
      */
     public setScaleMode(scaleMode: ViewportScaleMode): void {
       this.scaleMode_ = scaleMode
     }
 
     /**
-     * Fills the mapped logical viewport with a palette color.
+     * Fills the mapped logical viewport. In `fit` mode, bars use the configured
+     * background color.
      */
     public clear(color: number): void {
       if (this.scaleMode_ == "fit") {
@@ -55,14 +56,14 @@ namespace ui {
     }
 
     /**
-     * Fills a clipped logical rectangle with a palette color.
+     * Fills a logical rectangle after clipping it to the viewport.
      */
     public fillRect(rect: Rect, color: number): void {
       this.fillLogicalRect(rect.x, rect.y, rect.width, rect.height, color)
     }
 
     /**
-     * Draws a clipped logical rectangle outline with a palette color.
+     * Draws a logical rectangle outline after clipping it to the viewport.
      */
     public drawRect(rect: Rect, color: number): void {
       const x = this.roundPixel(rect.x)
@@ -78,7 +79,7 @@ namespace ui {
     }
 
     /**
-     * Draws a clipped logical line with a palette color.
+     * Draws a logical line after clipping it to the viewport.
      */
     public drawLine(x0: number, y0: number, x1: number, y1: number, color: number): void {
       if (!this.clipLine(
@@ -98,7 +99,7 @@ namespace ui {
     }
 
     /**
-     * Draws a clipped logical circle outline with a palette color.
+     * Draws a logical circle outline after clipping it to the viewport.
      */
     public drawCircle(cx: number, cy: number, radius: number, color: number): void {
       const physicalRadius = this.physicalLengthFromLogical(radius)
@@ -114,7 +115,7 @@ namespace ui {
     }
 
     /**
-     * Fills a clipped logical circle with a palette color.
+     * Fills a logical circle after clipping it to the viewport.
      */
     public fillCircle(cx: number, cy: number, radius: number, color: number): void {
       const physicalRadius = this.physicalLengthFromLogical(radius)
@@ -130,7 +131,7 @@ namespace ui {
     }
 
     /**
-     * Draws a bitmap using nearest-neighbor logical-to-physical mapping.
+     * Draws a bitmap with nearest-neighbor sampling.
      */
     public drawBitmap(bitmap: Bitmap, x: number, y: number, options?: DrawBitmapOptions): void {
       const destX = this.roundPixel(x)
@@ -168,7 +169,7 @@ namespace ui {
     }
 
     /**
-     * Draws text using the selected bitmap font.
+     * Draws text at the logical position using a bitmap font.
      */
     public drawText(text: string, x: number, y: number, options?: DrawTextOptions): void {
       const font = this.textFont(text, options ? options.font : undefined)

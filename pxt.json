@@ -23,7 +23,10 @@
         "ui-core/viewport.ts",
         "ui-core/draw-surface.ts",
         "ui-core/bitmap-draw-surface.ts",
-        "ui-core/display-shield-frame-adapter.ts"
+        "ui-core/display-shield-frame-adapter.ts",
+        "ui-core/runtime.ts",
+        "ui-core/input.ts",
+        "ui-core/scene-stack.ts"
     ],
     "yotta": {
         "config": {

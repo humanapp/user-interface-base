@@ -1,40 +1,40 @@
 namespace ui {
   /**
-   * Logical viewport scaling policy for physical draw adapters.
+   * Policy for fitting the fixed logical viewport into a physical target.
    */
   export type ViewportScaleMode = "cover" | "fit"
 
   /**
-   * Fixed logical viewport width used by ui-core layout and rendering.
+   * Width of the logical coordinate space used for layout and rendering.
    */
   export const LOGICAL_VIEWPORT_WIDTH = 320
 
   /**
-   * Fixed logical viewport height used by ui-core layout and rendering.
+   * Height of the logical coordinate space used for layout and rendering.
    */
   export const LOGICAL_VIEWPORT_HEIGHT = 240
 
   /**
-   * Fixed logical viewport aspect ratio used by the Phase 1 frame adapter.
+   * Aspect ratio of the logical coordinate space.
    */
   export const LOGICAL_VIEWPORT_ASPECT_RATIO = LOGICAL_VIEWPORT_WIDTH / LOGICAL_VIEWPORT_HEIGHT
 
   /**
-   * Returns the fixed logical viewport size.
+   * Creates a size value for the full logical viewport.
    */
   export function logicalViewportSize(): Size {
     return new Size(LOGICAL_VIEWPORT_WIDTH, LOGICAL_VIEWPORT_HEIGHT)
   }
 
   /**
-   * Returns the fixed logical viewport rectangle.
+   * Creates a rectangle covering the full logical viewport.
    */
   export function logicalViewportRect(): Rect {
     return new Rect(0, 0, LOGICAL_VIEWPORT_WIDTH, LOGICAL_VIEWPORT_HEIGHT)
   }
 
   /**
-   * Computes the scale from logical viewport pixels to physical pixels.
+   * Computes the logical-to-physical scale for a target bitmap size.
    */
   export function physicalViewportScale(
     physicalWidth: number,
@@ -47,7 +47,7 @@ namespace ui {
   }
 
   /**
-   * Computes the physical x offset for the scaled logical viewport.
+   * Computes the physical x offset of the scaled logical viewport.
    */
   export function physicalViewportOffsetX(
     physicalWidth: number,
@@ -61,7 +61,7 @@ namespace ui {
   }
 
   /**
-   * Computes the physical y offset for the scaled logical viewport.
+   * Computes the physical y offset of the scaled logical viewport.
    */
   export function physicalViewportOffsetY(
     physicalWidth: number,

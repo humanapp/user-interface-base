@@ -1,8 +1,8 @@
 namespace ui {
   /**
-   * Display-shield adapter that draws directly into the current screen bitmap.
+   * Adapter for display-shield's physical bitmap update path.
    */
-  export class DisplayShieldFrameAdapter {
+  export class DisplayShieldFrameAdapter implements UiDisplayAdapter {
     private surface_: PhysicalBitmapDrawSurface
 
     constructor(options?: PhysicalDrawSurfaceOptions) {
@@ -17,7 +17,7 @@ namespace ui {
     }
 
     /**
-     * Updates the physical screen through the existing display-shield path.
+     * Sends the current physical bitmap to display-shield and returns it.
      */
     public commit(): Bitmap {
       const frame = this.surface_.bitmap
