@@ -786,6 +786,399 @@ namespace ui {
     control.assert(countedRoot.measureCount == 3, "owner explicit invalidate measure")
     control.assert(countedRoot.arrangeCount == 3, "owner explicit invalidate arrange")
   }
+
+  type FocusSmokeResult =
+    UiFocusSetResult |
+    UiFocusActivationResult |
+    UiFocusCancelResult |
+    UiFocusHitTestResult |
+    UiFocusTargetUpdateResult
+
+  interface FocusStateMachineFixture {
+    name: string
+    scopes: UiFocusScopeOptions[]
+    targets: UiFocusTargetOptions[]
+    initialActiveScopeId?: UiFocusScopeId
+    initialActiveTargetId?: UiFocusId
+    operation: (state: UiFocusState) => FocusSmokeResult
+    expectedResult: any
+    expectedActiveScopeId?: UiFocusScopeId
+    expectedActiveTargetId?: UiFocusId
+  }
+
+  function runFocusFixture(fixture: FocusStateMachineFixture): void {
+    const state = new UiFocusState()
+
+    for (let i = 0; i < fixture.scopes.length; i++) {
+      state.setScope(fixture.scopes[i])
+    }
+
+    for (let i = 0; i < fixture.targets.length; i++) {
+      state.setTarget(fixture.targets[i])
+    }
+
+    if (fixture.initialActiveScopeId && fixture.initialActiveTargetId) {
+      state.setActiveTarget(fixture.initialActiveScopeId, fixture.initialActiveTargetId)
+    } else if (fixture.initialActiveScopeId) {
+      state.setActiveScope(fixture.initialActiveScopeId)
+    }
+
+    const result = fixture.operation(state)
+    assertFocusResult(result, fixture.expectedResult, fixture.name)
+    control.assert(state.getActiveScopeId() == fixture.expectedActiveScopeId, fixture.name + " active scope")
+    control.assert(
+      state.getActiveTargetId(fixture.expectedActiveScopeId) == fixture.expectedActiveTargetId,
+      fixture.name + " active target"
+    )
+  }
+
+  function assertFocusResult(result: any, expected: any, name: string): void {
+    const fields = [
+      "kind",
+      "scopeId",
+      "targetId",
+      "previousScopeId",
+      "previousTargetId",
+      "reason",
+      "disabled"
+    ]
+
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i]
+      control.assert(result[field] == expected[field], name + " result " + field)
+    }
+
+    if (expected.scrollRequest) {
+      control.assert(!!result.scrollRequest, name + " scroll exists")
+      assertFocusScrollRequest(result.scrollRequest, expected.scrollRequest, name)
+    } else {
+      control.assert(!result.scrollRequest, name + " no scroll")
+    }
+  }
+
+  function assertFocusScrollRequest(result: UiFocusScrollRequest, expected: UiFocusScrollRequest, name: string): void {
+    control.assert(result.scopeId == expected.scopeId, name + " scroll scope")
+    control.assert(result.targetId == expected.targetId, name + " scroll target")
+    control.assert(result.scrollOwnerId == expected.scrollOwnerId, name + " scroll owner")
+    control.assert(result.reason == expected.reason, name + " scroll reason")
+    assertLayoutRect(
+      result.targetRect,
+      expected.targetRect.x,
+      expected.targetRect.y,
+      expected.targetRect.width,
+      expected.targetRect.height,
+      name + " scroll rect"
+    )
+  }
+
+  /**
+   * Smoke harness for focus state, target records, and typed operation results.
+   */
+  export function runFocusStateMachineSmokeTest(): void {
+    const mainScope: UiFocusScopeOptions = { id: "main" }
+    const modalScope: UiFocusScopeOptions = { id: "modal", parentScopeId: "main", handlesCancel: true }
+    const secondaryScope: UiFocusScopeOptions = { id: "secondary" }
+    const emptyScope: UiFocusScopeOptions = { id: "empty" }
+    const targetA: UiFocusTargetOptions = {
+      id: "a",
+      scopeId: "main",
+      rect: new Rect(10.2, 11.6, 20.4, 12.1),
+      activatable: true
+    }
+    const targetB: UiFocusTargetOptions = {
+      id: "b",
+      scopeId: "main",
+      rect: new Rect(40, 10, 20, 20),
+      scrollOwnerId: "main-scroll"
+    }
+    const disabledTarget: UiFocusTargetOptions = {
+      id: "disabled",
+      scopeId: "main",
+      rect: new Rect(0, 0, 8, 8),
+      disabled: true
+    }
+    const hiddenTarget: UiFocusTargetOptions = {
+      id: "hidden",
+      scopeId: "main",
+      rect: new Rect(70, 10, 20, 20),
+      hidden: true
+    }
+    const modalTarget: UiFocusTargetOptions = {
+      id: "modal-close",
+      scopeId: "modal",
+      rect: new Rect(100, 10, 20, 20),
+      activatable: true
+    }
+
+    const fixtures: FocusStateMachineFixture[] = [
+      {
+        name: "missing scope",
+        scopes: [],
+        targets: [],
+        operation: state => state.setTarget({ id: "orphan", scopeId: "missing", rect: new Rect(0, 0, 1, 1) }),
+        expectedResult: { kind: "rejected", scopeId: "missing", targetId: "orphan", reason: "missingScope" }
+      },
+      {
+        name: "missing target",
+        scopes: [mainScope],
+        targets: [targetA],
+        operation: state => state.setActiveTarget("main", "missing"),
+        expectedResult: { kind: "rejected", scopeId: "main", targetId: "missing", reason: "missingTarget" }
+      },
+      {
+        name: "scope mismatch",
+        scopes: [mainScope, secondaryScope],
+        targets: [targetA],
+        operation: state => state.setActiveTarget("secondary", "a"),
+        expectedResult: { kind: "rejected", scopeId: "secondary", targetId: "a", reason: "scopeMismatch" }
+      },
+      {
+        name: "disabled target",
+        scopes: [mainScope],
+        targets: [disabledTarget],
+        operation: state => state.setActiveTarget("main", "disabled"),
+        expectedResult: { kind: "rejected", scopeId: "main", targetId: "disabled", reason: "disabled" }
+      },
+      {
+        name: "disabled hit test",
+        scopes: [mainScope],
+        targets: [disabledTarget],
+        operation: state => state.hitTest(1, 1),
+        expectedResult: { kind: "hit", scopeId: "main", targetId: "disabled", disabled: true }
+      },
+      {
+        name: "hidden target",
+        scopes: [mainScope],
+        targets: [hiddenTarget],
+        operation: state => state.setActiveTarget("main", "hidden"),
+        expectedResult: { kind: "rejected", scopeId: "main", targetId: "hidden", reason: "hidden" }
+      },
+      {
+        name: "hidden hit test",
+        scopes: [mainScope],
+        targets: [hiddenTarget],
+        operation: state => state.hitTest(71, 11),
+        expectedResult: { kind: "miss", reason: "outside" }
+      },
+      {
+        name: "empty scope",
+        scopes: [emptyScope],
+        targets: [],
+        operation: state => state.setActiveScope("empty"),
+        expectedResult: { kind: "unchanged", scopeId: "empty", reason: "empty" },
+        expectedActiveScopeId: "empty"
+      },
+      {
+        name: "preferred initial target",
+        scopes: [{ id: "main", preferredTargetId: "b" }],
+        targets: [targetA, targetB],
+        operation: state => state.setActiveScope("main"),
+        expectedResult: {
+          kind: "focused",
+          scopeId: "main",
+          targetId: "b",
+          scrollRequest: {
+            scopeId: "main",
+            targetId: "b",
+            scrollOwnerId: "main-scroll",
+            targetRect: new Rect(40, 10, 20, 20),
+            reason: "focus"
+          }
+        },
+        expectedActiveScopeId: "main",
+        expectedActiveTargetId: "b"
+      },
+      {
+        name: "duplicate scope update",
+        scopes: [{ id: "main", preferredTargetId: "a" }, { id: "main", preferredTargetId: "b" }],
+        targets: [targetA, targetB],
+        operation: state => state.setActiveScope("main"),
+        expectedResult: {
+          kind: "focused",
+          scopeId: "main",
+          targetId: "b",
+          scrollRequest: {
+            scopeId: "main",
+            targetId: "b",
+            scrollOwnerId: "main-scroll",
+            targetRect: new Rect(40, 10, 20, 20),
+            reason: "focus"
+          }
+        },
+        expectedActiveScopeId: "main",
+        expectedActiveTargetId: "b"
+      },
+      {
+        name: "duplicate target update",
+        scopes: [mainScope],
+        targets: [
+          { id: "a", scopeId: "main", rect: new Rect(0, 0, 5, 5) },
+          { id: "a", scopeId: "main", rect: new Rect(10, 10, 5, 5) }
+        ],
+        operation: state => state.hitTest(11, 11),
+        expectedResult: { kind: "hit", scopeId: "main", targetId: "a", disabled: false }
+      },
+      {
+        name: "cleared active scope",
+        scopes: [mainScope],
+        targets: [targetA],
+        initialActiveScopeId: "main",
+        initialActiveTargetId: "a",
+        operation: state => state.clearActiveScope(),
+        expectedResult: { kind: "cleared", scopeId: "main", previousScopeId: "main", previousTargetId: "a" },
+        expectedActiveTargetId: undefined
+      },
+      {
+        name: "cleared active target",
+        scopes: [mainScope],
+        targets: [targetA],
+        initialActiveScopeId: "main",
+        initialActiveTargetId: "a",
+        operation: state => state.clearActiveTarget("main"),
+        expectedResult: { kind: "cleared", scopeId: "main", previousScopeId: "main", previousTargetId: "a" },
+        expectedActiveScopeId: "main"
+      },
+      {
+        name: "handled cancel",
+        scopes: [modalScope],
+        targets: [modalTarget],
+        initialActiveScopeId: "modal",
+        initialActiveTargetId: "modal-close",
+        operation: state => state.cancel(),
+        expectedResult: { kind: "handled", scopeId: "modal" },
+        expectedActiveScopeId: "modal",
+        expectedActiveTargetId: "modal-close"
+      },
+      {
+        name: "unhandled cancel",
+        scopes: [mainScope],
+        targets: [targetA],
+        initialActiveScopeId: "main",
+        initialActiveTargetId: "a",
+        operation: state => state.cancel(),
+        expectedResult: { kind: "unhandled", scopeId: "main", reason: "notHandled" },
+        expectedActiveScopeId: "main",
+        expectedActiveTargetId: "a"
+      },
+      {
+        name: "hit test miss",
+        scopes: [mainScope],
+        targets: [targetA],
+        operation: state => state.hitTest(200, 200),
+        expectedResult: { kind: "miss", reason: "outside" }
+      },
+      {
+        name: "overlapping hit test order",
+        scopes: [mainScope],
+        targets: [
+          { id: "lower", scopeId: "main", rect: new Rect(0, 0, 20, 20), hitTestOrder: 2 },
+          { id: "upper", scopeId: "main", rect: new Rect(0, 0, 20, 20), hitTestOrder: 3 }
+        ],
+        operation: state => state.hitTest(5, 5),
+        expectedResult: { kind: "hit", scopeId: "main", targetId: "upper", disabled: false }
+      },
+      {
+        name: "scroll request",
+        scopes: [mainScope],
+        targets: [targetB],
+        operation: state => state.setActiveTarget("main", "b"),
+        expectedResult: {
+          kind: "focused",
+          scopeId: "main",
+          targetId: "b",
+          scrollRequest: {
+            scopeId: "main",
+            targetId: "b",
+            scrollOwnerId: "main-scroll",
+            targetRect: new Rect(40, 10, 20, 20),
+            reason: "focus"
+          }
+        },
+        expectedActiveScopeId: "main",
+        expectedActiveTargetId: "b"
+      },
+      {
+        name: "activation success",
+        scopes: [mainScope],
+        targets: [targetA],
+        initialActiveScopeId: "main",
+        initialActiveTargetId: "a",
+        operation: state => state.activate(),
+        expectedResult: { kind: "activated", scopeId: "main", targetId: "a" },
+        expectedActiveScopeId: "main",
+        expectedActiveTargetId: "a"
+      },
+      {
+        name: "activation rejected",
+        scopes: [mainScope],
+        targets: [targetB],
+        initialActiveScopeId: "main",
+        initialActiveTargetId: "b",
+        operation: state => state.activate(),
+        expectedResult: { kind: "notActivated", scopeId: "main", targetId: "b", reason: "notActivatable" },
+        expectedActiveScopeId: "main",
+        expectedActiveTargetId: "b"
+      }
+    ]
+
+    for (let i = 0; i < fixtures.length; i++) {
+      runFocusFixture(fixtures[i])
+    }
+
+    const state = new UiFocusState()
+    const copiedRect = new Rect()
+    state.setScope(mainScope)
+    state.setTarget(targetA)
+    control.assert(state.getTargetRect("a", copiedRect), "target rect copied")
+    assertLayoutRect(copiedRect, 10, 12, 20, 12, "focus copied rect")
+    copiedRect.set(0, 0, 1, 1)
+    control.assert(state.getTargetRect("a", copiedRect), "target rect retained")
+    assertLayoutRect(copiedRect, 10, 12, 20, 12, "focus retained rect")
+
+    state.setActiveTarget("main", "a")
+    state.setTarget({ id: "a", scopeId: "main", rect: new Rect(10, 10, 20, 20), hidden: true })
+    control.assert(state.getActiveTargetId("main") === undefined, "hidden active target cleared")
+    state.setTarget(targetA)
+    state.setActiveTarget("main", "a")
+    state.setTarget({ id: "a", scopeId: "main", rect: new Rect(10, 10, 20, 20), disabled: true })
+    control.assert(state.getActiveTargetId("main") === undefined, "disabled active target cleared")
+    state.setTarget(targetA)
+    state.setActiveTarget("main", "a")
+    state.clearActiveScope()
+    control.assert(state.getActiveTargetId("main") == "a", "clear scope retains target")
+    state.setActiveScope("main")
+    control.assert(state.getActiveTargetId("main") == "a", "active scope restores target")
+    state.removeTarget("a")
+    control.assert(state.getActiveTargetId("main") === undefined, "removed active target cleared")
+    state.setTarget(targetA)
+    state.setActiveTarget("main", "a")
+    state.removeScope("main")
+    control.assert(state.getActiveScopeId() === undefined, "removed active scope cleared")
+
+    const tieState = new UiFocusState()
+    tieState.setScope(mainScope)
+    tieState.setTarget({ id: "first", scopeId: "main", rect: new Rect(0, 0, 20, 20), hitTestOrder: 1 })
+    tieState.setTarget({ id: "second", scopeId: "main", rect: new Rect(0, 0, 20, 20), hitTestOrder: 1 })
+    assertFocusResult(
+      tieState.hitTest(5, 5),
+      { kind: "hit", scopeId: "main", targetId: "second", disabled: false },
+      "hit test recency tie"
+    )
+
+    const scrollState = new UiFocusState()
+    scrollState.setScope(mainScope)
+    scrollState.setTarget(targetB)
+    const scrollResult = scrollState.setActiveTarget("main", "b")
+    if (scrollResult.kind == "focused" && scrollResult.scrollRequest) {
+      scrollResult.scrollRequest.targetRect.set(0, 0, 1, 1)
+    }
+    control.assert(scrollState.getTargetRect("b", copiedRect), "scroll result rect retained")
+    assertLayoutRect(copiedRect, 40, 10, 20, 20, "scroll result copied rect")
+
+    scrollState.clear()
+    assertFocusResult(scrollState.hitTest(1, 1), { kind: "miss", reason: "empty" }, "clear removes targets")
+    assertFocusResult(scrollState.activate(), { kind: "notActivated", reason: "missingActive" }, "clear removes focus")
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
@@ -794,5 +1187,6 @@ ui.runLayoutSmokeTest()
 ui.runPrimitiveLayoutSmokeTest()
 ui.runStructuredLayoutSmokeTest()
 ui.runScrollLayoutSmokeTest()
+ui.runFocusStateMachineSmokeTest()
 
 control.__log(1, "All tests passed!")

@@ -30,7 +30,8 @@
         "ui-core/layout.ts",
         "ui-core/layout-containers.ts",
         "ui-core/layout-structured.ts",
-        "ui-core/layout-scroll.ts"
+        "ui-core/layout-scroll.ts",
+        "ui-core/focus.ts"
     ],
     "yotta": {
         "config": {
