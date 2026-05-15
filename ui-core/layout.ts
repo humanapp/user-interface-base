@@ -134,7 +134,10 @@ namespace ui {
     measure(constraints: UiLayoutConstraints, output: UiMeasuredSize): void
 
     /**
-     * Stores the caller-assigned final rectangle for this node.
+     * Accepts the parent-assigned logical rectangle for this layout pass.
+     *
+     * Implementations copy the rectangle into `finalRect` and arrange any
+     * children inside that concrete space.
      */
     arrange(rect: Rect): void
 

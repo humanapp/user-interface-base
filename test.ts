@@ -320,10 +320,209 @@ namespace ui {
     control.assert(measured.minHeight == 3, "fill min height")
     control.assert(measured.preferredHeight == 6, "fill preferred height")
   }
+
+  function layoutContentSpec(): UiLayoutSpec {
+    return {
+      width: { mode: "content" },
+      height: { mode: "content" }
+    }
+  }
+
+  function layoutFixedSpec(width: number, height: number): UiLayoutSpec {
+    return {
+      width: { mode: "fixed", value: width },
+      height: { mode: "fixed", value: height }
+    }
+  }
+
+  function assertLayoutRect(rect: Rect, x: number, y: number, width: number, height: number, name: string): void {
+    control.assert(rect.x == x, name + " x")
+    control.assert(rect.y == y, name + " y")
+    control.assert(rect.width == width, name + " width")
+    control.assert(rect.height == height, name + " height")
+  }
+
+  /**
+   * Smoke harness for primitive layout containers.
+   */
+  export function runPrimitiveLayoutSmokeTest(): void {
+    const measured = new UiMeasuredSize()
+    const storedRect = new Rect()
+
+    const rowA = new LayoutSmokeNode(layoutContentSpec(), 10, 6, 20, 10)
+    const rowB = new LayoutSmokeNode(
+      {
+        width: { mode: "fill" },
+        height: { mode: "content" }
+      },
+      5,
+      6,
+      30,
+      12
+    )
+    const rowC = new LayoutSmokeNode(
+      {
+        width: { mode: "fixed", value: 15 },
+        height: { mode: "content" }
+      },
+      1,
+      4,
+      2,
+      8
+    )
+    const row = new UiRowLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [rowA, rowB],
+      gap: 2,
+      crossAxisAlignment: "start"
+    })
+
+    control.assert(row.childCount == 2, "row initial count")
+    control.assert(row.childAt(0) == rowA, "row initial order")
+    row.appendChild(rowC)
+    control.assert(row.childCount == 3, "row appended count")
+    control.assert(row.childAt(2) == rowC, "row appended order")
+    control.assert(row.layoutDirty, "row append invalidates")
+    row.arrange(new Rect(0, 0, 100, 20))
+    assertLayoutRect(rowA.finalRect, 0, 0, 20, 10, "row A")
+    assertLayoutRect(rowB.finalRect, 22, 0, 61, 12, "row B")
+    assertLayoutRect(rowC.finalRect, 85, 0, 15, 8, "row C")
+
+    const columnA = new LayoutSmokeNode(layoutContentSpec(), 20, 10, 20, 10)
+    const columnB = new LayoutSmokeNode(layoutContentSpec(), 30, 15, 30, 15)
+    const column = new UiColumnLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [columnA, columnB],
+      gap: 3,
+      crossAxisAlignment: "center"
+    })
+
+    column.arrange(new Rect(10, 20, 40, 80))
+    assertLayoutRect(columnA.finalRect, 20, 20, 20, 10, "column A")
+    assertLayoutRect(columnB.finalRect, 15, 33, 30, 15, "column B")
+
+    const paddedChild = new LayoutSmokeNode(layoutContentSpec(), 10, 10, 10, 10)
+    const padding = new UiPaddingLayout({
+      layoutSpec: layoutContentSpec(),
+      child: paddedChild,
+      padding: { top: 2, right: 4, bottom: 6, left: 8 }
+    })
+
+    padding.arrange(new Rect(0, 0, 60, 40))
+    assertLayoutRect(paddedChild.finalRect, 8, 2, 48, 32, "padding child")
+
+    const alignedChild = new LayoutSmokeNode(layoutContentSpec(), 20, 10, 20, 10)
+    const align = new UiAlignLayout({
+      layoutSpec: layoutContentSpec(),
+      child: alignedChild,
+      horizontalAlignment: "end",
+      verticalAlignment: "center"
+    })
+
+    align.arrange(new Rect(0, 0, 60, 40))
+    assertLayoutRect(alignedChild.finalRect, 40, 15, 20, 10, "align child")
+    align.clearChild()
+    control.assert(align.child === undefined, "align clear child")
+    control.assert(align.layoutDirty, "align clear invalidates")
+
+    const absoluteA = new LayoutSmokeNode(layoutContentSpec(), 1, 1, 1, 1)
+    const absoluteB = new LayoutSmokeNode(layoutContentSpec(), 1, 1, 1, 1)
+    const absolute = new UiAbsoluteLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [
+        { node: absoluteA, rect: new Rect(2, 3, 10, 11) },
+        { node: absoluteB, rect: new Rect(30, 4, 15, 12) }
+      ]
+    })
+
+    absolute.measure({ maxWidth: 100, maxHeight: 100 }, measured)
+    control.assert(measured.minWidth == 45, "absolute min width")
+    control.assert(measured.minHeight == 16, "absolute min height")
+    control.assert(measured.preferredWidth == 45, "absolute preferred width")
+    control.assert(measured.preferredHeight == 16, "absolute preferred height")
+    control.assert(absolute.childRectAt(1, storedRect), "absolute stored rect exists")
+    assertLayoutRect(storedRect, 30, 4, 15, 12, "absolute stored rect")
+    storedRect.set(0, 0, 1, 1)
+    control.assert(absolute.childRectAt(1, storedRect), "absolute stored rect copied")
+    assertLayoutRect(storedRect, 30, 4, 15, 12, "absolute stored rect retained")
+    control.assert(absolute.setChildRectAt(1, new Rect(30.4, 4.2, 15.1, 12.4)), "absolute set rect")
+    control.assert(absolute.layoutDirty, "absolute set rect invalidates")
+    control.assert(absolute.childRectAt(1, storedRect), "absolute updated rect copied")
+    assertLayoutRect(storedRect, 30, 4, 15, 12, "absolute updated rect")
+    absolute.arrange(new Rect(5, 7, 100, 50))
+    assertLayoutRect(absoluteA.finalRect, 7, 10, 10, 11, "absolute A")
+    assertLayoutRect(absoluteB.finalRect, 35, 11, 15, 12, "absolute B")
+
+    const textButtonA = new LayoutSmokeNode(layoutContentSpec(), 48, 12, 48, 12)
+    const textButtonB = new LayoutSmokeNode(layoutContentSpec(), 52, 12, 52, 12)
+    const textButtons = new UiColumnLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [textButtonA, textButtonB],
+      gap: 2
+    })
+    const paddedTextButtons = new UiPaddingLayout({
+      layoutSpec: layoutContentSpec(),
+      child: textButtons,
+      padding: 4
+    })
+    const centeredTextButtons = new UiAlignLayout({
+      layoutSpec: layoutContentSpec(),
+      child: paddedTextButtons,
+      horizontalAlignment: "center",
+      verticalAlignment: "center"
+    })
+
+    centeredTextButtons.arrange(new Rect(0, 0, 100, 60))
+    assertLayoutRect(paddedTextButtons.finalRect, 20, 13, 60, 34, "text group padding")
+    assertLayoutRect(textButtons.finalRect, 24, 17, 52, 26, "text group column")
+    assertLayoutRect(textButtonA.finalRect, 24, 17, 48, 12, "text group A")
+    assertLayoutRect(textButtonB.finalRect, 24, 31, 52, 12, "text group B")
+
+    const toolbarA = new LayoutSmokeNode(layoutFixedSpec(16, 16), 1, 1, 1, 1)
+    const toolbarB = new LayoutSmokeNode(layoutFixedSpec(16, 16), 1, 1, 1, 1)
+    const toolbarC = new LayoutSmokeNode(layoutFixedSpec(16, 16), 1, 1, 1, 1)
+    const toolbarRow = new UiRowLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [toolbarA, toolbarB, toolbarC],
+      gap: 4
+    })
+    const toolbarAbsolute = new UiAbsoluteLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [{ node: toolbarRow, rect: new Rect(200, 8, 56, 16) }]
+    })
+
+    toolbarAbsolute.arrange(new Rect(0, 0, 320, 240))
+    assertLayoutRect(toolbarA.finalRect, 200, 8, 16, 16, "toolbar A")
+    assertLayoutRect(toolbarB.finalRect, 220, 8, 16, 16, "toolbar B")
+    assertLayoutRect(toolbarC.finalRect, 240, 8, 16, 16, "toolbar C")
+
+    const menuA = new LayoutSmokeNode(layoutFixedSpec(18, 18), 1, 1, 1, 1)
+    const menuB = new LayoutSmokeNode(layoutFixedSpec(18, 18), 1, 1, 1, 1)
+    const menuC = new LayoutSmokeNode(layoutFixedSpec(18, 18), 1, 1, 1, 1)
+    const menuD = new LayoutSmokeNode(layoutFixedSpec(18, 18), 1, 1, 1, 1)
+    const menuRow = new UiRowLayout({
+      layoutSpec: layoutContentSpec(),
+      children: [menuA, menuB, menuC, menuD],
+      gap: 2
+    })
+    const menuAlign = new UiAlignLayout({
+      layoutSpec: layoutContentSpec(),
+      child: menuRow,
+      horizontalAlignment: "center",
+      verticalAlignment: "center"
+    })
+
+    menuAlign.arrange(new Rect(0, 0, 100, 30))
+    assertLayoutRect(menuA.finalRect, 11, 6, 18, 18, "menu A")
+    assertLayoutRect(menuB.finalRect, 31, 6, 18, 18, "menu B")
+    assertLayoutRect(menuC.finalRect, 51, 6, 18, 18, "menu C")
+    assertLayoutRect(menuD.finalRect, 71, 6, 18, 18, "menu D")
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
 ui.runRuntimeSmokeTest()
 ui.runLayoutSmokeTest()
+ui.runPrimitiveLayoutSmokeTest()
 
 control.__log(1, "All tests passed!")
