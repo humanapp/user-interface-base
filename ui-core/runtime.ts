@@ -19,13 +19,17 @@ namespace ui {
    */
   export interface UiAssetResolver {
     /**
-     * Looks up a bitmap by asset id. Missing assets return a resolver-defined
-     * fallback bitmap.
+     * Looks up a bitmap by asset id.
+     *
+     * Missing ids return a resolver-owned fallback bitmap by default. When
+     * `nullIfMissing` is `true`, missing ids may return `undefined`; callers
+     * must handle both bitmap and `undefined` results.
      */
-    getBitmap(id: string | number, nullIfMissing?: boolean): Bitmap
+    getBitmap(id: string | number, nullIfMissing?: boolean): Bitmap | undefined
 
     /**
-     * Returns display text for an asset id.
+     * Returns display text for an asset id. Missing text returns the empty
+     * string.
      */
     getText(id: string): string
   }
@@ -148,7 +152,8 @@ namespace ui {
       this.emptyBitmap_ = bmp`.`
     }
 
-    public getBitmap(id: string | number, nullIfMissing?: boolean): Bitmap {
+    public getBitmap(id: string | number, nullIfMissing?: boolean): Bitmap | undefined {
+      if (nullIfMissing) return undefined
       return this.emptyBitmap_
     }
 

@@ -40,6 +40,10 @@ namespace ui {
 
     /**
      * Logical target rectangle to make visible.
+     *
+     * For scroll-owned targets this rectangle is in the scroll owner's content
+     * coordinates. Targets without a separate content rectangle use their
+     * viewport `rect`.
      */
     targetRect: Rect
 
@@ -87,6 +91,15 @@ namespace ui {
      * Scrollable area to include in focus scroll requests for this target.
      */
     scrollOwnerId?: UiFocusScrollOwnerId
+
+    /**
+     * Optional rectangle used for scroll requests.
+     *
+     * `rect` remains the viewport-space rectangle used for focus drawing and
+     * hit testing. `scrollRect` is copied when the target is stored and is
+     * expressed in the scroll owner's content coordinates.
+     */
+    scrollRect?: Rect
 
     /**
      * Stacking order for overlapping hit tests. Larger values win.
@@ -263,6 +276,7 @@ namespace ui {
     public hidden: boolean
     public activatable: boolean
     public scrollOwnerId: UiFocusScrollOwnerId | undefined
+    public scrollRect: Rect | undefined
     public hitTestOrder: number
     public updateOrder: number
 
@@ -274,6 +288,7 @@ namespace ui {
       this.hidden = false
       this.activatable = false
       this.scrollOwnerId = undefined
+      this.scrollRect = undefined
       this.hitTestOrder = 0
       this.updateOrder = updateOrder
       this.update(options, updateOrder)
@@ -286,6 +301,12 @@ namespace ui {
       this.hidden = options.hidden || false
       this.activatable = options.activatable || false
       this.scrollOwnerId = options.scrollOwnerId
+      if (options.scrollRect) {
+        if (!this.scrollRect) this.scrollRect = new Rect()
+        copyArrangedLayoutRect(this.scrollRect, options.scrollRect)
+      } else {
+        this.scrollRect = undefined
+      }
       this.hitTestOrder = _uiLayout.sanitizeCoordinate(options.hitTestOrder)
       this.updateOrder = updateOrder
     }
@@ -755,7 +776,7 @@ namespace ui {
         scopeId,
         targetId,
         scrollOwnerId: target.scrollOwnerId,
-        targetRect: target.rect.clone(),
+        targetRect: (target.scrollRect || target.rect).clone(),
         reason: "focus"
       }
     }

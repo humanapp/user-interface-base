@@ -27,6 +27,14 @@ namespace ui {
      * Scrollable area to request when movement lands on this target.
      */
     scrollOwnerId?: UiFocusScrollOwnerId
+
+    /**
+     * Optional rectangle used for scroll requests.
+     *
+     * `rect` remains the viewport-space rectangle used for navigation geometry.
+     * `scrollRect` is expressed in the scroll owner's content coordinates.
+     */
+    scrollRect?: Rect
   }
 
   /**
@@ -619,7 +627,7 @@ namespace ui {
         scopeId,
         targetId: toTarget.id,
         scrollOwnerId: toTarget.scrollOwnerId,
-        targetRect: toTarget.rect.clone(),
+        targetRect: (toTarget.scrollRect || toTarget.rect).clone(),
         reason: "focus"
       }
     }

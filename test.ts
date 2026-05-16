@@ -126,6 +126,52 @@ namespace ui {
     }
   }
 
+  class AssetResolverSmoke implements UiAssetResolver {
+    private known_: Bitmap
+    private fallback_: Bitmap
+
+    constructor() {
+      this.known_ = bmp`7`
+      this.fallback_ = bmp`1`
+    }
+
+    public getBitmap(id: string | number, nullIfMissing?: boolean): Bitmap | undefined {
+      if (id == "known") return this.known_
+      if (nullIfMissing) return undefined
+      return this.fallback_
+    }
+
+    public getText(id: string): string {
+      if (id == "label") return "Known label"
+      return ""
+    }
+  }
+
+  /**
+   * Smoke harness for asset resolver missing-value behavior.
+   */
+  export function runAssetResolverSmokeTest(): void {
+    const resolver = new AssetResolverSmoke()
+    const known = resolver.getBitmap("known")
+    const fallback = resolver.getBitmap("missing")
+    const missing = resolver.getBitmap("missing", true)
+
+    control.assert(!!known, "known bitmap exists")
+    control.assert(!!fallback, "fallback bitmap exists")
+    control.assert(fallback != known, "fallback is app-owned")
+    control.assert(missing === undefined, "missing bitmap can be undefined")
+    control.assert(resolver.getText("label") == "Known label", "known text")
+    control.assert(resolver.getText("missing") == "", "missing text empty")
+
+    const runtime = new UiRuntime({
+      display: new RuntimeSmokeDisplayAdapter(() => {}),
+      assets: resolver
+    })
+    control.assert(runtime.assets.getBitmap("missing") == fallback, "runtime fallback bitmap")
+    control.assert(runtime.assets.getBitmap("missing", true) === undefined, "runtime missing bitmap")
+    control.assert(runtime.assets.getText("missing") == "", "runtime missing text")
+  }
+
   /**
    * Smoke harness for runtime stack lifecycle and scoped input delivery.
    */
@@ -1181,6 +1227,80 @@ namespace ui {
     assertFocusResult(scrollState.activate(), { kind: "notActivated", reason: "missingActive" }, "clear removes focus")
   }
 
+  /**
+   * Smoke harness for focus scroll requests and content-coordinate targets.
+   */
+  export function runFocusScrollRequestSmokeTest(): void {
+    const state = new UiFocusState()
+    state.setScope({ id: "editor" })
+    state.setTarget({
+      id: "hud",
+      scopeId: "editor",
+      rect: new Rect(4, 4, 24, 18),
+      activatable: true
+    })
+    state.setTarget({
+      id: "rule",
+      scopeId: "editor",
+      rect: new Rect(20, 60, 80, 18),
+      scrollOwnerId: "rules",
+      scrollRect: new Rect(0, 156, 80, 18),
+      activatable: true
+    })
+
+    assertFocusResult(
+      state.setActiveTarget("editor", "hud"),
+      { kind: "focused", scopeId: "editor", targetId: "hud" },
+      "hud target no scroll request"
+    )
+    assertFocusResult(
+      state.setActiveTarget("editor", "rule"),
+      {
+        kind: "focused",
+        scopeId: "editor",
+        targetId: "rule",
+        previousScopeId: "editor",
+        previousTargetId: "hud",
+        scrollRequest: {
+          scopeId: "editor",
+          targetId: "rule",
+          scrollOwnerId: "rules",
+          targetRect: new Rect(0, 156, 80, 18),
+          reason: "focus"
+        }
+      },
+      "rule target content scroll request"
+    )
+
+    const moved = moveFocusInRow({
+      scopeId: "editor",
+      currentTargetId: "hud",
+      direction: "right",
+      targets: [
+        navigationTarget("hud", 4, 4, 24, 18),
+        navigationTarget("rule", 20, 60, 80, 18, false, false, "rules", new Rect(0, 156, 80, 18))
+      ]
+    })
+    assertFocusMoveResult(
+      moved,
+      {
+        kind: "moved",
+        fromScopeId: "editor",
+        fromTargetId: "hud",
+        toScopeId: "editor",
+        toTargetId: "rule",
+        scrollRequest: {
+          scopeId: "editor",
+          targetId: "rule",
+          scrollOwnerId: "rules",
+          targetRect: new Rect(0, 156, 80, 18),
+          reason: "focus"
+        }
+      },
+      "navigation content scroll request"
+    )
+  }
+
   interface FocusMovementFixture {
     name: string
     result: UiFocusMoveResult
@@ -1195,14 +1315,16 @@ namespace ui {
     height: number,
     disabled?: boolean,
     hidden?: boolean,
-    scrollOwnerId?: UiFocusScrollOwnerId
+    scrollOwnerId?: UiFocusScrollOwnerId,
+    scrollRect?: Rect
   ): UiFocusNavigationTarget {
     return {
       id,
       rect: new Rect(x, y, width, height),
       disabled,
       hidden,
-      scrollOwnerId
+      scrollOwnerId,
+      scrollRect
     }
   }
 
@@ -1869,6 +1991,50 @@ namespace ui {
     }
   }
 
+  class DirectSimulatorInputScreen implements UiScreen {
+    public pointerMoveResult: UiFocusInputResult
+    public pointerClickResult: UiFocusInputResult
+    public wheelEvent: UiInputEvent
+    private focus_: UiFocusState
+
+    constructor() {
+      this.focus_ = createFocusInputState()
+    }
+
+    public enter(runtime: UiRuntime, input: UiInputScope): void {
+      const controller = new UiFocusInputController({
+        focus: this.focus_,
+        wheel: (event: UiInputEvent): boolean => {
+          this.wheelEvent = event
+          return true
+        }
+      })
+
+      input.onAction("pointerMove", (event: UiInputEvent): boolean => {
+        this.pointerMoveResult = controller.handleInput(event)
+        return this.pointerMoveResult.handled
+      })
+      input.onAction("pointerClick", (event: UiInputEvent): boolean => {
+        this.pointerClickResult = controller.handleInput(event)
+        return this.pointerClickResult.handled
+      })
+      input.onAction("wheel", (event: UiInputEvent): boolean => {
+        return controller.handleInput(event).handled
+      })
+    }
+
+    public handleInput(event: UiInputEvent): boolean {
+      return false
+    }
+
+    public render(surface: DrawSurface): void {
+    }
+
+    public activeTargetId(): UiFocusId | undefined {
+      return this.focus_.getActiveTargetId("main")
+    }
+  }
+
   /**
    * Smoke harness for focus input runtime composition.
    */
@@ -2443,6 +2609,77 @@ namespace ui {
     control.assert(scopeFallbackCount == 1, "long press caller handler")
     control.assert(input.deliver({ action: "menu", source: "displayShieldController" }), "menu caller handler")
     control.assert(scopeFallbackCount == 2, "menu not registered by focus")
+  }
+
+  /**
+   * Smoke harness for simulator-style input delivered through the runtime queue.
+   */
+  export function runDirectSimulatorInputSmokeTest(): void {
+    const screen = new DirectSimulatorInputScreen()
+    const runtime = new UiRuntime({
+      display: new RuntimeSmokeDisplayAdapter(() => {})
+    })
+
+    runtime.push(screen)
+    runtime.dispatchInput({ action: "pointerMove", source: "pointer", x: 21, y: 1 })
+    runtime.runFrame()
+    assertFocusInputResult(
+      screen.pointerMoveResult,
+      {
+        action: "pointerMove",
+        handled: false,
+        kind: "hit",
+        detail: {
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "b", disabled: false }
+        }
+      },
+      "runtime pointer move"
+    )
+    control.assert(screen.activeTargetId() == "a", "runtime pointer move keeps focus")
+
+    runtime.dispatchInput({ action: "pointerClick", source: "pointer", x: 21, y: 1 })
+    runtime.runFrame()
+    assertFocusInputResult(
+      screen.pointerClickResult,
+      {
+        action: "pointerClick",
+        handled: true,
+        kind: "activated",
+        detail: {
+          focusResult: {
+            kind: "focused",
+            scopeId: "main",
+            targetId: "b",
+            previousScopeId: "main",
+            previousTargetId: "a",
+            scrollRequest: {
+              scopeId: "main",
+              targetId: "b",
+              scrollOwnerId: "main-scroll",
+              targetRect: new Rect(20, 0, 10, 10),
+              reason: "focus"
+            }
+          },
+          activationResult: { kind: "activated", scopeId: "main", targetId: "b" },
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "b", disabled: false }
+        },
+        scrollRequest: {
+          scopeId: "main",
+          targetId: "b",
+          scrollOwnerId: "main-scroll",
+          targetRect: new Rect(20, 0, 10, 10),
+          reason: "focus"
+        }
+      },
+      "runtime pointer click"
+    )
+    control.assert(screen.activeTargetId() == "b", "runtime pointer click focuses")
+
+    runtime.dispatchInput({ action: "wheel", source: "wheel", dx: 3, dy: -4 })
+    runtime.runFrame()
+    control.assert(screen.wheelEvent.source == "wheel", "runtime wheel source")
+    control.assert(screen.wheelEvent.dx == 3, "runtime wheel dx")
+    control.assert(screen.wheelEvent.dy == -4, "runtime wheel dy")
   }
 
   class TestInputScope implements UiInputScope {
@@ -3100,14 +3337,17 @@ namespace ui {
 }
 
 ui.renderLogicalViewportSmokeTest()
+ui.runAssetResolverSmokeTest()
 ui.runRuntimeSmokeTest()
 ui.runLayoutSmokeTest()
 ui.runPrimitiveLayoutSmokeTest()
 ui.runStructuredLayoutSmokeTest()
 ui.runScrollLayoutSmokeTest()
+ui.runFocusScrollRequestSmokeTest()
 ui.runFocusStateMachineSmokeTest()
 ui.runFocusMovementSmokeTest()
 ui.runFocusInputRuntimeSmokeTest()
+ui.runDirectSimulatorInputSmokeTest()
 ui.runModalFocusSmokeTest()
 ui.runObservationSmokeTest()
 
