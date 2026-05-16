@@ -7,12 +7,12 @@ namespace ui {
   /**
    * Width of the logical coordinate space used for layout and rendering.
    */
-  export const LOGICAL_VIEWPORT_WIDTH = 320
+  export const LOGICAL_VIEWPORT_WIDTH = 160
 
   /**
    * Height of the logical coordinate space used for layout and rendering.
    */
-  export const LOGICAL_VIEWPORT_HEIGHT = 240
+  export const LOGICAL_VIEWPORT_HEIGHT = 120
 
   /**
    * Aspect ratio of the logical coordinate space.
