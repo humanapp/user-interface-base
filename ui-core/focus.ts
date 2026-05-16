@@ -122,6 +122,12 @@ namespace ui {
      * Whether `cancel()` returns a handled result for this scope.
      */
     handlesCancel?: boolean
+
+    /**
+     * Whether this scope blocks focus operations outside its descendant scopes
+     * while it is active.
+     */
+    modal?: boolean
   }
 
   /**
@@ -152,7 +158,15 @@ namespace ui {
         kind: "rejected"
         scopeId?: UiFocusScopeId
         targetId?: UiFocusId
-        reason: "missingScope" | "missingTarget" | "scopeMismatch" | "disabled" | "hidden"
+        reason:
+          "missingScope" |
+          "missingTarget" |
+          "scopeMismatch" |
+          "disabled" |
+          "hidden" |
+          "modalBlocked" |
+          "notModal" |
+          "inactiveModal"
       }
 
   /**
@@ -219,6 +233,7 @@ namespace ui {
     public preferredTargetId: UiFocusId | undefined
     public wrap: boolean
     public handlesCancel: boolean
+    public modal: boolean
     public activeTargetId: UiFocusId | undefined
 
     constructor(options: UiFocusScopeOptions) {
@@ -227,6 +242,7 @@ namespace ui {
       this.preferredTargetId = options.preferredTargetId
       this.wrap = options.wrap || false
       this.handlesCancel = options.handlesCancel || false
+      this.modal = options.modal || false
       this.activeTargetId = undefined
     }
 
@@ -235,6 +251,7 @@ namespace ui {
       this.preferredTargetId = options.preferredTargetId
       this.wrap = options.wrap || false
       this.handlesCancel = options.handlesCancel || false
+      this.modal = options.modal || false
     }
   }
 
@@ -396,23 +413,9 @@ namespace ui {
     public setActiveScope(scopeId: UiFocusScopeId): UiFocusSetResult {
       const scope = this.findScope(scopeId)
       if (!scope) return { kind: "rejected", scopeId, reason: "missingScope" }
+      if (!this.isFocusAllowedInScope(scopeId)) return { kind: "rejected", scopeId, reason: "modalBlocked" }
 
-      const previousScopeId = this.activeScopeId_
-      const previousTargetId = this.getActiveTargetId()
-      let targetId = this.eligibleActiveTargetId(scope)
-      if (!targetId) targetId = this.eligiblePreferredTargetId(scope)
-
-      if (targetId) {
-        if (this.activeScopeId_ == scopeId && scope.activeTargetId == targetId) {
-          return { kind: "unchanged", scopeId, targetId, reason: "alreadyFocused" }
-        }
-        scope.activeTargetId = targetId
-        this.activeScopeId_ = scopeId
-        return this.focusedResult(scopeId, targetId, previousScopeId, previousTargetId)
-      }
-
-      this.activeScopeId_ = scopeId
-      return { kind: "unchanged", scopeId, reason: "empty" }
+      return this.activateScope(scope)
     }
 
     /**
@@ -435,6 +438,9 @@ namespace ui {
     public setActiveTarget(scopeId: UiFocusScopeId, targetId: UiFocusId): UiFocusSetResult {
       const scope = this.findScope(scopeId)
       if (!scope) return { kind: "rejected", scopeId, targetId, reason: "missingScope" }
+      if (!this.isFocusAllowedInScope(scopeId)) {
+        return { kind: "rejected", scopeId, targetId, reason: "modalBlocked" }
+      }
 
       const target = this.findTarget(targetId)
       if (!target) return { kind: "rejected", scopeId, targetId, reason: "missingTarget" }
@@ -488,9 +494,11 @@ namespace ui {
      */
     public hitTest(x: number, y: number): UiFocusHitTestResult {
       let best: UiFocusTargetRecord | undefined = undefined
+      const activeModal = this.activeModalScope()
 
       for (let i = 0; i < this.targets_.length; i++) {
         const target = this.targets_[i]
+        if (activeModal && !this.isScopeInSubtree(target.scopeId, activeModal.id)) continue
         if (target.hidden || !target.rect.contains(x, y)) continue
         if (!best || this.compareHitTestOrder(target, best) > 0) best = target
       }
@@ -499,7 +507,8 @@ namespace ui {
         return { kind: "hit", scopeId: best.scopeId, targetId: best.id, disabled: best.disabled }
       }
 
-      return { kind: "miss", reason: this.targets_.length ? "outside" : "empty" }
+      if (!activeModal) return { kind: "miss", reason: this.targets_.length ? "outside" : "empty" }
+      return { kind: "miss", reason: this.hasVisibleHitTestTarget(activeModal) ? "outside" : "empty" }
     }
 
     /**
@@ -520,18 +529,47 @@ namespace ui {
       if (!target.activatable) {
         return { kind: "notActivated", scopeId: scope.id, targetId: target.id, reason: "notActivatable" }
       }
+      const activeModal = this.activeModalScope()
+      if (activeModal && !this.isScopeInSubtree(scope.id, activeModal.id)) {
+        return { kind: "notActivated", scopeId: scope.id, targetId: target.id, reason: "missingActive" }
+      }
 
       return { kind: "activated", scopeId: scope.id, targetId: target.id }
     }
 
     /**
-     * Reports whether the active scope handles cancellation.
+     * Reports the nearest active scope or ancestor that handles cancellation.
      */
     public cancel(): UiFocusCancelResult {
       const scope = this.findScope(this.activeScopeId_)
       if (!scope) return { kind: "unhandled", scopeId: this.activeScopeId_, reason: "missingActiveScope" }
-      if (!scope.handlesCancel) return { kind: "unhandled", scopeId: scope.id, reason: "notHandled" }
-      return { kind: "handled", scopeId: scope.id }
+      let current: UiFocusScopeRecord | undefined = scope
+
+      for (let i = 0; i < this.scopes_.length && current; i++) {
+        if (current.handlesCancel) return { kind: "handled", scopeId: current.id }
+        if (current.parentScopeId === undefined || current.parentScopeId == current.id) break
+        current = this.findScope(current.parentScopeId)
+      }
+
+      return { kind: "unhandled", scopeId: scope.id, reason: "notHandled" }
+    }
+
+    /**
+     * Deactivates the active modal scope and restores focus to its parent.
+     */
+    public closeModalScope(scopeId: UiFocusScopeId): UiFocusSetResult {
+      const scope = this.findScope(scopeId)
+      if (!scope) return { kind: "rejected", scopeId, reason: "missingScope" }
+      if (!scope.modal) return { kind: "rejected", scopeId, reason: "notModal" }
+
+      const activeModal = this.activeModalScope()
+      if (!activeModal || activeModal.id != scopeId) {
+        return { kind: "rejected", scopeId, reason: "inactiveModal" }
+      }
+
+      const parent = this.findScope(scope.parentScopeId)
+      if (!parent) return this.clearActiveScope()
+      return this.activateScope(parent)
     }
 
     private findScope(id: UiFocusScopeId | undefined): UiFocusScopeRecord | undefined {
@@ -576,6 +614,65 @@ namespace ui {
     private clearRetainedActiveTarget(scopeId: UiFocusScopeId, targetId: UiFocusId): void {
       const scope = this.findScope(scopeId)
       if (scope && scope.activeTargetId == targetId) scope.activeTargetId = undefined
+    }
+
+    private activateScope(scope: UiFocusScopeRecord): UiFocusSetResult {
+      const previousScopeId = this.activeScopeId_
+      const previousTargetId = this.getActiveTargetId()
+      let targetId = this.eligibleActiveTargetId(scope)
+      if (!targetId) targetId = this.eligiblePreferredTargetId(scope)
+
+      if (targetId) {
+        if (this.activeScopeId_ == scope.id && scope.activeTargetId == targetId) {
+          return { kind: "unchanged", scopeId: scope.id, targetId, reason: "alreadyFocused" }
+        }
+        scope.activeTargetId = targetId
+        this.activeScopeId_ = scope.id
+        return this.focusedResult(scope.id, targetId, previousScopeId, previousTargetId)
+      }
+
+      this.activeScopeId_ = scope.id
+      return { kind: "unchanged", scopeId: scope.id, reason: "empty" }
+    }
+
+    private isFocusAllowedInScope(scopeId: UiFocusScopeId): boolean {
+      const activeModal = this.activeModalScope()
+      return !activeModal || this.isScopeInSubtree(scopeId, activeModal.id)
+    }
+
+    private activeModalScope(): UiFocusScopeRecord | undefined {
+      let scope = this.findScope(this.activeScopeId_)
+
+      for (let i = 0; i < this.scopes_.length && scope; i++) {
+        if (scope.modal) return scope
+        if (scope.parentScopeId === undefined || scope.parentScopeId == scope.id) break
+        scope = this.findScope(scope.parentScopeId)
+      }
+
+      return undefined
+    }
+
+    private isScopeInSubtree(scopeId: UiFocusScopeId, rootScopeId: UiFocusScopeId): boolean {
+      let scope = this.findScope(scopeId)
+
+      for (let i = 0; i < this.scopes_.length && scope; i++) {
+        if (scope.id == rootScopeId) return true
+        if (scope.parentScopeId === undefined || scope.parentScopeId == scope.id) break
+        scope = this.findScope(scope.parentScopeId)
+      }
+
+      return false
+    }
+
+    private hasVisibleHitTestTarget(activeModal: UiFocusScopeRecord | undefined): boolean {
+      for (let i = 0; i < this.targets_.length; i++) {
+        const target = this.targets_[i]
+        if (target.hidden) continue
+        if (activeModal && !this.isScopeInSubtree(target.scopeId, activeModal.id)) continue
+        return true
+      }
+
+      return false
     }
 
     private focusedResult(

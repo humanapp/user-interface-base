@@ -2474,6 +2474,325 @@ namespace ui {
       return false
     }
   }
+
+  function createModalFocusState(): UiFocusState {
+    const state = new UiFocusState()
+    state.setScope({ id: "main", handlesCancel: true, preferredTargetId: "main-b" })
+    state.setScope({ id: "secondary" })
+    state.setScope({ id: "modal", parentScopeId: "main", modal: true, handlesCancel: true, preferredTargetId: "modal-a" })
+    state.setScope({ id: "modal-child", parentScopeId: "modal" })
+    state.setTarget({ id: "main-a", scopeId: "main", rect: new Rect(0, 0, 20, 20), activatable: true })
+    state.setTarget({ id: "main-b", scopeId: "main", rect: new Rect(24, 0, 20, 20), activatable: true })
+    state.setTarget({ id: "secondary-a", scopeId: "secondary", rect: new Rect(80, 0, 20, 20), activatable: true })
+    state.setTarget({ id: "modal-a", scopeId: "modal", rect: new Rect(10, 40, 20, 20), activatable: true })
+    state.setTarget({ id: "modal-b", scopeId: "modal", rect: new Rect(34, 40, 20, 20), activatable: true })
+    state.setTarget({ id: "child-a", scopeId: "modal-child", rect: new Rect(10, 68, 20, 20), activatable: true })
+    state.setActiveTarget("main", "main-a")
+    return state
+  }
+
+  /**
+   * Smoke harness for modal focus scopes and cancel propagation.
+   */
+  export function runModalFocusSmokeTest(): void {
+    let state = createModalFocusState()
+
+    assertFocusResult(
+      state.setActiveScope("modal"),
+      { kind: "focused", scopeId: "modal", targetId: "modal-a", previousScopeId: "main", previousTargetId: "main-a" },
+      "modal activates by scope"
+    )
+    control.assert(state.getActiveScopeId() == "modal", "modal scope active")
+    control.assert(state.getActiveTargetId("main") == "main-a", "covered target retained")
+
+    assertFocusResult(
+      state.setActiveTarget("modal-child", "child-a"),
+      {
+        kind: "focused",
+        scopeId: "modal-child",
+        targetId: "child-a",
+        previousScopeId: "modal",
+        previousTargetId: "modal-a"
+      },
+      "modal descendant target activates"
+    )
+    assertFocusResult(
+      state.setActiveScope("main"),
+      { kind: "rejected", scopeId: "main", reason: "modalBlocked" },
+      "modal blocks covered scope"
+    )
+    assertFocusResult(
+      state.setActiveTarget("secondary", "secondary-a"),
+      { kind: "rejected", scopeId: "secondary", targetId: "secondary-a", reason: "modalBlocked" },
+      "modal blocks sibling target"
+    )
+    assertFocusResult(
+      state.activate(),
+      { kind: "activated", scopeId: "modal-child", targetId: "child-a" },
+      "modal descendant activation"
+    )
+
+    state = createModalFocusState()
+    state.setActiveTarget("main", "main-b")
+    state.setActiveScope("modal")
+    assertFocusResult(
+      state.closeModalScope("modal"),
+      { kind: "focused", scopeId: "main", targetId: "main-b", previousScopeId: "modal", previousTargetId: "modal-a" },
+      "close modal restores retained parent target"
+    )
+    control.assert(state.getActiveScopeId() == "main", "close modal parent active")
+    control.assert(state.getActiveTargetId("modal") == "modal-a", "close modal retains modal target")
+
+    state = createModalFocusState()
+    state.setActiveTarget("main", "main-b")
+    state.setActiveScope("modal")
+    state.setActiveTarget("modal-child", "child-a")
+    assertFocusResult(
+      state.closeModalScope("modal"),
+      { kind: "focused", scopeId: "main", targetId: "main-b", previousScopeId: "modal-child", previousTargetId: "child-a" },
+      "close modal from descendant restores parent target"
+    )
+    control.assert(state.getActiveTargetId("modal-child") == "child-a", "close modal retains child target")
+
+    state = createModalFocusState()
+    state.clearActiveTarget("main")
+    state.setActiveScope("modal")
+    assertFocusResult(
+      state.closeModalScope("modal"),
+      { kind: "focused", scopeId: "main", targetId: "main-b", previousScopeId: "modal", previousTargetId: "modal-a" },
+      "close modal restores preferred parent target"
+    )
+
+    state = new UiFocusState()
+    state.setScope({ id: "main" })
+    state.setScope({ id: "modal", parentScopeId: "main", modal: true })
+    state.setTarget({ id: "modal-a", scopeId: "modal", rect: new Rect(0, 0, 10, 10) })
+    state.setActiveTarget("modal", "modal-a")
+    assertFocusResult(
+      state.closeModalScope("modal"),
+      { kind: "unchanged", scopeId: "main", reason: "empty" },
+      "close modal empty parent"
+    )
+    control.assert(state.getActiveScopeId() == "main", "empty parent active")
+
+    state = new UiFocusState()
+    state.setScope({ id: "modal", modal: true })
+    state.setTarget({ id: "modal-a", scopeId: "modal", rect: new Rect(0, 0, 10, 10) })
+    state.setActiveTarget("modal", "modal-a")
+    assertFocusResult(
+      state.closeModalScope("modal"),
+      { kind: "cleared", scopeId: "modal", previousScopeId: "modal", previousTargetId: "modal-a" },
+      "close root modal clears"
+    )
+
+    state = createModalFocusState()
+    state.setActiveScope("modal")
+    assertFocusResult(
+      state.closeModalScope("missing"),
+      { kind: "rejected", scopeId: "missing", reason: "missingScope" },
+      "close missing modal"
+    )
+    assertFocusResult(
+      state.closeModalScope("main"),
+      { kind: "rejected", scopeId: "main", reason: "notModal" },
+      "close non modal"
+    )
+    state.setScope({ id: "secondary", modal: true })
+    assertFocusResult(
+      state.closeModalScope("secondary"),
+      { kind: "rejected", scopeId: "secondary", reason: "inactiveModal" },
+      "close inactive modal"
+    )
+
+    state = createModalFocusState()
+    state.setActiveScope("modal")
+    assertFocusResult(
+      state.hitTest(12, 42),
+      { kind: "hit", scopeId: "modal", targetId: "modal-a", disabled: false },
+      "modal hit inside"
+    )
+    assertFocusResult(
+      state.hitTest(2, 2),
+      { kind: "miss", reason: "outside" },
+      "modal hit ignores covered target"
+    )
+    assertFocusResult(
+      state.hitTest(200, 200),
+      { kind: "miss", reason: "outside" },
+      "modal miss outside"
+    )
+
+    state.setScope({ id: "modal", parentScopeId: "main", modal: false })
+    assertFocusResult(
+      state.setActiveTarget("main", "main-a"),
+      { kind: "focused", scopeId: "main", targetId: "main-a", previousScopeId: "modal", previousTargetId: "modal-a" },
+      "modal descriptor update unblocks parent"
+    )
+
+    state = createModalFocusState()
+    state.setActiveScope("modal")
+    assertFocusResult(
+      state.clearActiveScope(),
+      { kind: "cleared", scopeId: "modal", previousScopeId: "modal", previousTargetId: "modal-a" },
+      "clear active modal"
+    )
+    control.assert(state.getActiveScopeId() === undefined, "clear active modal does not restore parent")
+
+    state = createModalFocusState()
+    state.setScope({ id: "modal", parentScopeId: "main", modal: true, handlesCancel: false })
+    state.setActiveScope("modal")
+    assertFocusResult(state.cancel(), { kind: "handled", scopeId: "main" }, "cancel bubbles to covered parent")
+    control.assert(state.getActiveScopeId() == "modal", "cancel does not close modal")
+    state.setActiveTarget("modal-child", "child-a")
+    assertFocusResult(state.cancel(), { kind: "handled", scopeId: "main" }, "cancel bubbles through modal child")
+    state.setScope({ id: "main", handlesCancel: false })
+    state.setScope({ id: "modal", parentScopeId: "main", modal: true, handlesCancel: true })
+    assertFocusResult(state.cancel(), { kind: "handled", scopeId: "modal" }, "cancel handled by modal parent")
+    state.setScope({ id: "modal", parentScopeId: "main", modal: true, handlesCancel: false })
+    assertFocusResult(state.cancel(), { kind: "unhandled", scopeId: "modal-child", reason: "notHandled" }, "cancel unhandled")
+    state.clearActiveScope()
+    assertFocusResult(state.cancel(), { kind: "unhandled", reason: "missingActiveScope" }, "cancel missing active")
+
+    state = new UiFocusState()
+    state.setScope({ id: "loop", parentScopeId: "loop", handlesCancel: false })
+    state.setTarget({ id: "loop-a", scopeId: "loop", rect: new Rect(0, 0, 10, 10) })
+    state.setActiveTarget("loop", "loop-a")
+    assertFocusResult(state.cancel(), { kind: "unhandled", scopeId: "loop", reason: "notHandled" }, "cancel self parent")
+    state.setScope({ id: "missing-parent", parentScopeId: "missing", handlesCancel: false })
+    state.setTarget({ id: "missing-parent-a", scopeId: "missing-parent", rect: new Rect(0, 0, 10, 10) })
+    state.setActiveTarget("missing-parent", "missing-parent-a")
+    assertFocusResult(
+      state.cancel(),
+      { kind: "unhandled", scopeId: "missing-parent", reason: "notHandled" },
+      "cancel missing parent"
+    )
+
+    state = createModalFocusState()
+    state.setActiveScope("modal")
+    const controller = new UiFocusInputController({ focus: state })
+    controller.setNavigation("modal", { kind: "row", targets: [
+      navigationTarget("modal-a", 10, 40, 20, 20),
+      navigationTarget("modal-b", 34, 40, 20, 20)
+    ] })
+    let coveredNavigationCount = 0
+    controller.setNavigation("main", {
+      move: (request: UiFocusNavigationRequest): UiFocusMoveResult => {
+        coveredNavigationCount++
+        return { kind: "stayed", scopeId: request.scopeId, targetId: request.currentTargetId, reason: "boundary" }
+      }
+    })
+    assertFocusInputResult(
+      controller.handleInput({ action: "right" }),
+      {
+        action: "right",
+        handled: true,
+        kind: "moved",
+        detail: {
+          moveResult: { kind: "moved", fromScopeId: "modal", fromTargetId: "modal-a", toScopeId: "modal", toTargetId: "modal-b" },
+          focusResult: { kind: "focused", scopeId: "modal", targetId: "modal-b", previousScopeId: "modal", previousTargetId: "modal-a" }
+        }
+      },
+      "modal directional movement"
+    )
+    control.assert(coveredNavigationCount == 0, "covered navigation unused")
+
+    state = createModalFocusState()
+    state.setActiveScope("modal")
+    const rejectingController = new UiFocusInputController({ focus: state })
+    rejectingController.setNavigation("modal", {
+      move: (request: UiFocusNavigationRequest): UiFocusMoveResult => {
+        return { kind: "moved", fromScopeId: "modal", fromTargetId: "modal-a", toScopeId: "main", toTargetId: "main-a" }
+      }
+    })
+    assertFocusInputResult(
+      rejectingController.handleInput({ action: "right" }),
+      {
+        action: "right",
+        handled: false,
+        kind: "ignored",
+        reason: "focusRejected",
+        detail: {
+          moveResult: { kind: "moved", fromScopeId: "modal", fromTargetId: "modal-a", toScopeId: "main", toTargetId: "main-a" },
+          focusResult: { kind: "rejected", scopeId: "main", targetId: "main-a", reason: "modalBlocked" }
+        }
+      },
+      "modal rejects external custom navigation"
+    )
+
+    state = createModalFocusState()
+    state.setActiveScope("modal")
+    const pointerController = new UiFocusInputController({ focus: state })
+    assertFocusInputResult(
+      pointerController.handleInput({ action: "pointerClick", source: "pointer", x: 2, y: 2 }),
+      {
+        action: "pointerClick",
+        handled: false,
+        kind: "miss",
+        detail: { hitTestResult: { kind: "miss", reason: "outside" } }
+      },
+      "modal outside pointer falls through"
+    )
+    assertFocusInputResult(
+      pointerController.handleInput({ action: "pointerClick", source: "pointer", x: 36, y: 42 }),
+      {
+        action: "pointerClick",
+        handled: true,
+        kind: "activated",
+        detail: {
+          focusResult: {
+            kind: "focused",
+            scopeId: "modal",
+            targetId: "modal-b",
+            previousScopeId: "modal",
+            previousTargetId: "modal-a"
+          },
+          activationResult: { kind: "activated", scopeId: "modal", targetId: "modal-b" },
+          hitTestResult: { kind: "hit", scopeId: "modal", targetId: "modal-b", disabled: false }
+        }
+      },
+      "modal inside pointer activates"
+    )
+
+    state = createModalFocusState()
+    state.setScope({ id: "main", handlesCancel: false, preferredTargetId: "main-b" })
+    state.setScope({ id: "modal", parentScopeId: "main", modal: true, handlesCancel: false })
+    state.setActiveScope("modal")
+    const input = new TestInputScope()
+    new UiFocusInputController({ focus: state }).register(input)
+    let cancelFallbackCount = 0
+    input.onAction("cancel", (event: UiInputEvent): boolean => {
+      cancelFallbackCount++
+      return true
+    })
+    control.assert(input.deliver({ action: "cancel" }), "unhandled modal cancel falls through")
+    control.assert(cancelFallbackCount == 1, "cancel fallthrough handler")
+
+    let screenCancelCount = 0
+    let screenEntered = false
+    const runtime = new UiRuntime({
+      display: new RuntimeSmokeDisplayAdapter(() => {})
+    })
+    runtime.push({
+      enter: (screenRuntime: UiRuntime, screenInput: UiInputScope): void => {
+        const screenFocus = createModalFocusState()
+        screenFocus.setScope({ id: "main", handlesCancel: false })
+        screenFocus.setScope({ id: "modal", parentScopeId: "main", modal: true, handlesCancel: false })
+        screenFocus.setActiveScope("modal")
+        new UiFocusInputController({ focus: screenFocus }).register(screenInput)
+        screenEntered = true
+      },
+      handleInput: (event: UiInputEvent): boolean => {
+        if (event.action == "cancel") screenCancelCount++
+        return true
+      },
+      render: (surface: DrawSurface): void => {
+      }
+    })
+    control.assert(screenEntered, "handoff screen entered")
+    runtime.dispatchInput({ action: "cancel" })
+    runtime.runFrame()
+    control.assert(screenCancelCount == 1, "scene stack receives unhandled cancel")
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
@@ -2485,5 +2804,6 @@ ui.runScrollLayoutSmokeTest()
 ui.runFocusStateMachineSmokeTest()
 ui.runFocusMovementSmokeTest()
 ui.runFocusInputRuntimeSmokeTest()
+ui.runModalFocusSmokeTest()
 
 control.__log(1, "All tests passed!")
