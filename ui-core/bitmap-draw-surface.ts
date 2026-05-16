@@ -6,6 +6,8 @@ namespace ui {
     private bitmap_: Bitmap
     private scaleMode_: ViewportScaleMode
     private backgroundColor_: number
+    private displayedWidth_: number
+    private displayedHeight_: number
     // Reused output slots for line clipping to avoid per-line object allocation.
     private scratchLineX0_: number
     private scratchLineY0_: number
@@ -17,6 +19,10 @@ namespace ui {
       this.scaleMode_ = options && options.scaleMode ? options.scaleMode : "cover"
       this.backgroundColor_ =
         options && options.backgroundColor !== undefined ? options.backgroundColor : 0
+      this.displayedWidth_ =
+        options && options.displayedWidth !== undefined ? options.displayedWidth : 0
+      this.displayedHeight_ =
+        options && options.displayedHeight !== undefined ? options.displayedHeight : 0
       this.scratchLineX0_ = 0
       this.scratchLineY0_ = 0
       this.scratchLineX1_ = 0
@@ -105,7 +111,7 @@ namespace ui {
       const physicalRadius = this.physicalLengthFromLogical(radius)
       if (physicalRadius <= 0) return
 
-      this.drawPhysicalCircle(
+      this.drawPhysicalVisualCircle(
         this.physicalPixelXFromLogical(cx),
         this.physicalPixelYFromLogical(cy),
         physicalRadius,
@@ -121,7 +127,7 @@ namespace ui {
       const physicalRadius = this.physicalLengthFromLogical(radius)
       if (physicalRadius <= 0) return
 
-      this.drawPhysicalCircle(
+      this.drawPhysicalVisualCircle(
         this.physicalPixelXFromLogical(cx),
         this.physicalPixelYFromLogical(cy),
         physicalRadius,
@@ -275,19 +281,23 @@ namespace ui {
       this.bitmap_.fillRect(left, top, right - left, bottom - top, color)
     }
 
-    private drawPhysicalCircle(cx: number, cy: number, radius: number, color: number, fill: boolean): void {
+    private drawPhysicalVisualCircle(cx: number, cy: number, radius: number, color: number, fill: boolean): void {
+      const pixelAspect = this.visualPixelAspectRatio()
+      if (pixelAspect <= 0) return
+
       const radiusSq = radius * radius
       const inner = Math.max(0, radius - 1)
       const innerSq = inner * inner
-      const left = Math.max(this.viewportLeft(), cx - radius)
+      const horizontalRadius = Math.ceil(radius / pixelAspect)
+      const left = Math.max(this.viewportLeft(), cx - horizontalRadius)
       const top = Math.max(this.viewportTop(), cy - radius)
-      const right = Math.min(this.viewportRight() - 1, cx + radius)
+      const right = Math.min(this.viewportRight() - 1, cx + horizontalRadius)
       const bottom = Math.min(this.viewportBottom() - 1, cy + radius)
 
       for (let y = top; y <= bottom; y++) {
         const dy = y - cy
         for (let x = left; x <= right; x++) {
-          const dx = x - cx
+          const dx = (x - cx) * pixelAspect
           const distSq = dx * dx + dy * dy
           if (fill) {
             if (distSq <= radiusSq) this.bitmap_.setPixel(x, y, color)
@@ -394,6 +404,17 @@ namespace ui {
     private physicalLengthFromLogical(logicalLength: number): number {
       const length = this.roundPixel(logicalLength * this.scale())
       return Math.max(0, length)
+    }
+
+    private visualPixelAspectRatio(): number {
+      if (
+        this.bitmap_.width <= 0 ||
+        this.bitmap_.height <= 0 ||
+        this.displayedWidth_ <= 0 ||
+        this.displayedHeight_ <= 0
+      ) return 1
+
+      return (this.displayedWidth_ / this.bitmap_.width) / (this.displayedHeight_ / this.bitmap_.height)
     }
 
     private logicalSampleXFromPhysical(physicalX: number): number {

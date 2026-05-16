@@ -13,6 +13,22 @@ namespace ui {
     control.assert(fitScale > 0.833 && fitScale < 0.834, "fit scale")
     control.assert(physicalViewportOffsetX(160, 100, "fit") > 13, "fit bars")
 
+    const displayBitmap = bitmaps.create(80, 60)
+    const displaySurface = new PhysicalBitmapDrawSurface(displayBitmap, {
+      scaleMode: "cover",
+      displayedWidth: 80,
+      displayedHeight: 67
+    })
+    displaySurface.fillCircle(80, 60, 36, 3)
+    control.assert(displayBitmap.getPixel(20, 30) == 3, "visual circle horizontal edge")
+    control.assert(displayBitmap.getPixel(60, 30) == 3, "visual circle opposite horizontal edge")
+    control.assert(displayBitmap.getPixel(40, 12) == 3, "visual circle vertical edge")
+    control.assert(displayBitmap.getPixel(40, 48) == 3, "visual circle opposite vertical edge")
+    control.assert(displayBitmap.getPixel(19, 30) == 0, "visual circle left outside")
+    control.assert(displayBitmap.getPixel(61, 30) == 0, "visual circle right outside")
+    control.assert(displayBitmap.getPixel(40, 11) == 0, "visual circle top outside")
+    control.assert(displayBitmap.getPixel(40, 49) == 0, "visual circle bottom outside")
+
     surface.setScaleMode("fit")
     surface.clear(0)
     surface.drawRect(new Rect(4, 4, 152, 112), 1)

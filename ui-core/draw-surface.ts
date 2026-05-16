@@ -13,6 +13,18 @@ namespace ui {
      * Defaults to `0`.
      */
     backgroundColor?: number
+
+    /**
+     * Width of the rendered bitmap in display pixels. Use with
+     * `displayedHeight` when presentation stretches bitmap pixels.
+     */
+    displayedWidth?: number
+
+    /**
+     * Height of the rendered bitmap in display pixels. Use with
+     * `displayedWidth` when presentation stretches bitmap pixels.
+     */
+    displayedHeight?: number
   }
 
   /**
