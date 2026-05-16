@@ -34,7 +34,13 @@
         "ui-core/focus.ts",
         "ui-core/focus-navigation.ts",
         "ui-core/focus-runtime.ts",
-        "ui-core/observation.ts"
+        "ui-core/observation.ts",
+        "ui-widgets/action-item.ts",
+        "ui-widgets/action-row.ts",
+        "ui-widgets/action-grid.ts",
+        "ui-widgets/modal-grid.ts",
+        "ui-widgets/toggle-grid.ts",
+        "ui-widgets/numeric-entry.ts"
     ],
     "yotta": {
         "config": {

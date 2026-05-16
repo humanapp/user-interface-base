@@ -3334,6 +3334,568 @@ namespace ui {
       "added observer receives later operation event"
     )
   }
+
+  class WidgetSmokeSurface implements DrawSurface {
+    public log: string
+
+    constructor() {
+      this.log = ""
+    }
+
+    public clear(color: number): void {
+      this.log += "clear:" + color + ";"
+    }
+
+    public fillRect(rect: Rect, color: number): void {
+      this.log += "fill:" + color + ";"
+    }
+
+    public drawRect(rect: Rect, color: number): void {
+      this.log += "rect:" + color + ";"
+    }
+
+    public drawLine(x0: number, y0: number, x1: number, y1: number, color: number): void {
+      this.log += "line:" + color + ";"
+    }
+
+    public drawCircle(cx: number, cy: number, radius: number, color: number): void {
+      this.log += "circle:" + color + ";"
+    }
+
+    public fillCircle(cx: number, cy: number, radius: number, color: number): void {
+      this.log += "fcircle:" + color + ";"
+    }
+
+    public drawBitmap(bitmap: Bitmap, x: number, y: number, options?: DrawBitmapOptions): void {
+      this.log += "bitmap:" + bitmap.width + "x" + bitmap.height + ";"
+    }
+
+    public drawText(text: string, x: number, y: number, options?: DrawTextOptions): void {
+      this.log += "text:" + text + ";"
+    }
+
+    public measureText(text: string, font?: TextFont, options?: DrawTextOptions): Size {
+      return new Size(text.length * 5, 8)
+    }
+  }
+
+  class WidgetSmokeAssets implements UiAssetResolver {
+    public fallbackBitmap: Bitmap
+    public knownBitmap: Bitmap
+
+    constructor() {
+      this.fallbackBitmap = bmp`1`
+      this.knownBitmap = bmp`2 2`
+    }
+
+    public getBitmap(id: string | number, nullIfMissing?: boolean): Bitmap | undefined {
+      if (id == "known") return this.knownBitmap
+      if (nullIfMissing) return undefined
+      return this.fallbackBitmap
+    }
+
+    public getText(id: string): string {
+      if (id == "knownText") return "resolved"
+      return ""
+    }
+  }
+
+  function assertWidgetActivation<T>(result: any, kind: string, itemId: string, value: T, name: string): void {
+    control.assert(!!result, name + " result exists")
+    control.assert(result.kind == kind, name + " result kind")
+    control.assert(result.itemId == itemId, name + " item id")
+    control.assert(result.value == value, name + " value")
+    control.assert(!!result.item && result.item.id == itemId, name + " source item")
+  }
+
+  /**
+   * Smoke harness for shared action item records and default rendering.
+   */
+  export function runWidgetActionItemSmokeTest(): void {
+    const assets = new WidgetSmokeAssets()
+    const surface = new WidgetSmokeSurface()
+    let drawLog = ""
+    const drawItem: UiActionItem<string> = {
+      id: "custom",
+      value: "custom-value",
+      draw: (target: DrawSurface, item: UiActionItem<string>, rect: Rect, focused: boolean) => {
+        drawLog += item.id + ":" + focused + ";"
+      }
+    }
+    const items: UiActionItem<string>[] = [
+      { id: "text", value: "typed", text: "caller", selected: true },
+      { id: "textId", value: "text-id", textId: "knownText" },
+      { id: "bitmap", value: "bitmap", bitmap: bmp`3` },
+      { id: "bitmapId", value: "bitmap-id", bitmapId: "known" },
+      { id: "fallback", value: "fallback", bitmapId: "missing" },
+      { id: "omitted", value: "omitted", bitmapId: "missing", omitMissingBitmap: true },
+      { id: "disabled", value: "disabled", text: "disabled", disabled: true },
+      { id: "hidden", value: "hidden", text: "hidden", visible: false },
+      { id: "toggle", value: "toggle", text: "toggle", toggled: true },
+      drawItem
+    ]
+    const row = new UiActionRow<string>({
+      scopeId: "items",
+      items,
+      itemWidth: 30,
+      itemHeight: 12,
+      gap: 1
+    })
+    const measured = new UiMeasuredSize()
+    row.measure({ maxWidth: 400, maxHeight: 40 }, measured)
+    control.assert(measured.preferredWidth == 309, "item row measured width")
+    row.arrange(new Rect(0, 0, 400, 20))
+    row.render(surface, assets)
+
+    control.assert(items[0].visible === undefined, "visible omitted default")
+    control.assert(_uiWidgets.isVisible(items[0]), "visible default true")
+    control.assert(
+      _uiWidgets.itemText({ id: "precedence", value: "value", text: "caller", textId: "knownText" }, assets) ==
+        "caller",
+      "caller text precedence"
+    )
+    control.assert(
+      _uiWidgets.itemBitmap({ id: "precedence", value: "value", bitmap: bmp`4`, bitmapId: "known" }, assets).width ==
+        1,
+      "caller bitmap precedence"
+    )
+    control.assert(surface.log.indexOf("text:caller;") >= 0, "caller text rendered")
+    control.assert(surface.log.indexOf("text:resolved;") >= 0, "resolver text rendered")
+    control.assert(surface.log.indexOf("bitmap:1x1;") >= 0, "caller bitmap rendered")
+    control.assert(surface.log.indexOf("bitmap:2x1;") >= 0, "resolver bitmap rendered")
+    control.assert(surface.log.indexOf("text:;") < 0, "missing text empty")
+    control.assert(surface.log.indexOf("fallback") < 0, "fallback text absent")
+    control.assert(drawLog == "custom:false;", "draw callback precedence")
+    control.assert(_uiWidgets.itemBitmap(items[4], assets) == assets.fallbackBitmap, "missing bitmap fallback")
+    control.assert(_uiWidgets.itemBitmap(items[5], assets) === undefined, "missing bitmap omitted")
+    control.assert(_uiWidgets.isDisabled(items[6]), "disabled flag")
+    control.assert(!_uiWidgets.isVisible(items[7]), "hidden flag")
+    control.assert(_uiWidgets.isSelected(items[0]), "selected flag")
+    control.assert(_uiWidgets.isToggled(items[8]), "toggled flag")
+  }
+
+  /**
+   * Smoke harness for action row focus, navigation, activation, and exits.
+   */
+  export function runWidgetActionRowSmokeTest(): void {
+    const focus = new UiFocusState()
+    const controller = new UiFocusInputController({ focus })
+    const row = new UiActionRow<number>({
+      scopeId: "row",
+      defaultItemId: "disabled",
+      items: [
+        { id: "a", value: 1 },
+        { id: "hidden", value: 2, visible: false },
+        { id: "disabled", value: 3, disabled: true },
+        { id: "c", value: 4, selected: true }
+      ],
+      itemWidth: 10,
+      itemHeight: 10,
+      gap: 0
+    })
+
+    row.arrange(new Rect(0, 0, 60, 10))
+    row.registerFocusTargets(focus)
+    row.registerNavigation(controller)
+    row.focusDefault(focus)
+    control.assert(focus.getActiveTargetId("row") == "row/c", "row selected default focus")
+
+    let inputResult = controller.handleInput({ action: "left" })
+    control.assert(inputResult.kind == "moved", "row skips hidden disabled")
+    control.assert(focus.getActiveTargetId("row") == "row/a", "row moved to first enabled")
+    inputResult = controller.handleInput({ action: "activate" })
+    const activated = row.handleFocusInput(inputResult)
+    assertWidgetActivation(activated, "activated", "a", 1, "row activated")
+    inputResult = controller.handleInput({ action: "left" })
+    const exited = row.handleFocusInput(inputResult)
+    control.assert(exited.kind == "exited", "row boundary exit")
+    control.assert((<any>exited).direction == "left", "row exit direction")
+    control.assert((<any>exited).itemId == "a", "row exit item")
+
+    const rect = new Rect()
+    control.assert(row.getItemRect("c", rect), "row item rect exists")
+    assertLayoutRect(rect, 30, 0, 10, 10, "row item rect")
+
+    row.setItems([{ id: "replacement", value: 9 }])
+    row.arrange(new Rect(0, 0, 20, 10))
+    row.registerFocusTargets(focus)
+    row.registerNavigation(controller)
+    const staleRowTarget = focus.setActiveTarget("row", "row/a")
+    control.assert(staleRowTarget.kind == "rejected", "row stale target rejected")
+    control.assert(staleRowTarget.kind == "rejected" && staleRowTarget.reason == "missingTarget", "row stale target removed")
+    row.focusDefault(focus)
+    control.assert(focus.getActiveTargetId("row") == "row/replacement", "row replacement focus")
+    inputResult = controller.handleInput({ action: "activate" })
+    assertWidgetActivation(row.handleFocusInput(inputResult), "activated", "replacement", 9, "row replacement activation")
+  }
+
+  /**
+   * Smoke harness for action grid rectangular, ragged, scroll, and exit behavior.
+   */
+  export function runWidgetActionGridSmokeTest(): void {
+    const focus = new UiFocusState()
+    const scrollRequests: UiFocusScrollRequest[] = []
+    const controller = new UiFocusInputController({
+      focus,
+      scroll: request => scrollRequests.push(request)
+    })
+    const grid = new UiActionGrid<number>({
+      scopeId: "grid",
+      items: [
+        { id: "a", value: 1 },
+        { id: "b", value: 2, visible: false },
+        { id: "c", value: 3 },
+        { id: "d", value: 4, disabled: true },
+        { id: "e", value: 5, selected: true }
+      ],
+      columnCount: 3,
+      itemWidth: 8,
+      itemHeight: 6,
+      rowGap: 1,
+      columnGap: 2,
+      scrollOwnerId: "grid-scroll"
+    })
+
+    grid.arrange(new Rect(10, 20, 100, 60))
+    grid.registerFocusTargets(focus)
+    grid.registerNavigation(controller)
+    const defaultFocusResult = grid.focusDefault(focus)
+    control.assert(focus.getActiveTargetId("grid") == "grid/e", "grid selected default focus")
+    control.assert(defaultFocusResult.kind == "focused", "grid default focus result")
+    control.assert(
+      defaultFocusResult.kind == "focused" && !!defaultFocusResult.scrollRequest,
+      "grid default scroll request"
+    )
+    if (defaultFocusResult.kind == "focused" && defaultFocusResult.scrollRequest) {
+      assertLayoutRect(defaultFocusResult.scrollRequest.targetRect, 20, 27, 8, 6, "grid scroll rect")
+    }
+
+    focus.setActiveTarget("grid", "grid/a")
+    let inputResult = controller.handleInput({ action: "right" })
+    control.assert(inputResult.kind == "moved", "grid moves right")
+    control.assert(focus.getActiveTargetId("grid") == "grid/c", "grid skips hidden")
+    control.assert(scrollRequests.length == 1, "grid movement delivers scroll request")
+    assertLayoutRect(scrollRequests[0].targetRect, 30, 20, 8, 6, "grid movement scroll rect")
+    inputResult = controller.handleInput({ action: "activate" })
+    assertWidgetActivation(grid.handleFocusInput(inputResult), "activated", "c", 3, "grid activated")
+    inputResult = controller.handleInput({ action: "right" })
+    const exit = grid.handleFocusInput(inputResult)
+    control.assert(exit.kind == "exited", "grid boundary exit")
+    control.assert((<any>exit).direction == "right", "grid exit direction")
+
+    grid.setItems([{ id: "replacement", value: 99 }])
+    grid.arrange(new Rect(10, 20, 40, 20))
+    grid.registerFocusTargets(focus)
+    grid.registerNavigation(controller)
+    const staleGridTarget = focus.setActiveTarget("grid", "grid/c")
+    control.assert(staleGridTarget.kind == "rejected", "grid stale target rejected")
+    control.assert(staleGridTarget.kind == "rejected" && staleGridTarget.reason == "missingTarget", "grid stale target removed")
+    grid.focusDefault(focus)
+    control.assert(focus.getActiveTargetId("grid") == "grid/replacement", "grid replacement focus")
+    inputResult = controller.handleInput({ action: "activate" })
+    assertWidgetActivation(
+      grid.handleFocusInput(inputResult),
+      "activated",
+      "replacement",
+      99,
+      "grid replacement activation"
+    )
+
+    const raggedFocus = new UiFocusState()
+    const raggedController = new UiFocusInputController({ focus: raggedFocus })
+    const ragged = new UiActionGrid<string>({
+      scopeId: "ragged",
+      items: [
+        { id: "r0a", value: "r0a" },
+        { id: "r1a", value: "r1a" },
+        { id: "r1b", value: "r1b" },
+        { id: "r2a", value: "r2a" }
+      ],
+      rows: [1, 2, 1],
+      itemWidth: 10,
+      itemHeight: 8
+    })
+    ragged.arrange(new Rect(0, 0, 60, 60))
+    ragged.registerFocusTargets(raggedFocus)
+    ragged.registerNavigation(raggedController)
+    ragged.focusDefault(raggedFocus)
+    control.assert(raggedFocus.getActiveTargetId("ragged") == "ragged/r0a", "ragged default")
+    raggedController.handleInput({ action: "down" })
+    control.assert(raggedFocus.getActiveTargetId("ragged") == "ragged/r1a", "ragged down")
+    raggedController.handleInput({ action: "right" })
+    control.assert(raggedFocus.getActiveTargetId("ragged") == "ragged/r1b", "ragged right")
+    raggedController.handleInput({ action: "down" })
+    control.assert(raggedFocus.getActiveTargetId("ragged") == "ragged/r2a", "ragged nearest down")
+  }
+
+  /**
+   * Smoke harness for modal grid result timing and focus restoration.
+   */
+  export function runWidgetModalGridSmokeTest(): void {
+    const focus = new UiFocusState()
+    const controller = new UiFocusInputController({ focus })
+    const assets = new WidgetSmokeAssets()
+    focus.setScope({ id: "parent" })
+    focus.setTarget({ id: "parent/item", scopeId: "parent", rect: new Rect(0, 0, 10, 10), activatable: true })
+    focus.setActiveTarget("parent", "parent/item")
+
+    const modal = new UiModalGrid<string>({
+      parentScopeId: "parent",
+      modalScopeId: "modal",
+      title: "Caller title",
+      titleId: "knownText",
+      defaultItemId: "disabled",
+      deleteEnabled: true,
+      closeOnActivate: true,
+      columnCount: 2,
+      items: [
+        { id: "a", value: "A" },
+        { id: "disabled", value: "D", disabled: true },
+        { id: "hidden", value: "H", visible: false },
+        { id: "selected", value: "S", selected: true }
+      ]
+    })
+    modal.arrange(new Rect(20, 20, 80, 60))
+    modal.open(focus, controller)
+    control.assert(focus.getActiveScopeId() == "modal", "modal active scope")
+    control.assert(focus.getActiveTargetId("parent") == "parent/item", "modal preserved parent target")
+    control.assert(focus.getActiveTargetId("modal") == "modal/selected", "modal selected default")
+    control.assert(modal.resolveTitleText(assets) == "Caller title", "modal title precedence")
+    const resolverTitle = new UiModalGrid<string>({
+      parentScopeId: "parent",
+      modalScopeId: "title",
+      titleId: "knownText",
+      items: [{ id: "a", value: "A" }]
+    })
+    control.assert(resolverTitle.resolveTitleText(assets) == "resolved", "modal title id")
+    const disabledHit = focus.hitTest(51, 37)
+    control.assert(disabledHit.kind == "hit", "modal disabled hit")
+    control.assert(disabledHit.kind == "hit" && disabledHit.disabled, "modal disabled hit state")
+    const hiddenHit = focus.hitTest(25, 59)
+    control.assert(hiddenHit.kind == "miss", "modal hidden skip")
+
+    const outside = focus.hitTest(1, 1)
+    control.assert(outside.kind == "miss", "modal blocks outside hit test")
+    const cancelInput = controller.handleInput({ action: "cancel" })
+    const cancelResult = modal.handleFocusInput(cancelInput)
+    control.assert(cancelResult.kind == "cancelled", "modal cancel result before close")
+    control.assert(focus.getActiveScopeId() == "modal", "modal remains active for cancel processing")
+    modal.close(focus)
+    control.assert(focus.getActiveScopeId() == "parent", "modal close restores parent")
+    control.assert(focus.getActiveTargetId("parent") == "parent/item", "modal close restores target")
+
+    modal.open(focus, controller)
+    const activateInput = controller.handleInput({ action: "activate" })
+    const activated = modal.handleFocusInput(activateInput)
+    assertWidgetActivation(activated, "activated", "selected", "S", "modal activate")
+    control.assert((<any>activated).close, "modal activate close flag")
+    const deleted = modal.createDeleteResult()
+    control.assert(deleted.kind == "deleted", "modal delete result")
+    const closed = modal.createCloseResult()
+    control.assert(closed.kind == "closed", "modal close result")
+    modal.close(focus)
+    control.assert(focus.getActiveScopeId() == "parent", "modal activate caller close restores parent")
+
+    const keepOpen = new UiModalGrid<string>({
+      parentScopeId: "parent",
+      modalScopeId: "keep",
+      closeOnActivate: false,
+      items: [{ id: "edit", value: "E" }]
+    })
+    keepOpen.arrange(new Rect(0, 0, 60, 40))
+    keepOpen.open(focus, controller)
+    const keepInput = controller.handleInput({ action: "activate" })
+    const keepResult = keepOpen.handleFocusInput(keepInput)
+    assertWidgetActivation(keepResult, "keepOpen", "edit", "E", "modal keep open")
+    control.assert(focus.getActiveScopeId() == "keep", "keep-open modal remains active")
+
+    const surface = new WidgetSmokeSurface()
+    keepOpen.render(surface, assets, focus)
+    control.assert(surface.log.indexOf("fill:1;") >= 0, "modal panel fill")
+    control.assert(surface.log.indexOf("rect:15;") >= 0, "modal panel outline")
+  }
+
+  /**
+   * Smoke harness for toggle grid keep-open, delete, cancel, and caller policy behavior.
+   */
+  export function runWidgetToggleGridSmokeTest(): void {
+    const focus = new UiFocusState()
+    const controller = new UiFocusInputController({ focus })
+    focus.setScope({ id: "parent" })
+    focus.setTarget({ id: "parent/item", scopeId: "parent", rect: new Rect(0, 0, 10, 10), activatable: true })
+    focus.setActiveTarget("parent", "parent/item")
+
+    const ledItems: UiActionItem<number>[] = []
+    for (let i = 0; i < 25; i++) {
+      ledItems.push({
+        id: "led" + i,
+        value: i,
+        toggled: i == 12,
+        palette: i == 12 ? { toggledColor: 9 } : undefined
+      })
+    }
+    const led = new UiToggleGrid<number>({
+      parentScopeId: "parent",
+      modalScopeId: "led",
+      items: ledItems,
+      columnCount: 5,
+      defaultItemId: "led12",
+      deleteEnabled: true,
+      toggle: item => ({ kind: "keepOpen", value: item.value + 100 })
+    })
+    led.arrange(new Rect(0, 0, 100, 100))
+    led.open(focus, controller)
+    control.assert(focus.getActiveTargetId("led") == "led/led12", "led default focus")
+    const ledSurface = new WidgetSmokeSurface()
+    led.render(ledSurface, new WidgetSmokeAssets(), focus)
+    control.assert(ledSurface.log.indexOf("fill:9;") >= 0, "led toggled rendering")
+    const ledResult = led.handleFocusInput(controller.handleInput({ action: "activate" }))
+    assertWidgetActivation(ledResult, "keepOpen", "led12", 12, "led toggle")
+    control.assert((<any>ledResult).updatedValue == 112, "led updated value")
+    control.assert(focus.getActiveScopeId() == "led", "led keeps open")
+    control.assert(led.createDeleteResult().kind == "deleted", "led delete result")
+    control.assert(led.handleFocusInput(controller.handleInput({ action: "cancel" })).kind == "cancelled", "led cancel")
+    led.close(focus)
+    control.assert(focus.getActiveScopeId() == "parent", "led close restore")
+
+    const melodyItems: UiActionItem<string>[] = []
+    for (let column = 0; column < 4; column++) {
+      for (let row = 0; row < 5; row++) {
+        melodyItems.push({ id: "m" + column + "-" + row, value: column + ":" + row })
+      }
+    }
+    let melodyColumn = ""
+    const melody = new UiToggleGrid<string>({
+      parentScopeId: "parent",
+      modalScopeId: "melody",
+      items: melodyItems,
+      columnCount: 4,
+      defaultItemId: "m2-3",
+      toggle: item => {
+        melodyColumn = item.id.substr(1, 1)
+        return { kind: "keepOpen", value: "column-" + melodyColumn }
+      }
+    })
+    melody.arrange(new Rect(0, 0, 100, 100))
+    melody.open(focus, controller)
+    const melodyResult = melody.handleFocusInput(controller.handleInput({ action: "activate" }))
+    assertWidgetActivation(melodyResult, "keepOpen", "m2-3", "2:3", "melody toggle")
+    control.assert((<any>melodyResult).updatedValue == "column-2", "melody one column policy")
+    control.assert(melody.createCloseResult().kind == "closed", "melody close result")
+  }
+
+  /**
+   * Smoke harness for numeric entry edit rules and typed results.
+   */
+  export function runWidgetNumericEntrySmokeTest(): void {
+    const decimal = new UiNumericEntry({ mode: "decimal", initialText: "1", deleteEnabled: true })
+    control.assert(decimal.maxLength == 8, "decimal max length default")
+    decimal.toggleSign()
+    control.assert(decimal.text == "-1", "decimal sign toggle")
+    decimal.inputDecimalPoint()
+    decimal.inputDecimalPoint()
+    control.assert(decimal.text == "-1.", "decimal one point")
+    decimal.inputDigit(5)
+    control.assert(decimal.text == "-1.5", "decimal digit")
+    control.assert(decimal.createDeleteResult().kind == "deleted", "decimal delete result")
+    const backResult = decimal.back()
+    control.assert(backResult.kind == "completed", "decimal back completes")
+    control.assert((<any>backResult).text == "-1.5", "decimal back text")
+    control.assert((<any>backResult).value == -1.5, "decimal back value")
+
+    const zero = new UiNumericEntry({ mode: "decimal", initialText: "-0" })
+    const zeroResult = zero.enter()
+    control.assert((<any>zeroResult).text == "0", "decimal minus zero normalized")
+    control.assert((<any>zeroResult).value == 0, "decimal minus zero value")
+
+    const positive = new UiNumericEntry({ mode: "positiveInteger", initialText: "0", maxLength: 3 })
+    positive.toggleSign()
+    positive.inputDecimalPoint()
+    control.assert(positive.text == "0", "positive rejects sign and decimal")
+    positive.inputDigit(7)
+    positive.inputDigit(8)
+    positive.inputDigit(9)
+    positive.inputDigit(6)
+    control.assert(positive.text == "789", "positive leading zero replacement")
+    const positiveResult = positive.enter()
+    control.assert(positiveResult.kind == "completed", "positive enter completes")
+    control.assert((<any>positiveResult).value == 789, "positive integer value")
+
+    const positiveZero = new UiNumericEntry({ mode: "positiveInteger", initialText: "0" })
+    const positiveZeroResult = positiveZero.enter()
+    control.assert((<any>positiveZeroResult).text == "1", "positive zero fixup")
+    control.assert((<any>positiveZeroResult).value == 1, "positive zero value")
+
+    const noCancel = new UiNumericEntry({ mode: "decimal" })
+    control.assert(noCancel.cancel() === undefined, "cancel absent by default")
+    control.assert(noCancel.createDeleteResult() === undefined, "delete absent by default")
+    const cancel = new UiNumericEntry({ mode: "decimal", cancelEnabled: true, initialText: "3" })
+    control.assert(cancel.cancel().kind == "cancelled", "cancel enabled")
+
+    let validateLog = ""
+    let completedValidatorCalls = 0
+    const validated = new UiNumericEntry({
+      mode: "decimal",
+      validate: (mode: UiNumericEntryMode, candidate: string, action: UiNumericEntryEditAction) => {
+        validateLog += action + ":" + candidate + ";"
+        if (mode == "decimal" && candidate == "9" && action == "digit") completedValidatorCalls++
+        return candidate == "9" ? "completed" : "accepted"
+      }
+    })
+    const completed = validated.inputDigit(9)
+    control.assert(completed.kind == "completed", "validator completed")
+    control.assert(completedValidatorCalls >= 1, "validator receives typed action")
+    control.assert(validateLog.indexOf("digit:9;") >= 0, "validator receives candidate")
+  }
+
+  /**
+   * Smoke harness for widget observation ownership.
+   */
+  export function runWidgetObservationSmokeTest(): void {
+    const focus = new UiFocusState()
+    let focusRequests = 0
+    focus.addFocusObserver((event: UiFocusEvent) => {
+      focusRequests++
+    })
+    const row = new UiActionRow<number>({
+      scopeId: "observe-row",
+      items: [{ id: "a", value: 1 }, { id: "b", value: 2 }]
+    })
+    row.arrange(new Rect(0, 0, 60, 20))
+    row.registerFocusTargets(focus)
+    row.focusDefault(focus)
+    control.assert(focusRequests == 1, "widget focus observer frame")
+
+    let layoutRequests = 0
+    const owner = new UiLayoutOwner({
+      root: row,
+      constraints: { maxWidth: 100, maxHeight: 30 },
+      rect: new Rect(0, 0, 60, 20)
+    })
+    owner.addLayoutObserver(() => {
+      layoutRequests++
+    })
+    row.invalidateLayout()
+    owner.runLayout()
+    control.assert(layoutRequests == 1, "widget layout observer frame")
+
+    const scrollChild = new LayoutSmokeNode(layoutFixedSpec(120, 100), 1, 1, 1, 1)
+    const scroll = new UiScrollViewportLayout({
+      layoutSpec: layoutContentSpec(),
+      child: scrollChild,
+      scrollY: true
+    })
+    let scrollGeometryRequests = 0
+    let scrollOffsetRequests = 0
+    scroll.addScrollObserver((event: UiScrollEvent) => {
+      if (event.kind == "geometry") scrollGeometryRequests++
+      if (event.kind == "offset") scrollOffsetRequests++
+    })
+    scroll.arrange(new Rect(0, 0, 80, 40))
+    control.assert(scrollGeometryRequests == 1, "widget scroll geometry observer frame")
+    scroll.scrollContentRectIntoView(new Rect(0, 80, 20, 10))
+    control.assert(scrollOffsetRequests == 1, "widget scroll offset observer frame")
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
@@ -3350,6 +3912,13 @@ ui.runFocusInputRuntimeSmokeTest()
 ui.runDirectSimulatorInputSmokeTest()
 ui.runModalFocusSmokeTest()
 ui.runObservationSmokeTest()
+ui.runWidgetActionItemSmokeTest()
+ui.runWidgetActionRowSmokeTest()
+ui.runWidgetActionGridSmokeTest()
+ui.runWidgetModalGridSmokeTest()
+ui.runWidgetToggleGridSmokeTest()
+ui.runWidgetNumericEntrySmokeTest()
+ui.runWidgetObservationSmokeTest()
 
 // run logical viewport test again as it produces something visual
 ui.renderLogicalViewportSmokeTest()
