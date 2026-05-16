@@ -291,26 +291,56 @@ namespace ui {
     }
   }
 
+  class UiFocusObserverRecord implements UiObserverHandle {
+    public observer: UiFocusObserver
+    public active: boolean
+
+    constructor(observer: UiFocusObserver) {
+      this.observer = observer
+      this.active = true
+    }
+
+    public dispose(): void {
+      this.active = false
+    }
+  }
+
   /**
    * Stores focus scopes, targets, and the current active focus.
    */
   export class UiFocusState {
     private scopes_: UiFocusScopeRecord[]
     private targets_: UiFocusTargetRecord[]
+    private focusObservers_: UiFocusObserverRecord[]
     private activeScopeId_: UiFocusScopeId | undefined
     private nextUpdateOrder_: number
 
     constructor() {
       this.scopes_ = []
       this.targets_ = []
+      this.focusObservers_ = []
       this.activeScopeId_ = undefined
       this.nextUpdateOrder_ = 1
+    }
+
+    /**
+     * Registers an observer for active-focus transitions.
+     *
+     * The returned handle unregisters the observer. Observers run
+     * synchronously after accepted operations update the active scope or target.
+     */
+    public addFocusObserver(observer: UiFocusObserver): UiObserverHandle {
+      const record = new UiFocusObserverRecord(observer)
+      this.focusObservers_.push(record)
+      return record
     }
 
     /**
      * Creates or replaces a focus scope descriptor.
      */
     public setScope(options: UiFocusScopeOptions): void {
+      const previousScopeId = this.activeScopeId_
+      const previousTargetId = this.getActiveTargetId()
       const scope = this.findScope(options.id)
       if (scope) {
         scope.update(options)
@@ -320,6 +350,7 @@ namespace ui {
       } else {
         this.scopes_.push(new UiFocusScopeRecord(options))
       }
+      this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
     }
 
     /**
@@ -329,6 +360,8 @@ namespace ui {
       const scopeIndex = this.findScopeIndex(id)
       if (scopeIndex < 0) return
 
+      const previousScopeId = this.activeScopeId_
+      const previousTargetId = this.getActiveTargetId()
       this.scopes_.removeAt(scopeIndex)
       for (let i = this.targets_.length - 1; i >= 0; i--) {
         if (this.targets_[i].scopeId == id) this.targets_.removeAt(i)
@@ -337,6 +370,7 @@ namespace ui {
       if (this.activeScopeId_ == id) {
         this.activeScopeId_ = undefined
       }
+      this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
     }
 
     /**
@@ -347,6 +381,8 @@ namespace ui {
         return { kind: "rejected", scopeId: options.scopeId, targetId: options.id, reason: "missingScope" }
       }
 
+      const previousScopeId = this.activeScopeId_
+      const previousTargetId = this.getActiveTargetId()
       const target = this.findTarget(options.id)
       const oldScopeId = target ? target.scopeId : undefined
       const updateOrder = this.nextUpdateOrder_
@@ -366,6 +402,7 @@ namespace ui {
         this.clearRetainedActiveTarget(options.scopeId, options.id)
       }
 
+      this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
       return { kind: "stored", scopeId: options.scopeId, targetId: options.id }
     }
 
@@ -376,19 +413,25 @@ namespace ui {
       const targetIndex = this.findTargetIndex(id)
       if (targetIndex < 0) return
 
+      const previousScopeId = this.activeScopeId_
+      const previousTargetId = this.getActiveTargetId()
       const scopeId = this.targets_[targetIndex].scopeId
       this.targets_.removeAt(targetIndex)
       this.clearRetainedActiveTarget(scopeId, id)
+      this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
     }
 
     /**
      * Removes all scopes, targets, and active focus.
      */
     public clear(): void {
+      const previousScopeId = this.activeScopeId_
+      const previousTargetId = this.getActiveTargetId()
       while (this.scopes_.length) this.scopes_.pop()
       while (this.targets_.length) this.targets_.pop()
       this.activeScopeId_ = undefined
       this.nextUpdateOrder_ = 1
+      this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
     }
 
     /**
@@ -429,7 +472,9 @@ namespace ui {
       const previousScopeId = this.activeScopeId_
       const previousTargetId = this.getActiveTargetId()
       this.activeScopeId_ = undefined
-      return { kind: "cleared", scopeId: previousScopeId, previousScopeId, previousTargetId }
+      const result: UiFocusSetResult = { kind: "cleared", scopeId: previousScopeId, previousScopeId, previousTargetId }
+      this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
+      return result
     }
 
     /**
@@ -456,7 +501,9 @@ namespace ui {
       const previousTargetId = this.getActiveTargetId()
       scope.activeTargetId = targetId
       this.activeScopeId_ = scopeId
-      return this.focusedResult(scopeId, targetId, previousScopeId, previousTargetId)
+      const result = this.focusedResult(scopeId, targetId, previousScopeId, previousTargetId)
+      this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
+      return result
     }
 
     /**
@@ -470,13 +517,17 @@ namespace ui {
       }
 
       const previousTargetId = scope.activeTargetId
+      const previousScopeId = this.activeScopeId_
+      const previousActiveTargetId = this.getActiveTargetId()
       scope.activeTargetId = undefined
-      return {
+      const result: UiFocusSetResult = {
         kind: "cleared",
         scopeId,
-        previousScopeId: this.activeScopeId_,
+        previousScopeId,
         previousTargetId
       }
+      this.notifyActiveFocusChanged(previousScopeId, previousActiveTargetId)
+      return result
     }
 
     /**
@@ -628,11 +679,15 @@ namespace ui {
         }
         scope.activeTargetId = targetId
         this.activeScopeId_ = scope.id
-        return this.focusedResult(scope.id, targetId, previousScopeId, previousTargetId)
+        const result = this.focusedResult(scope.id, targetId, previousScopeId, previousTargetId)
+        this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
+        return result
       }
 
       this.activeScopeId_ = scope.id
-      return { kind: "unchanged", scopeId: scope.id, reason: "empty" }
+      const result: UiFocusSetResult = { kind: "unchanged", scopeId: scope.id, reason: "empty" }
+      this.notifyActiveFocusChanged(previousScopeId, previousTargetId)
+      return result
     }
 
     private isFocusAllowedInScope(scopeId: UiFocusScopeId): boolean {
@@ -708,6 +763,38 @@ namespace ui {
     private compareHitTestOrder(a: UiFocusTargetRecord, b: UiFocusTargetRecord): number {
       if (a.hitTestOrder != b.hitTestOrder) return a.hitTestOrder - b.hitTestOrder
       return a.updateOrder - b.updateOrder
+    }
+
+    private notifyActiveFocusChanged(
+      previousScopeId: UiFocusScopeId | undefined,
+      previousTargetId: UiFocusId | undefined
+    ): void {
+      const currentScopeId = this.activeScopeId_
+      const currentTargetId = this.getActiveTargetId()
+      if (previousScopeId == currentScopeId && previousTargetId == currentTargetId) return
+      if (!this.hasFocusObservers()) return
+
+      const event: UiFocusEvent = {}
+      if (previousScopeId !== undefined) event.previousScopeId = previousScopeId
+      if (previousTargetId !== undefined) event.previousTargetId = previousTargetId
+      if (currentScopeId !== undefined) event.currentScopeId = currentScopeId
+      if (currentTargetId !== undefined) event.currentTargetId = currentTargetId
+      this.notifyFocusObservers(event)
+    }
+
+    private hasFocusObservers(): boolean {
+      for (let i = 0; i < this.focusObservers_.length; i++) {
+        if (this.focusObservers_[i].active) return true
+      }
+      return false
+    }
+
+    private notifyFocusObservers(event: UiFocusEvent): void {
+      const count = this.focusObservers_.length
+      for (let i = 0; i < count; i++) {
+        const record = this.focusObservers_[i]
+        if (record.active) record.observer(event)
+      }
     }
   }
 }

@@ -33,7 +33,8 @@
         "ui-core/layout-scroll.ts",
         "ui-core/focus.ts",
         "ui-core/focus-navigation.ts",
-        "ui-core/focus-runtime.ts"
+        "ui-core/focus-runtime.ts",
+        "ui-core/observation.ts"
     ],
     "yotta": {
         "config": {

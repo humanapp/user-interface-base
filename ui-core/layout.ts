@@ -248,6 +248,20 @@ namespace ui {
     )
   }
 
+  class UiLayoutObserverRecord implements UiObserverHandle {
+    public observer: UiLayoutObserver
+    public active: boolean
+
+    constructor(observer: UiLayoutObserver) {
+      this.observer = observer
+      this.active = true
+    }
+
+    public dispose(): void {
+      this.active = false
+    }
+  }
+
   /**
    * Retains the root, bounds, and dirty state for explicit layout passes.
    */
@@ -256,6 +270,7 @@ namespace ui {
     private constraints_: UiLayoutConstraints
     private rect_: Rect
     private measured_: UiMeasuredSize
+    private layoutObservers_: UiLayoutObserverRecord[]
     private layoutDirty_: boolean
 
     constructor(options: UiLayoutOwnerOptions) {
@@ -263,9 +278,22 @@ namespace ui {
       this.constraints_ = { maxWidth: 0, maxHeight: 0 }
       this.rect_ = new Rect()
       this.measured_ = new UiMeasuredSize()
+      this.layoutObservers_ = []
       this.layoutDirty_ = true
       this.copyConstraints(options.constraints)
       copyArrangedLayoutRect(this.rect_, options.rect)
+    }
+
+    /**
+     * Registers an observer for completed retained layout passes.
+     *
+     * The returned handle unregisters the observer. Observers run
+     * synchronously after `runLayout()` finishes arranging the root.
+     */
+    public addLayoutObserver(observer: UiLayoutObserver): UiObserverHandle {
+      const record = new UiLayoutObserverRecord(observer)
+      this.layoutObservers_.push(record)
+      return record
     }
 
     /**
@@ -321,11 +349,20 @@ namespace ui {
       this.root_.measure(this.constraints_, this.measured_)
       this.root_.arrange(this.rect_)
       this.layoutDirty_ = false
+      this.notifyLayoutObservers()
     }
 
     private copyConstraints(constraints: UiLayoutConstraints): void {
       this.constraints_.maxWidth = _uiLayout.sanitizeDimension(constraints.maxWidth)
       this.constraints_.maxHeight = _uiLayout.sanitizeDimension(constraints.maxHeight)
+    }
+
+    private notifyLayoutObservers(): void {
+      const count = this.layoutObservers_.length
+      for (let i = 0; i < count; i++) {
+        const record = this.layoutObservers_[i]
+        if (record.active) record.observer()
+      }
     }
   }
 

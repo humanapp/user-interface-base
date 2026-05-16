@@ -2793,6 +2793,310 @@ namespace ui {
     runtime.runFrame()
     control.assert(screenCancelCount == 1, "scene stack receives unhandled cancel")
   }
+
+  function focusEventValue(value: string | undefined): string {
+    return value === undefined ? "-" : value
+  }
+
+  function focusEventText(event: UiFocusEvent): string {
+    return focusEventValue(event.previousScopeId) + ":" +
+      focusEventValue(event.previousTargetId) + "->" +
+      focusEventValue(event.currentScopeId) + ":" +
+      focusEventValue(event.currentTargetId) + ";"
+  }
+
+  function addObservationFocusRecords(state: UiFocusState): void {
+    state.setScope({ id: "main" })
+    state.setScope({ id: "empty" })
+    state.setScope({ id: "secondary" })
+    state.setTarget({ id: "a", scopeId: "main", rect: new Rect(0, 0, 10, 10), activatable: true })
+    state.setTarget({ id: "b", scopeId: "main", rect: new Rect(12, 0, 10, 10), activatable: true })
+    state.setTarget({ id: "c", scopeId: "secondary", rect: new Rect(0, 20, 10, 10), activatable: true })
+  }
+
+  function assertFocusEventLog(log: string, expected: string, name: string): void {
+    control.assert(log == expected, name + " focus event log")
+  }
+
+  /**
+   * Smoke harness for focus, layout, and scroll observation contracts.
+   */
+  export function runObservationSmokeTest(): void {
+    let focusState = new UiFocusState()
+    addObservationFocusRecords(focusState)
+    let focusLog = ""
+    focusState.addFocusObserver((event: UiFocusEvent) => {
+      focusLog += focusEventText(event)
+    })
+
+    focusState.setActiveTarget("main", "a")
+    focusLog = ""
+    focusState.setActiveTarget("main", "b")
+    assertFocusEventLog(focusLog, "main:a->main:b;", "focus target change")
+    focusLog = ""
+    focusState.setActiveTarget("main", "b")
+    focusState.setActiveTarget("main", "missing")
+    assertFocusEventLog(focusLog, "", "focus rejected unchanged")
+
+    focusState.setActiveScope("empty")
+    assertFocusEventLog(focusLog, "main:b->empty:-;", "empty scope emits")
+    focusLog = ""
+    focusState.clearActiveScope()
+    assertFocusEventLog(focusLog, "empty:-->-:-;", "clear active scope emits")
+
+    focusState = createModalFocusState()
+    focusState.setActiveScope("modal")
+    focusLog = ""
+    focusState.addFocusObserver((event: UiFocusEvent) => {
+      focusLog += focusEventText(event)
+    })
+    focusState.closeModalScope("modal")
+    assertFocusEventLog(focusLog, "modal:modal-a->main:main-a;", "close modal emits restore")
+
+    focusState = new UiFocusState()
+    addObservationFocusRecords(focusState)
+    focusState.setActiveTarget("main", "a")
+    focusLog = ""
+    focusState.addFocusObserver((event: UiFocusEvent) => {
+      focusLog += focusEventText(event)
+    })
+    focusState.setTarget({ id: "a", scopeId: "main", rect: new Rect(1, 1, 10, 10), hidden: true })
+    assertFocusEventLog(focusLog, "main:a->main:-;", "hide active emits")
+    focusState.setTarget({ id: "a", scopeId: "main", rect: new Rect(1, 1, 10, 10) })
+    focusState.setActiveTarget("main", "a")
+    focusLog = ""
+    focusState.setTarget({ id: "a", scopeId: "main", rect: new Rect(1, 1, 10, 10), disabled: true })
+    assertFocusEventLog(focusLog, "main:a->main:-;", "disable active emits")
+    focusState.setTarget({ id: "a", scopeId: "main", rect: new Rect(1, 1, 10, 10) })
+    focusState.setActiveTarget("main", "a")
+    focusLog = ""
+    focusState.setTarget({ id: "a", scopeId: "secondary", rect: new Rect(1, 1, 10, 10) })
+    assertFocusEventLog(focusLog, "main:a->main:-;", "move active emits")
+    focusState.setTarget({ id: "a", scopeId: "main", rect: new Rect(1, 1, 10, 10) })
+    focusState.setActiveTarget("main", "a")
+    focusLog = ""
+    focusState.removeTarget("a")
+    assertFocusEventLog(focusLog, "main:a->main:-;", "remove active target emits")
+    focusState.setTarget({ id: "a", scopeId: "main", rect: new Rect(1, 1, 10, 10) })
+    focusState.setActiveTarget("main", "a")
+    focusLog = ""
+    focusState.setTarget({ id: "a", scopeId: "main", rect: new Rect(5, 5, 10, 10) })
+    assertFocusEventLog(focusLog, "", "active rect update silent")
+    focusState.setActiveTarget("secondary", "c")
+    focusState.setActiveTarget("main", "a")
+    focusLog = ""
+    focusState.setTarget({ id: "c", scopeId: "secondary", rect: new Rect(0, 20, 10, 10), hidden: true })
+    assertFocusEventLog(focusLog, "", "inactive retained target silent")
+    focusState.clear()
+    assertFocusEventLog(focusLog, "main:a->-:-;", "clear focus emits")
+    focusLog = ""
+    focusState.clear()
+    assertFocusEventLog(focusLog, "", "clear empty silent")
+
+    const disposedState = new UiFocusState()
+    addObservationFocusRecords(disposedState)
+    let disposeLog = ""
+    let secondHandle: UiObserverHandle = undefined
+    disposedState.addFocusObserver((event: UiFocusEvent) => {
+      disposeLog += "first;"
+      secondHandle.dispose()
+    })
+    secondHandle = disposedState.addFocusObserver((event: UiFocusEvent) => {
+      disposeLog += "second;"
+    })
+    disposedState.setActiveTarget("main", "a")
+    control.assert(disposeLog == "first;", "dispose later observer")
+
+    const selfDisposeState = new UiFocusState()
+    addObservationFocusRecords(selfDisposeState)
+    let selfLog = ""
+    let selfHandle: UiObserverHandle = undefined
+    selfHandle = selfDisposeState.addFocusObserver((event: UiFocusEvent) => {
+      selfLog += "self;"
+      selfHandle.dispose()
+    })
+    selfDisposeState.setActiveTarget("main", "a")
+    selfDisposeState.setActiveTarget("main", "b")
+    control.assert(selfLog == "self;", "self dispose finishes current")
+
+    const addDuringFocusState = new UiFocusState()
+    addObservationFocusRecords(addDuringFocusState)
+    let addDuringLog = ""
+    let observerAdded = false
+    addDuringFocusState.addFocusObserver((event: UiFocusEvent) => {
+      addDuringLog += "first;"
+      if (!observerAdded) {
+        observerAdded = true
+        addDuringFocusState.addFocusObserver((addedEvent: UiFocusEvent) => {
+          addDuringLog += "added;"
+        })
+      }
+    })
+    addDuringFocusState.setActiveTarget("main", "a")
+    control.assert(addDuringLog == "first;", "added observer skips current")
+    addDuringLog = ""
+    addDuringFocusState.setActiveTarget("main", "b")
+    control.assert(addDuringLog == "first;added;", "added observer receives later")
+
+    const nestedState = new UiFocusState()
+    addObservationFocusRecords(nestedState)
+    nestedState.setActiveTarget("main", "a")
+    let nestedLog = ""
+    nestedState.addFocusObserver((event: UiFocusEvent) => {
+      if (event.currentTargetId == "b") {
+        nestedLog += "outer-first;"
+        nestedState.setActiveTarget("main", "a")
+        nestedLog += "outer-after;"
+      } else {
+        nestedLog += "nested-first;"
+      }
+    })
+    nestedState.addFocusObserver((event: UiFocusEvent) => {
+      if (event.currentTargetId == "b") nestedLog += "outer-second;"
+      else nestedLog += "nested-second;"
+    })
+    nestedState.setActiveTarget("main", "b")
+    control.assert(
+      nestedLog == "outer-first;nested-first;nested-second;outer-after;outer-second;",
+      "nested focus events"
+    )
+
+    const throwingState = new UiFocusState()
+    addObservationFocusRecords(throwingState)
+    let observerFailurePropagated = false
+    throwingState.addFocusObserver((event: UiFocusEvent) => {
+      throw "observer failure"
+    })
+    try {
+      throwingState.setActiveTarget("main", "a")
+    } catch (e) {
+      observerFailurePropagated = true
+    }
+    control.assert(observerFailurePropagated, "observer failure propagates")
+
+    const layoutNode = new CountingLayoutSmokeNode(layoutFixedSpec(50, 20), 50, 20)
+    const layoutOwner = new UiLayoutOwner({
+      root: layoutNode,
+      constraints: { maxWidth: 100, maxHeight: 80 },
+      rect: new Rect(3, 4, 50, 20)
+    })
+    let layoutLog = ""
+    const layoutHandle = layoutOwner.addLayoutObserver(() => {
+      layoutLog += "layout;"
+      assertLayoutRect(layoutNode.finalRect, 6, 8, 60, 24, "observed layout rect")
+    })
+    layoutOwner.setRect(new Rect(6, 8, 60, 24))
+    control.assert(layoutLog == "", "layout dirty silent")
+    layoutOwner.runLayout()
+    control.assert(layoutLog == "layout;", "dirty layout emits")
+    layoutLog = ""
+    layoutOwner.runLayout()
+    control.assert(layoutLog == "", "clean layout silent")
+    layoutHandle.dispose()
+    layoutOwner.invalidateLayout()
+    layoutOwner.runLayout()
+    control.assert(layoutLog == "", "disposed layout observer silent")
+
+    const observedFocus = new UiFocusState()
+    observedFocus.setScope({ id: "main" })
+    observedFocus.setTarget({ id: "node", scopeId: "main", rect: new Rect(0, 0, 1, 1) })
+    const focusNode = new LayoutSmokeNode(layoutFixedSpec(30, 12), 1, 1, 1, 1)
+    const focusLayoutOwner = new UiLayoutOwner({
+      root: focusNode,
+      constraints: { maxWidth: 100, maxHeight: 80 },
+      rect: new Rect(9, 10, 30, 12)
+    })
+    focusLayoutOwner.addLayoutObserver(() => {
+      observedFocus.setTarget({ id: "node", scopeId: "main", rect: focusNode.finalRect })
+    })
+    focusLayoutOwner.runLayout()
+    const observedRect = new Rect()
+    control.assert(observedFocus.getTargetRect("node", observedRect), "layout observer focus rect")
+    assertLayoutRect(observedRect, 9, 10, 30, 12, "layout-updated focus rect")
+
+    const scrollNode = new LayoutSmokeNode(layoutFixedSpec(180, 140), 1, 1, 1, 1)
+    const scroll = new UiScrollViewportLayout({
+      layoutSpec: layoutContentSpec(),
+      child: scrollNode,
+      scrollX: true,
+      scrollY: true
+    })
+    let scrollLog = ""
+    scroll.addScrollObserver((event: UiScrollEvent) => {
+      scrollLog += event.kind + ";"
+    })
+    scroll.setContentOffset(0, 10)
+    control.assert(scrollLog == "offset;", "set offset emits")
+    scrollLog = ""
+    scroll.setContentOffset(0, 10)
+    control.assert(scrollLog == "", "unchanged offset silent")
+    scroll.arrange(new Rect(0, 0, 100, 70))
+    scrollLog = ""
+    scroll.setContentOffset(0, 0)
+    scrollLog = ""
+    scroll.scrollContentRectIntoView(new Rect(120, 20, 20, 10))
+    control.assert(scrollLog == "offset;", "scroll into view emits")
+    const queriedOffset = new Point()
+    scrollLog = ""
+    scroll.setContentOffset(0, 0)
+    scroll.arrange(new Rect(0, 0, 100, 70))
+    scrollLog = ""
+    scroll.getContentOffsetForRect(new Rect(120, 20, 20, 10), queriedOffset)
+    control.assert(queriedOffset.x == 40, "query offset x")
+    control.assert(queriedOffset.y == 0, "query offset y")
+    control.assert(scroll.contentOffsetX == 0, "query keeps offset x")
+    control.assert(scroll.contentOffsetY == 0, "query keeps offset y")
+    control.assert(!scroll.layoutDirty, "query keeps layout clean")
+    control.assert(scrollLog == "", "query emits no scroll event")
+    scroll.scrollContentRectIntoView(new Rect(120, 20, 20, 10))
+    control.assert(scroll.contentOffsetX == queriedOffset.x, "query matches stored x")
+    control.assert(scroll.contentOffsetY == queriedOffset.y, "query matches stored y")
+    scrollLog = ""
+    scroll.setPadding(2)
+    scroll.setPadding(2)
+    scroll.setScrollAxes(false, true)
+    scroll.setScrollAxes(false, true)
+    const replacementChild = new LayoutSmokeNode(layoutFixedSpec(60, 30), 1, 1, 1, 1)
+    scroll.setChild(replacementChild)
+    scroll.setChild(replacementChild)
+    scroll.clearChild()
+    scroll.clearChild()
+    control.assert(scrollLog == "configuration;configuration;configuration;configuration;", "configuration events")
+
+    const clampingScroll = new UiScrollViewportLayout({
+      layoutSpec: layoutContentSpec(),
+      child: new LayoutSmokeNode(layoutFixedSpec(60, 30), 1, 1, 1, 1),
+      contentOffsetY: 40
+    })
+    scrollLog = ""
+    clampingScroll.addScrollObserver((event: UiScrollEvent) => {
+      scrollLog += event.kind + ";"
+    })
+    clampingScroll.arrange(new Rect(0, 0, 100, 80))
+    control.assert(scrollLog == "geometry;offset;", "arrange event order")
+
+    const addDuringScroll = new UiScrollViewportLayout({
+      layoutSpec: layoutContentSpec(),
+      child: new LayoutSmokeNode(layoutFixedSpec(60, 30), 1, 1, 1, 1),
+      contentOffsetY: 40
+    })
+    let addDuringScrollLog = ""
+    let addedScrollObserver = false
+    addDuringScroll.addScrollObserver((event: UiScrollEvent) => {
+      addDuringScrollLog += "first-" + event.kind + ";"
+      if (event.kind == "geometry" && !addedScrollObserver) {
+        addedScrollObserver = true
+        addDuringScroll.addScrollObserver((addedEvent: UiScrollEvent) => {
+          addDuringScrollLog += "added-" + addedEvent.kind + ";"
+        })
+      }
+    })
+    addDuringScroll.arrange(new Rect(0, 0, 100, 80))
+    control.assert(
+      addDuringScrollLog == "first-geometry;first-offset;added-offset;",
+      "added observer receives later operation event"
+    )
+  }
 }
 
 ui.renderLogicalViewportSmokeTest()
@@ -2805,5 +3109,6 @@ ui.runFocusStateMachineSmokeTest()
 ui.runFocusMovementSmokeTest()
 ui.runFocusInputRuntimeSmokeTest()
 ui.runModalFocusSmokeTest()
+ui.runObservationSmokeTest()
 
 control.__log(1, "All tests passed!")

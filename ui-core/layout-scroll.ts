@@ -39,6 +39,20 @@ namespace ui {
     scrollY?: boolean
   }
 
+  class UiScrollObserverRecord implements UiObserverHandle {
+    public observer: UiScrollObserver
+    public active: boolean
+
+    constructor(observer: UiScrollObserver) {
+      this.observer = observer
+      this.active = true
+    }
+
+    public dispose(): void {
+      this.active = false
+    }
+  }
+
   /**
    * Arranges one optional child inside a retained scroll viewport.
    */
@@ -57,6 +71,7 @@ namespace ui {
     private visibleContentRect_: Rect
     private constraintsScratch_: UiLayoutConstraints
     private measureScratch_: UiMeasuredSize
+    private scrollObservers_: UiScrollObserverRecord[]
     private measuredContentWidth_: number
     private measuredContentHeight_: number
 
@@ -75,9 +90,22 @@ namespace ui {
       this.visibleContentRect_ = new Rect()
       this.constraintsScratch_ = { maxWidth: 0, maxHeight: 0 }
       this.measureScratch_ = new UiMeasuredSize()
+      this.scrollObservers_ = []
       this.measuredContentWidth_ = 0
       this.measuredContentHeight_ = 0
       _uiLayout.copyEdgeInsets(this.padding_, options.padding)
+    }
+
+    /**
+     * Registers an observer for retained scroll state changes.
+     *
+     * The returned handle unregisters the observer. Observers run
+     * synchronously after each public scroll operation stores its changes.
+     */
+    public addScrollObserver(observer: UiScrollObserver): UiObserverHandle {
+      const record = new UiScrollObserverRecord(observer)
+      this.scrollObservers_.push(record)
+      return record
     }
 
     /**
@@ -119,42 +147,65 @@ namespace ui {
      * Replaces the current scrollable child.
      */
     public setChild(child: UiLayoutNode): void {
+      if (this.child_ == child) return
       this.child_ = child
       this.invalidateLayout()
+      this.emitScrollConfigurationChanged()
     }
 
     /**
      * Removes the current scrollable child.
      */
     public clearChild(): void {
+      if (!this.child_) return
       this.child_ = undefined
       this.invalidateLayout()
+      this.emitScrollConfigurationChanged()
     }
 
     /**
      * Stores the requested content offset for the next arrangement.
      */
     public setContentOffset(x: number, y: number): void {
-      this.contentOffsetX_ = _uiLayout.sanitizeCoordinate(x)
-      this.contentOffsetY_ = _uiLayout.sanitizeCoordinate(y)
+      const nextX = _uiLayout.sanitizeCoordinate(x)
+      const nextY = _uiLayout.sanitizeCoordinate(y)
+      if (this.contentOffsetX_ == nextX && this.contentOffsetY_ == nextY) return
+      this.contentOffsetX_ = nextX
+      this.contentOffsetY_ = nextY
       this.invalidateLayout()
+      this.emitScrollOffsetChanged()
     }
 
     /**
      * Updates which axes may scroll during arrangement.
      */
     public setScrollAxes(scrollX: boolean, scrollY: boolean): void {
+      if (this.scrollX_ == scrollX && this.scrollY_ == scrollY) return
       this.scrollX_ = scrollX
       this.scrollY_ = scrollY
       this.invalidateLayout()
+      this.emitScrollConfigurationChanged()
     }
 
     /**
      * Updates the edge insets around the visible viewport.
      */
     public setPadding(padding: number | UiLayoutEdgeInsets): void {
+      const previousTop = this.padding_.top
+      const previousRight = this.padding_.right
+      const previousBottom = this.padding_.bottom
+      const previousLeft = this.padding_.left
       _uiLayout.copyEdgeInsets(this.padding_, padding)
+      if (
+        this.padding_.top == previousTop &&
+        this.padding_.right == previousRight &&
+        this.padding_.bottom == previousBottom &&
+        this.padding_.left == previousLeft
+      ) {
+        return
+      }
       this.invalidateLayout()
+      this.emitScrollConfigurationChanged()
     }
 
     /**
@@ -189,12 +240,52 @@ namespace ui {
     }
 
     /**
+     * Computes the content offset needed to bring `target` into view.
+     *
+     * The target rectangle is expressed in content coordinates before scroll
+     * offset is applied. This query writes into `output` and leaves retained
+     * scroll state unchanged.
+     */
+    public getContentOffsetForRect(target: Rect, output: Point): void {
+      let nextX = this.contentOffsetX_
+      let nextY = this.contentOffsetY_
+      const targetX = _uiLayout.sanitizeCoordinate(target.x)
+      const targetY = _uiLayout.sanitizeCoordinate(target.y)
+      const targetWidth = _uiLayout.sanitizeDimension(target.width)
+      const targetHeight = _uiLayout.sanitizeDimension(target.height)
+
+      if (this.scrollX_) {
+        nextX = this.scrollAxisIntoView(
+          this.contentOffsetX_,
+          this.viewportRect_.width,
+          this.measuredContentWidth_,
+          targetX,
+          targetWidth
+        )
+      }
+
+      if (this.scrollY_) {
+        nextY = this.scrollAxisIntoView(
+          this.contentOffsetY_,
+          this.viewportRect_.height,
+          this.measuredContentHeight_,
+          targetY,
+          targetHeight
+        )
+      }
+
+      output.set(nextX, nextY)
+    }
+
+    /**
      * Updates the stored offset with the smallest movement needed for `target`.
      *
      * The target rectangle is expressed in content coordinates before scroll
      * offset is applied.
      */
     public scrollContentRectIntoView(target: Rect): void {
+      const previousOffsetX = this.contentOffsetX_
+      const previousOffsetY = this.contentOffsetY_
       const targetX = _uiLayout.sanitizeCoordinate(target.x)
       const targetY = _uiLayout.sanitizeCoordinate(target.y)
       const targetWidth = _uiLayout.sanitizeDimension(target.width)
@@ -221,6 +312,9 @@ namespace ui {
       }
 
       this.invalidateLayout()
+      if (this.contentOffsetX_ != previousOffsetX || this.contentOffsetY_ != previousOffsetY) {
+        this.emitScrollOffsetChanged()
+      }
     }
 
     public measure(constraints: UiLayoutConstraints, output: UiMeasuredSize): void {
@@ -247,6 +341,21 @@ namespace ui {
     }
 
     public arrange(rect: Rect): void {
+      const previousViewportX = this.viewportRect_.x
+      const previousViewportY = this.viewportRect_.y
+      const previousViewportWidth = this.viewportRect_.width
+      const previousViewportHeight = this.viewportRect_.height
+      const previousContentX = this.contentRect_.x
+      const previousContentY = this.contentRect_.y
+      const previousContentWidth = this.contentRect_.width
+      const previousContentHeight = this.contentRect_.height
+      const previousVisibleX = this.visibleContentRect_.x
+      const previousVisibleY = this.visibleContentRect_.y
+      const previousVisibleWidth = this.visibleContentRect_.width
+      const previousVisibleHeight = this.visibleContentRect_.height
+      const previousOffsetX = this.contentOffsetX_
+      const previousOffsetY = this.contentOffsetY_
+
       copyArrangedLayoutRect(this.finalRect, rect)
       this.updateViewportRect()
       this.measureContentForViewport()
@@ -275,6 +384,24 @@ namespace ui {
 
       this.updateVisibleContentRect()
       this.clearLayoutInvalidation()
+
+      const geometryChanged =
+        this.viewportRect_.x != previousViewportX ||
+        this.viewportRect_.y != previousViewportY ||
+        this.viewportRect_.width != previousViewportWidth ||
+        this.viewportRect_.height != previousViewportHeight ||
+        this.contentRect_.x != previousContentX ||
+        this.contentRect_.y != previousContentY ||
+        this.contentRect_.width != previousContentWidth ||
+        this.contentRect_.height != previousContentHeight ||
+        this.visibleContentRect_.x != previousVisibleX ||
+        this.visibleContentRect_.y != previousVisibleY ||
+        this.visibleContentRect_.width != previousVisibleWidth ||
+        this.visibleContentRect_.height != previousVisibleHeight
+      const offsetChanged = this.contentOffsetX_ != previousOffsetX || this.contentOffsetY_ != previousOffsetY
+
+      if (geometryChanged) this.emitScrollGeometryChanged()
+      if (offsetChanged) this.emitScrollOffsetChanged()
     }
 
     public invalidateLayout(): void {
@@ -344,6 +471,33 @@ namespace ui {
       if (!scrollEnabled) return 0
       const maxOffset = _uiLayout.sanitizeDimension(contentSize - viewportSize)
       return Math.min(Math.max(_uiLayout.sanitizeCoordinate(offset), 0), maxOffset)
+    }
+
+    private emitScrollConfigurationChanged(): void {
+      if (this.hasScrollObservers()) this.notifyScrollObservers({ kind: "configuration" })
+    }
+
+    private emitScrollGeometryChanged(): void {
+      if (this.hasScrollObservers()) this.notifyScrollObservers({ kind: "geometry" })
+    }
+
+    private emitScrollOffsetChanged(): void {
+      if (this.hasScrollObservers()) this.notifyScrollObservers({ kind: "offset" })
+    }
+
+    private hasScrollObservers(): boolean {
+      for (let i = 0; i < this.scrollObservers_.length; i++) {
+        if (this.scrollObservers_[i].active) return true
+      }
+      return false
+    }
+
+    private notifyScrollObservers(event: UiScrollEvent): void {
+      const count = this.scrollObservers_.length
+      for (let i = 0; i < count; i++) {
+        const record = this.scrollObservers_[i]
+        if (record.active) record.observer(event)
+      }
     }
   }
 
