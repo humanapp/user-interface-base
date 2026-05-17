@@ -385,12 +385,16 @@ namespace ui {
 
         private emitActivate(result: UiModalGridResult<T>): void {
             if (
-                !this.onActivate_ ||
                 !result ||
                 (result.kind != "activated" && result.kind != "keepOpen")
             )
                 return
-            this.onActivate_(result.value, result.item, result.itemId)
+            _uiWidgets.emitActionActivate(
+                result.value,
+                result.item,
+                result.itemId,
+                this.onActivate_,
+            )
         }
 
         private emitCancel(result: UiModalGridResult<T>): void {

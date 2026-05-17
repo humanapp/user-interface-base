@@ -545,9 +545,13 @@ namespace ui {
         }
 
         private emitActivate(result: UiActionGridResult<T>): void {
-            if (!this.onActivate_ || !result || result.kind != "activated")
-                return
-            this.onActivate_(result.value, result.item, result.itemId)
+            if (!result || result.kind != "activated") return
+            _uiWidgets.emitActionActivate(
+                result.value,
+                result.item,
+                result.itemId,
+                this.onActivate_,
+            )
         }
     }
 }

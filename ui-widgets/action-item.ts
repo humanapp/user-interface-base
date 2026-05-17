@@ -137,6 +137,11 @@ namespace ui {
          * Optional callback that draws the complete item rectangle.
          */
         draw?: UiActionItemDraw<T>
+
+        /**
+         * Optional callback invoked when this item is activated.
+         */
+        onActivate?: UiActionActivateHandler<T>
     }
 }
 
@@ -168,6 +173,16 @@ namespace _uiWidgets {
 
     export function isToggled<T>(item: ui.UiActionItem<T>): boolean {
         return item.toggled || false
+    }
+
+    export function emitActionActivate<T>(
+        value: T,
+        item: ui.UiActionItem<T>,
+        itemId: string,
+        onActivate?: ui.UiActionActivateHandler<T>,
+    ): void {
+        if (item.onActivate) item.onActivate(value, item, itemId)
+        if (onActivate) onActivate(value, item, itemId)
     }
 
     export function containsString(values: string[], value: string): boolean {

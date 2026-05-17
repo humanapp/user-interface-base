@@ -5737,7 +5737,24 @@ namespace ui {
             scopeId: "row",
             defaultItemId: "disabled",
             items: [
-                { id: "a", value: 1 },
+                {
+                    id: "a",
+                    value: 1,
+                    onActivate: (
+                        value: number,
+                        item: UiActionItem<number>,
+                        itemId: string,
+                    ) => {
+                        activationLog +=
+                            "item:" +
+                            itemId +
+                            ":" +
+                            value +
+                            ":" +
+                            item.id +
+                            ";"
+                    },
+                },
                 { id: "hidden", value: 2, visible: false },
                 { id: "disabled", value: 3, disabled: true },
                 { id: "c", value: 4, selected: true },
@@ -5773,7 +5790,7 @@ namespace ui {
         const activated = row.handleFocusInput(inputResult)
         assertWidgetActivation(activated, "activated", "a", 1, "row activated")
         control.assert(
-            activationLog == "a:1:a;",
+            activationLog == "item:a:1:a;a:1:a;",
             "row activation callback",
         )
         inputResult = controller.handleInput({ action: "left" })
@@ -5814,7 +5831,8 @@ namespace ui {
             "row replacement activation",
         )
         control.assert(
-            activationLog == "a:1:a;replacement:9:replacement;",
+            activationLog ==
+                "item:a:1:a;a:1:a;replacement:9:replacement;",
             "row replacement callback",
         )
     }
@@ -5835,7 +5853,24 @@ namespace ui {
             items: [
                 { id: "a", value: 1 },
                 { id: "b", value: 2, visible: false },
-                { id: "c", value: 3 },
+                {
+                    id: "c",
+                    value: 3,
+                    onActivate: (
+                        value: number,
+                        item: UiActionItem<number>,
+                        itemId: string,
+                    ) => {
+                        activationLog +=
+                            "item:" +
+                            itemId +
+                            ":" +
+                            value +
+                            ":" +
+                            item.id +
+                            ";"
+                    },
+                },
                 { id: "d", value: 4, disabled: true },
                 { id: "e", value: 5, selected: true },
             ],
@@ -5913,7 +5948,7 @@ namespace ui {
             "grid activated",
         )
         control.assert(
-            activationLog == "c:3:c;",
+            activationLog == "item:c:3:c;c:3:c;",
             "grid activation callback",
         )
         inputResult = controller.handleInput({ action: "right" })
@@ -5949,7 +5984,8 @@ namespace ui {
             "grid replacement activation",
         )
         control.assert(
-            activationLog == "c:3:c;replacement:99:replacement;",
+            activationLog ==
+                "item:c:3:c;c:3:c;replacement:99:replacement;",
             "grid replacement callback",
         )
 
@@ -6025,7 +6061,25 @@ namespace ui {
                 { id: "a", value: "A" },
                 { id: "disabled", value: "D", disabled: true },
                 { id: "hidden", value: "H", visible: false },
-                { id: "selected", value: "S", selected: true },
+                {
+                    id: "selected",
+                    value: "S",
+                    selected: true,
+                    onActivate: (
+                        value: string,
+                        item: UiActionItem<string>,
+                        itemId: string,
+                    ) => {
+                        activationLog +=
+                            "item:" +
+                            itemId +
+                            ":" +
+                            value +
+                            ":" +
+                            item.id +
+                            ";"
+                    },
+                },
             ],
             onActivate: (
                 value: string,
@@ -6142,7 +6196,7 @@ namespace ui {
             "modal activate",
         )
         control.assert(
-            activationLog == "selected:S:selected;",
+            activationLog == "item:selected:S:selected;selected:S:selected;",
             "modal activation callback",
         )
         control.assert((<any>activated).close, "modal activate close flag")
@@ -6160,7 +6214,26 @@ namespace ui {
             parentScopeId: "parent",
             modalScopeId: "keep",
             closeOnActivate: false,
-            items: [{ id: "edit", value: "E" }],
+            items: [
+                {
+                    id: "edit",
+                    value: "E",
+                    onActivate: (
+                        value: string,
+                        item: UiActionItem<string>,
+                        itemId: string,
+                    ) => {
+                        activationLog +=
+                            "item:" +
+                            itemId +
+                            ":" +
+                            value +
+                            ":" +
+                            item.id +
+                            ";"
+                    },
+                },
+            ],
             onActivate: (
                 value: string,
                 item: UiActionItem<string>,
@@ -6181,7 +6254,9 @@ namespace ui {
             "modal keep open",
         )
         control.assert(
-            activationLog == "selected:S:selected;edit:E:edit;",
+            activationLog ==
+                "item:selected:S:selected;selected:S:selected;" +
+                    "item:edit:E:edit;edit:E:edit;",
             "modal keep-open callback",
         )
         control.assert(
