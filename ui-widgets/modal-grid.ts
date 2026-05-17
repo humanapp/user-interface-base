@@ -371,7 +371,38 @@ namespace ui {
             focus?: UiFocusState,
         ): void {
             surface.fillRect(this.finalRect, this.panelColor_)
-            surface.drawRect(this.finalRect, this.outlineColor_)
+            /// Left edge
+            surface.drawLine(
+                this.finalRect.x - 1,
+                this.finalRect.y + 1,
+                this.finalRect.x - 1,
+                this.finalRect.y + this.finalRect.height - 1,
+                this.outlineColor_,
+            )
+            /// Right edge
+            surface.drawLine(
+                this.finalRect.x + this.finalRect.width,
+                this.finalRect.y + 1,
+                this.finalRect.x + this.finalRect.width,
+                this.finalRect.y + this.finalRect.height - 1,
+                this.outlineColor_,
+            )
+            // Top edge
+            surface.drawLine(
+                this.finalRect.x + 1,
+                this.finalRect.y - 1,
+                this.finalRect.x + this.finalRect.width - 1,
+                this.finalRect.y - 1,
+                this.outlineColor_,
+            )
+            // Bottom edge
+            surface.drawLine(
+                this.finalRect.x + 1,
+                this.finalRect.y + this.finalRect.height,
+                this.finalRect.x + this.finalRect.width - 1,
+                this.finalRect.y + this.finalRect.height,
+                this.outlineColor_,
+            )
             const title = this.resolveTitleText(assets)
             if (title.length > 0)
                 surface.drawText(
