@@ -4,9 +4,10 @@ namespace ui {
      */
     export interface UiModalGridOptions<T> {
         /**
-         * Parent focus scope restored after the modal closes.
+         * Parent focus scope restored after the modal closes. Defaults to the
+         * active scope when the modal opens.
          */
-        parentScopeId: UiFocusScopeId
+        parentScopeId?: UiFocusScopeId
 
         /**
          * Modal focus scope owned by this grid while open.
@@ -278,7 +279,7 @@ namespace ui {
         ): UiFocusSetResult {
             this.grid_.registerFocusTargets(focus, {
                 id: this.modalScopeId_,
-                parentScopeId: this.parentScopeId_,
+                parentScopeId: this.parentScopeId_ || focus.getActiveScopeId(),
                 preferredTargetId: this.grid_.resolvePreferredTargetId(),
                 handlesCancel: true,
                 modal: true,

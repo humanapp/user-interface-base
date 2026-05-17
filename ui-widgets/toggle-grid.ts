@@ -22,9 +22,10 @@ namespace ui {
      */
     export interface UiToggleGridOptions<T> {
         /**
-         * Parent focus scope restored after the modal closes.
+         * Parent focus scope restored after the modal closes. Defaults to the
+         * active scope when the modal opens.
          */
-        parentScopeId: UiFocusScopeId
+        parentScopeId?: UiFocusScopeId
 
         /**
          * Modal focus scope owned by this grid while open.
