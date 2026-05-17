@@ -101,8 +101,7 @@ namespace ui {
             this.runtime_.clearInputQueue()
 
             const current = this.topRecord()
-            if (current && current.screen.deactivate)
-                current.screen.deactivate()
+            if (current) current.screen.deactivate()
 
             context.pushEventContext()
             const input = new UiInputScopeState(this.runtime_)
@@ -111,8 +110,8 @@ namespace ui {
             const record = new UiSceneRecord(screen, input)
             this.records_.push(record)
 
-            if (screen.enter) screen.enter(this.runtime_, input)
-            if (screen.activate) screen.activate()
+            screen.enter(this.runtime_, input)
+            screen.activate()
         }
 
         /**
@@ -125,13 +124,13 @@ namespace ui {
             const record = this.records_.pop()
             if (!record) return undefined
 
-            if (record.screen.deactivate) record.screen.deactivate()
-            if (record.screen.exit) record.screen.exit()
+            record.screen.deactivate()
+            record.screen.exit()
             record.input.dispose()
             context.popEventContext()
 
             const current = this.topRecord()
-            if (current && current.screen.activate) current.screen.activate()
+            if (current) current.screen.activate()
 
             return record.screen
         }
@@ -145,8 +144,8 @@ namespace ui {
 
             const replaced = this.records_.pop()
             if (replaced) {
-                if (replaced.screen.deactivate) replaced.screen.deactivate()
-                if (replaced.screen.exit) replaced.screen.exit()
+                replaced.screen.deactivate()
+                replaced.screen.exit()
                 replaced.input.dispose()
                 context.popEventContext()
             }
@@ -158,8 +157,8 @@ namespace ui {
             const record = new UiSceneRecord(screen, input)
             this.records_.push(record)
 
-            if (screen.enter) screen.enter(this.runtime_, input)
-            if (screen.activate) screen.activate()
+            screen.enter(this.runtime_, input)
+            screen.activate()
 
             return replaced ? replaced.screen : undefined
         }
@@ -200,7 +199,7 @@ namespace ui {
                 return
             }
 
-            if (active.screen.update) active.screen.update()
+            active.screen.update()
 
             const color =
                 active.screen.backgroundColor !== undefined
@@ -222,8 +221,7 @@ namespace ui {
             while (index < queue.length && this.topRecord() == record) {
                 const event = queue[index++]
                 const consumed = record.input.deliver(event)
-                if (!consumed && record.screen.handleInput)
-                    record.screen.handleInput(event)
+                if (!consumed) record.screen.handleInput(event)
             }
 
             this.clearInputQueue(queue)

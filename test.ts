@@ -307,8 +307,7 @@ namespace ui {
         }
     }
 
-    class RuntimeSmokeScreen implements UiScreen {
-        public backgroundColor: number
+    class RuntimeSmokeScreen extends UiScreen {
         public exitCount: number
         private prefix_: string
         private log_: (name: string) => void
@@ -318,6 +317,7 @@ namespace ui {
             backgroundColor: number,
             log: (name: string) => void,
         ) {
+            super()
             this.prefix_ = prefix
             this.backgroundColor = backgroundColor
             this.log_ = log
@@ -3102,19 +3102,20 @@ namespace ui {
         }
     }
 
-    class DirectSimulatorInputScreen implements UiScreen {
+    class DirectSimulatorInputScreen extends UiScreen {
         public pointerMoveResult: UiFocusInputResult
         public pointerClickResult: UiFocusInputResult
         public wheelEvent: UiInputEvent
-        private focus_: UiFocusState
+        private simulatorFocus_: UiFocusState
 
         constructor() {
-            this.focus_ = createFocusInputState()
+            super()
+            this.simulatorFocus_ = createFocusInputState()
         }
 
         public enter(runtime: UiRuntime, input: UiInputScope): void {
             const controller = new UiFocusInputController({
-                focus: this.focus_,
+                focus: this.simulatorFocus_,
                 wheel: (event: UiInputEvent): boolean => {
                     this.wheelEvent = event
                     return true
@@ -3141,11 +3142,11 @@ namespace ui {
         public render(surface: DrawSurface): void {}
 
         public activeTargetId(): UiFocusId | undefined {
-            return this.focus_.getActiveTargetId("main")
+            return this.simulatorFocus_.getActiveTargetId("main")
         }
     }
 
-    class InputCoordinateScreen implements UiScreen {
+    class InputCoordinateScreen extends UiScreen {
         public pointerEvent: UiInputEvent
         public wheelEvent: UiInputEvent
 
@@ -3158,6 +3159,38 @@ namespace ui {
                 this.wheelEvent = event
                 return true
             })
+        }
+
+        public render(surface: DrawSurface): void {}
+    }
+
+    class ModalCancelHandoffScreen extends UiScreen {
+        private onEnter_: () => void
+        private onCancel_: () => void
+
+        constructor(onEnter: () => void, onCancel: () => void) {
+            super()
+            this.onEnter_ = onEnter
+            this.onCancel_ = onCancel
+        }
+
+        public enter(runtime: UiRuntime, input: UiInputScope): void {
+            const screenFocus = createModalFocusState()
+            screenFocus.setScope({ id: "main", handlesCancel: false })
+            screenFocus.setScope({
+                id: "modal",
+                parentScopeId: "main",
+                modal: true,
+                handlesCancel: false,
+            })
+            screenFocus.setActiveScope("modal")
+            new UiFocusInputController({ focus: screenFocus }).register(input)
+            this.onEnter_()
+        }
+
+        public handleInput(event: UiInputEvent): boolean {
+            if (event.action == "cancel") this.onCancel_()
+            return true
         }
 
         public render(surface: DrawSurface): void {}
@@ -4839,31 +4872,16 @@ namespace ui {
         const runtime = new UiRuntime({
             display: new RuntimeSmokeDisplayAdapter(() => {}),
         })
-        runtime.push({
-            enter: (
-                screenRuntime: UiRuntime,
-                screenInput: UiInputScope,
-            ): void => {
-                const screenFocus = createModalFocusState()
-                screenFocus.setScope({ id: "main", handlesCancel: false })
-                screenFocus.setScope({
-                    id: "modal",
-                    parentScopeId: "main",
-                    modal: true,
-                    handlesCancel: false,
-                })
-                screenFocus.setActiveScope("modal")
-                new UiFocusInputController({ focus: screenFocus }).register(
-                    screenInput,
-                )
-                screenEntered = true
-            },
-            handleInput: (event: UiInputEvent): boolean => {
-                if (event.action == "cancel") screenCancelCount++
-                return true
-            },
-            render: (surface: DrawSurface): void => {},
-        })
+        runtime.push(
+            new ModalCancelHandoffScreen(
+                () => {
+                    screenEntered = true
+                },
+                () => {
+                    screenCancelCount++
+                },
+            ),
+        )
         control.assert(screenEntered, "handoff screen entered")
         runtime.dispatchInput({ action: "cancel" })
         runtime.runFrame()
@@ -5418,6 +5436,21 @@ namespace ui {
         }
     }
 
+    class WidgetSmokeScreen extends UiScreen {
+        private inputHandler_: (event: UiInputEvent) => boolean | undefined
+
+        constructor(handler: (event: UiInputEvent) => boolean | undefined) {
+            super()
+            this.inputHandler_ = handler
+        }
+
+        public handleScreenInput(
+            event: UiInputEvent,
+        ): boolean | undefined {
+            return this.inputHandler_(event)
+        }
+    }
+
     /**
      * Smoke harness for reusable control visuals.
      */
@@ -5486,7 +5519,13 @@ namespace ui {
      */
     export function runScreenControllerSmokeTest(): void {
         let screenLog = ""
-        const screen = new UiScreenController()
+        const screen = new WidgetSmokeScreen((event: UiInputEvent) => {
+            if (event.action == "cancel" && event.phase != "released") {
+                screenLog += "root-cancel;"
+                return true
+            }
+            return undefined
+        })
         const screenInput = new TestInputScope()
         const screenRuntime = new UiRuntime({
             display: new RuntimeSmokeDisplayAdapter(() => {}),
@@ -5510,13 +5549,7 @@ namespace ui {
             horizontalAlignment: "center",
             verticalAlignment: "center",
         })
-        screen.enter(screenRuntime, screenInput, event => {
-            if (event.action == "cancel" && event.phase != "released") {
-                screenLog += "root-cancel;"
-                return true
-            }
-            return undefined
-        })
+        screen.enter(screenRuntime, screenInput)
         control.assert(
             screen.focus.getActiveTargetId("screen-row") == "screen-row/b",
             "screen controller root focus",
