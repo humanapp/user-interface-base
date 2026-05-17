@@ -10,7 +10,7 @@ namespace ui {
   export type UiLayoutAlignment = "start" | "center" | "end" | "stretch"
 
   /**
-   * Size request for one layout axis in logical viewport pixels.
+   * Size request for one layout axis in UI units.
    */
   export interface UiLayoutAxisSpec {
     /**
@@ -40,18 +40,18 @@ namespace ui {
    */
   export interface UiLayoutSpec {
     /**
-     * Width sizing request in logical viewport pixels.
+     * Width sizing request in UI units.
      */
     width: UiLayoutAxisSpec
 
     /**
-     * Height sizing request in logical viewport pixels.
+     * Height sizing request in UI units.
      */
     height: UiLayoutAxisSpec
   }
 
   /**
-   * Parent-supplied measurement limits in logical viewport pixels.
+   * Parent-supplied measurement limits in UI units.
    */
   export interface UiLayoutConstraints {
     /**
@@ -66,7 +66,7 @@ namespace ui {
   }
 
   /**
-   * Insets in logical viewport pixels.
+   * Insets in UI units.
    */
   export interface UiLayoutEdgeInsets {
     /**
@@ -115,22 +115,22 @@ namespace ui {
    */
   export class UiMeasuredSize {
     /**
-     * Smallest measured width in logical viewport pixels.
+     * Smallest measured width in UI units.
      */
     public minWidth: number
 
     /**
-     * Smallest measured height in logical viewport pixels.
+     * Smallest measured height in UI units.
      */
     public minHeight: number
 
     /**
-     * Preferred measured width in logical viewport pixels.
+     * Preferred measured width in UI units.
      */
     public preferredWidth: number
 
     /**
-     * Preferred measured height in logical viewport pixels.
+     * Preferred measured height in UI units.
      */
     public preferredHeight: number
 
@@ -169,7 +169,7 @@ namespace ui {
     readonly layoutSpec: UiLayoutSpec
 
     /**
-     * Last arranged rectangle in logical viewport coordinates.
+     * Last arranged rectangle in UI coordinates.
      */
     readonly finalRect: Rect
 
@@ -184,7 +184,7 @@ namespace ui {
     measure(constraints: UiLayoutConstraints, output: UiMeasuredSize): void
 
     /**
-     * Accepts the parent-assigned logical rectangle for this layout pass.
+     * Accepts the parent-assigned rectangle for this layout pass.
      *
      * Implementations copy the rectangle into `finalRect` and arrange any
      * children inside that concrete space.
@@ -214,15 +214,26 @@ namespace ui {
     contentPreferredHeight: number,
     output: UiMeasuredSize
   ): void {
+    let widthSpec = layoutContentAxisSpec
+    let heightSpec = layoutContentAxisSpec
+
+    if (spec) {
+      const specWidth = spec.width
+      const specHeight = spec.height
+
+      if (specWidth) widthSpec = specWidth
+      if (specHeight) heightSpec = specHeight
+    }
+
     measureLayoutAxis(
-      spec.width,
+      widthSpec,
       contentMinWidth,
       contentPreferredWidth,
       constraints.maxWidth,
       layoutWidthScratch
     )
     measureLayoutAxis(
-      spec.height,
+      heightSpec,
       contentMinHeight,
       contentPreferredHeight,
       constraints.maxHeight,
@@ -378,6 +389,7 @@ namespace ui {
 
   const layoutWidthScratch = new UiMeasuredAxis()
   const layoutHeightScratch = new UiMeasuredAxis()
+  const layoutContentAxisSpec: UiLayoutAxisSpec = { mode: "content" }
 
   function measureLayoutAxis(
     spec: UiLayoutAxisSpec,

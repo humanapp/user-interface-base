@@ -9,7 +9,7 @@ namespace ui {
     id: UiFocusId
 
     /**
-     * Final target rectangle in logical viewport coordinates.
+     * Final target rectangle in UI coordinates.
      */
     rect: Rect
 

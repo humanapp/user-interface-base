@@ -19,12 +19,12 @@ namespace ui {
     children?: UiLayoutNode[]
 
     /**
-     * Space between adjacent rows in logical viewport pixels.
+     * Space between adjacent rows in UI units.
      */
     rowGap?: number
 
     /**
-     * Space between adjacent columns in logical viewport pixels.
+     * Space between adjacent columns in UI units.
      */
     columnGap?: number
 
@@ -54,12 +54,12 @@ namespace ui {
     rows?: UiLayoutNode[][]
 
     /**
-     * Space between adjacent rows in logical viewport pixels.
+     * Space between adjacent rows in UI units.
      */
     rowGap?: number
 
     /**
-     * Space between adjacent columns in a row in logical viewport pixels.
+     * Space between adjacent columns in a row in UI units.
      */
     columnGap?: number
 
@@ -167,14 +167,14 @@ namespace ui {
     }
 
     /**
-     * Space between adjacent rows in logical viewport pixels.
+     * Space between adjacent rows in UI units.
      */
     public get rowGap(): number {
       return this.rowGap_
     }
 
     /**
-     * Space between adjacent columns in logical viewport pixels.
+     * Space between adjacent columns in UI units.
      */
     public get columnGap(): number {
       return this.columnGap_
@@ -423,14 +423,14 @@ namespace ui {
     }
 
     /**
-     * Space between adjacent rows in logical viewport pixels.
+     * Space between adjacent rows in UI units.
      */
     public get rowGap(): number {
       return this.rowGap_
     }
 
     /**
-     * Space between adjacent columns in a row in logical viewport pixels.
+     * Space between adjacent columns in a row in UI units.
      */
     public get columnGap(): number {
       return this.columnGap_

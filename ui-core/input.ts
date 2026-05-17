@@ -53,22 +53,22 @@ namespace ui {
     phase?: UiInputPhase
 
     /**
-     * Pointer x coordinate in logical viewport pixels.
+     * Pointer x coordinate in UI units.
      */
     x?: number
 
     /**
-     * Pointer y coordinate in logical viewport pixels.
+     * Pointer y coordinate in UI units.
      */
     y?: number
 
     /**
-     * Wheel x delta in logical input units.
+     * Wheel x delta in UI units.
      */
     dx?: number
 
     /**
-     * Wheel y delta in logical input units.
+     * Wheel y delta in UI units.
      */
     dy?: number
   }

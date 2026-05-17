@@ -68,7 +68,7 @@ namespace ui {
     scopeId: UiFocusScopeId
 
     /**
-     * Final target rectangle in logical viewport coordinates.
+     * Final target rectangle in UI coordinates.
      */
     rect: Rect
 
@@ -552,7 +552,7 @@ namespace ui {
     }
 
     /**
-     * Copies a target's logical rectangle into `output`.
+     * Copies a target rectangle into `output`.
      */
     public getTargetRect(id: UiFocusId, output: Rect): boolean {
       const target = this.findTarget(id)
@@ -562,7 +562,7 @@ namespace ui {
     }
 
     /**
-     * Returns the topmost visible target at a logical point.
+     * Returns the topmost visible target at a point in UI coordinates.
      */
     public hitTest(x: number, y: number): UiFocusHitTestResult {
       let best: UiFocusTargetRecord | undefined = undefined

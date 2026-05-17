@@ -19,12 +19,12 @@ namespace ui {
     padding?: number | UiLayoutEdgeInsets
 
     /**
-     * Initial horizontal content offset in logical viewport pixels.
+     * Initial horizontal content offset in UI units.
      */
     contentOffsetX?: number
 
     /**
-     * Initial vertical content offset in logical viewport pixels.
+     * Initial vertical content offset in UI units.
      */
     contentOffsetY?: number
 
@@ -116,14 +116,14 @@ namespace ui {
     }
 
     /**
-     * Retained horizontal content offset in logical viewport pixels.
+     * Retained horizontal content offset in UI units.
      */
     public get contentOffsetX(): number {
       return this.contentOffsetX_
     }
 
     /**
-     * Retained vertical content offset in logical viewport pixels.
+     * Retained vertical content offset in UI units.
      */
     public get contentOffsetY(): number {
       return this.contentOffsetY_

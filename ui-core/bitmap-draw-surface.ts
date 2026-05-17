@@ -1,13 +1,32 @@
 namespace ui {
   /**
-   * Draw surface that maps logical coordinates into a physical bitmap.
+   * Draw surface that maps UI coordinates into a physical bitmap.
    */
-  export class PhysicalBitmapDrawSurface implements DrawSurface {
+  export class PhysicalBitmapDrawSurface implements PhysicalDrawSurface {
     private bitmap_: Bitmap
+    private displayProfile_: UiDisplayProfile
     private scaleMode_: ViewportScaleMode
     private backgroundColor_: number
     private displayedWidth_: number
     private displayedHeight_: number
+    private uiWidth_: number
+    private uiHeight_: number
+    private profileToPhysicalScale_: number
+    private offsetX_: number
+    private offsetY_: number
+    private viewportLeft_: number
+    private viewportTop_: number
+    private viewportRight_: number
+    private viewportBottom_: number
+    private uiToPhysicalScaleX_: number
+    private uiToPhysicalScaleY_: number
+    private physicalToUiScaleX_: number
+    private physicalToUiScaleY_: number
+    private logicalToUiScaleX_: number
+    private logicalToUiScaleY_: number
+    private minUiToPhysicalScale_: number
+    private minPhysicalToUiScale_: number
+    private visualPixelAspectRatio_: number
     // Reused output slots for line clipping to avoid per-line object allocation.
     private scratchLineX0_: number
     private scratchLineY0_: number
@@ -16,6 +35,17 @@ namespace ui {
 
     constructor(bitmap: Bitmap, options?: PhysicalDrawSurfaceOptions) {
       this.bitmap_ = bitmap
+      this.displayProfile_ = _uiDisplay.resolveDisplayProfile(
+        options ? options.displayProfile : undefined,
+        _uiDisplay.validateUiDimension(
+          options ? options.designWidth : undefined,
+          _uiDisplay.DEFAULT_UI_WIDTH
+        ),
+        _uiDisplay.validateUiDimension(
+          options ? options.designHeight : undefined,
+          _uiDisplay.DEFAULT_UI_HEIGHT
+        )
+      )
       this.scaleMode_ = options && options.scaleMode ? options.scaleMode : "cover"
       this.backgroundColor_ =
         options && options.backgroundColor !== undefined ? options.backgroundColor : 0
@@ -23,10 +53,13 @@ namespace ui {
         options && options.displayedWidth !== undefined ? options.displayedWidth : 0
       this.displayedHeight_ =
         options && options.displayedHeight !== undefined ? options.displayedHeight : 0
+      this.logicalToUiScaleX_ = 1 / this.displayProfile_.designToLogicalScaleX
+      this.logicalToUiScaleY_ = 1 / this.displayProfile_.designToLogicalScaleY
       this.scratchLineX0_ = 0
       this.scratchLineY0_ = 0
       this.scratchLineX1_ = 0
       this.scratchLineY1_ = 0
+      this.updateMapping()
     }
 
     /**
@@ -37,39 +70,62 @@ namespace ui {
     }
 
     /**
-     * Logical-to-physical scaling policy for draw calls.
+     * Active-profile scaling policy for draw calls.
      */
     public get scaleMode(): ViewportScaleMode {
       return this.scaleMode_
     }
 
     /**
-     * Changes how the logical viewport is mapped into the physical bitmap.
+     * Active display profile used to map UI coordinates to the bitmap.
      */
-    public setScaleMode(scaleMode: ViewportScaleMode): void {
-      this.scaleMode_ = scaleMode
+    public get displayProfile(): UiDisplayProfile {
+      return _uiDisplay.cloneDisplayProfile(this.displayProfile_)
     }
 
     /**
-     * Fills the mapped logical viewport. In `fit` mode, bars use the configured
-     * background color.
+     * Maps a physical bitmap point to UI coordinates.
+     */
+    public uiPointFromPhysical(physicalX: number, physicalY: number, output: Point): boolean {
+      if (
+        physicalX < this.viewportLeft_ ||
+        physicalX >= this.viewportRight_ ||
+        physicalY < this.viewportTop_ ||
+        physicalY >= this.viewportBottom_
+      ) return false
+
+      const logicalX = (physicalX - this.offsetX_) / this.profileToPhysicalScale_
+      const logicalY = (physicalY - this.offsetY_) / this.profileToPhysicalScale_
+      const uiX = Math.floor(logicalX * this.logicalToUiScaleX_)
+      const uiY = Math.floor(logicalY * this.logicalToUiScaleY_)
+      if (uiX < 0 || uiX >= this.uiWidth_ || uiY < 0 || uiY >= this.uiHeight_) {
+        return false
+      }
+
+      output.set(uiX, uiY)
+      return true
+    }
+
+    /**
+     * Fills the mapped area. In `fit` mode, bars use the configured background
+     * color.
      */
     public clear(color: number): void {
       if (this.scaleMode_ == "fit") {
         this.bitmap_.fill(this.backgroundColor_)
       }
-      this.fillLogicalRect(0, 0, LOGICAL_VIEWPORT_WIDTH, LOGICAL_VIEWPORT_HEIGHT, color)
+      this.fillUiRect(0, 0, this.uiWidth_, this.uiHeight_, color)
     }
 
     /**
-     * Fills a logical rectangle after clipping it to the viewport.
+     * Fills a rectangle after clipping it to the drawable area.
      */
     public fillRect(rect: Rect, color: number): void {
-      this.fillLogicalRect(rect.x, rect.y, rect.width, rect.height, color)
+      this.fillUiRect(rect.x, rect.y, rect.width, rect.height, color)
     }
 
     /**
-     * Draws a logical rectangle outline after clipping it to the viewport.
+     * Draws a rectangle outline after clipping it to the drawable area.
      */
     public drawRect(rect: Rect, color: number): void {
       const x = this.roundPixel(rect.x)
@@ -85,7 +141,7 @@ namespace ui {
     }
 
     /**
-     * Draws a logical line after clipping it to the viewport.
+     * Draws a line after clipping it to the drawable area.
      */
     public drawLine(x0: number, y0: number, x1: number, y1: number, color: number): void {
       if (!this.clipLine(
@@ -95,25 +151,25 @@ namespace ui {
         this.roundPixel(y1)
       )) return
 
-      this.bitmap_.drawLine(
-        this.physicalPixelXFromLogical(this.scratchLineX0_),
-        this.physicalPixelYFromLogical(this.scratchLineY0_),
-        this.physicalPixelXFromLogical(this.scratchLineX1_),
-        this.physicalPixelYFromLogical(this.scratchLineY1_),
+      this.drawUiLine(
+        this.scratchLineX0_,
+        this.scratchLineY0_,
+        this.scratchLineX1_,
+        this.scratchLineY1_,
         color
       )
     }
 
     /**
-     * Draws a logical circle outline after clipping it to the viewport.
+     * Draws a circle outline after clipping it to the drawable area.
      */
     public drawCircle(cx: number, cy: number, radius: number, color: number): void {
-      const physicalRadius = this.physicalLengthFromLogical(radius)
+      const physicalRadius = this.physicalLengthFromUi(radius)
       if (physicalRadius <= 0) return
 
       this.drawPhysicalVisualCircle(
-        this.physicalPixelXFromLogical(cx),
-        this.physicalPixelYFromLogical(cy),
+        this.physicalPixelXFromUi(cx),
+        this.physicalPixelYFromUi(cy),
         physicalRadius,
         color,
         false
@@ -121,15 +177,15 @@ namespace ui {
     }
 
     /**
-     * Fills a logical circle after clipping it to the viewport.
+     * Fills a circle after clipping it to the drawable area.
      */
     public fillCircle(cx: number, cy: number, radius: number, color: number): void {
-      const physicalRadius = this.physicalLengthFromLogical(radius)
+      const physicalRadius = this.physicalLengthFromUi(radius)
       if (physicalRadius <= 0) return
 
       this.drawPhysicalVisualCircle(
-        this.physicalPixelXFromLogical(cx),
-        this.physicalPixelYFromLogical(cy),
+        this.physicalPixelXFromUi(cx),
+        this.physicalPixelYFromUi(cy),
         physicalRadius,
         color,
         true
@@ -142,28 +198,28 @@ namespace ui {
     public drawBitmap(bitmap: Bitmap, x: number, y: number, options?: DrawBitmapOptions): void {
       const destX = this.roundPixel(x)
       const destY = this.roundPixel(y)
-      const scale = this.logicalBitmapScale(options) * this.bitmapViewportLogicalScale(options)
+      const scale = this.bitmapScale(options) * this.bitmapViewportUiScale(options)
       const transparent = !options || options.transparent !== false
       const logicalWidth = bitmap.width * scale
       const logicalHeight = bitmap.height * scale
       const left = Math.max(0, destX)
       const top = Math.max(0, destY)
-      const right = Math.min(LOGICAL_VIEWPORT_WIDTH, destX + logicalWidth)
-      const bottom = Math.min(LOGICAL_VIEWPORT_HEIGHT, destY + logicalHeight)
+      const right = Math.min(this.uiWidth_, destX + logicalWidth)
+      const bottom = Math.min(this.uiHeight_, destY + logicalHeight)
       if (left >= right || top >= bottom) return
 
-      const physicalLeft = Math.max(this.viewportLeft(), this.physicalEdgeXFromLogical(left))
-      const physicalTop = Math.max(this.viewportTop(), this.physicalEdgeYFromLogical(top))
-      const physicalRight = Math.min(this.viewportRight(), this.physicalEdgeXFromLogical(right))
-      const physicalBottom = Math.min(this.viewportBottom(), this.physicalEdgeYFromLogical(bottom))
+      const physicalLeft = Math.max(this.viewportLeft_, this.physicalEdgeXFromUi(left))
+      const physicalTop = Math.max(this.viewportTop_, this.physicalEdgeYFromUi(top))
+      const physicalRight = Math.min(this.viewportRight_, this.physicalEdgeXFromUi(right))
+      const physicalBottom = Math.min(this.viewportBottom_, this.physicalEdgeYFromUi(bottom))
       if (physicalLeft >= physicalRight || physicalTop >= physicalBottom) return
 
       for (let py = physicalTop; py < physicalBottom; py++) {
-        const logicalY = this.logicalSampleYFromPhysical(py)
-        const sourceY = Math.floor((logicalY - destY) / scale)
+        const uiY = this.uiSampleYFromPhysical(py)
+        const sourceY = Math.floor((uiY - destY) / scale)
         for (let px = physicalLeft; px < physicalRight; px++) {
-          const logicalX = this.logicalSampleXFromPhysical(px)
-          const sourceX = Math.floor((logicalX - destX) / scale)
+          const uiX = this.uiSampleXFromPhysical(px)
+          const sourceX = Math.floor((uiX - destX) / scale)
           if (sourceX < 0 || sourceX >= bitmap.width || sourceY < 0 || sourceY >= bitmap.height) continue
 
           const color = bitmap.getPixel(sourceX, sourceY)
@@ -220,7 +276,7 @@ namespace ui {
               mask <<= 1
             }
             if (run) {
-              this.fillLogicalRect(
+              this.fillUiRect(
                 cursorX,
                 cursorY + gy * mult * glyphScale,
                 mult * glyphScale,
@@ -239,7 +295,7 @@ namespace ui {
     }
 
     /**
-     * Measures text in logical pixels for the selected font.
+     * Measures text in UI units for the selected font.
      */
     public measureText(text: string, font?: TextFont, options?: DrawTextOptions): Size {
       const selectedFont = this.textFont(text, font || (options ? options.font : undefined))
@@ -265,34 +321,67 @@ namespace ui {
       )
     }
 
-    private fillLogicalRect(x: number, y: number, width: number, height: number, color: number): void {
+    private fillUiRect(x: number, y: number, width: number, height: number, color: number): void {
       const x0 = Math.max(0, this.roundPixel(x))
       const y0 = Math.max(0, this.roundPixel(y))
-      const x1 = Math.min(LOGICAL_VIEWPORT_WIDTH, this.roundPixel(x + width))
-      const y1 = Math.min(LOGICAL_VIEWPORT_HEIGHT, this.roundPixel(y + height))
+      const x1 = Math.min(this.uiWidth_, this.roundPixel(x + width))
+      const y1 = Math.min(this.uiHeight_, this.roundPixel(y + height))
       if (x0 >= x1 || y0 >= y1) return
 
-      const left = Math.max(this.viewportLeft(), this.physicalEdgeXFromLogical(x0))
-      const top = Math.max(this.viewportTop(), this.physicalEdgeYFromLogical(y0))
-      const right = Math.min(this.viewportRight(), this.physicalEdgeXFromLogical(x1))
-      const bottom = Math.min(this.viewportBottom(), this.physicalEdgeYFromLogical(y1))
+      const left = Math.max(this.viewportLeft_, this.physicalFillLeftFromUi(x0))
+      const top = Math.max(this.viewportTop_, this.physicalFillTopFromUi(y0))
+      const right = Math.min(this.viewportRight_, this.physicalFillRightFromUi(x1))
+      const bottom = Math.min(this.viewportBottom_, this.physicalFillBottomFromUi(y1))
       if (left >= right || top >= bottom) return
 
       this.bitmap_.fillRect(left, top, right - left, bottom - top, color)
     }
 
+    private drawUiLine(x0: number, y0: number, x1: number, y1: number, color: number): void {
+      if (x0 == x1) {
+        const top = Math.min(y0, y1)
+        this.fillUiRect(x0, top, 1, Math.abs(y1 - y0) + 1, color)
+        return
+      }
+      if (y0 == y1) {
+        const left = Math.min(x0, x1)
+        this.fillUiRect(left, y0, Math.abs(x1 - x0) + 1, 1, color)
+        return
+      }
+
+      const dx = Math.abs(x1 - x0)
+      const sx = x0 < x1 ? 1 : -1
+      const dy = -Math.abs(y1 - y0)
+      const sy = y0 < y1 ? 1 : -1
+      let err = dx + dy
+
+      while (true) {
+        this.fillUiRect(x0, y0, 1, 1, color)
+        if (x0 == x1 && y0 == y1) return
+        const e2 = err * 2
+        if (e2 >= dy) {
+          err += dy
+          x0 += sx
+        }
+        if (e2 <= dx) {
+          err += dx
+          y0 += sy
+        }
+      }
+    }
+
     private drawPhysicalVisualCircle(cx: number, cy: number, radius: number, color: number, fill: boolean): void {
-      const pixelAspect = this.visualPixelAspectRatio()
+      const pixelAspect = this.visualPixelAspectRatio_
       if (pixelAspect <= 0) return
 
       const radiusSq = radius * radius
       const inner = Math.max(0, radius - 1)
       const innerSq = inner * inner
       const horizontalRadius = Math.ceil(radius / pixelAspect)
-      const left = Math.max(this.viewportLeft(), cx - horizontalRadius)
-      const top = Math.max(this.viewportTop(), cy - radius)
-      const right = Math.min(this.viewportRight() - 1, cx + horizontalRadius)
-      const bottom = Math.min(this.viewportBottom() - 1, cy + radius)
+      const left = Math.max(this.viewportLeft_, cx - horizontalRadius)
+      const top = Math.max(this.viewportTop_, cy - radius)
+      const right = Math.min(this.viewportRight_ - 1, cx + horizontalRadius)
+      const bottom = Math.min(this.viewportBottom_ - 1, cy + radius)
 
       for (let y = top; y <= bottom; y++) {
         const dy = y - cy
@@ -327,14 +416,14 @@ namespace ui {
         let y = 0
 
         if (out & 8) {
-          x = x0 + ((x1 - x0) * (LOGICAL_VIEWPORT_HEIGHT - 1 - y0)) / (y1 - y0)
-          y = LOGICAL_VIEWPORT_HEIGHT - 1
+          x = x0 + ((x1 - x0) * (this.uiHeight_ - 1 - y0)) / (y1 - y0)
+          y = this.uiHeight_ - 1
         } else if (out & 4) {
           x = x0 + ((x1 - x0) * -y0) / (y1 - y0)
           y = 0
         } else if (out & 2) {
-          y = y0 + ((y1 - y0) * (LOGICAL_VIEWPORT_WIDTH - 1 - x0)) / (x1 - x0)
-          x = LOGICAL_VIEWPORT_WIDTH - 1
+          y = y0 + ((y1 - y0) * (this.uiWidth_ - 1 - x0)) / (x1 - x0)
+          x = this.uiWidth_ - 1
         } else {
           y = y0 + ((y1 - y0) * -x0) / (x1 - x0)
           x = 0
@@ -355,42 +444,42 @@ namespace ui {
     private lineOutCode(x: number, y: number): number {
       let code = 0
       if (x < 0) code |= 1
-      else if (x > LOGICAL_VIEWPORT_WIDTH - 1) code |= 2
+      else if (x > this.uiWidth_ - 1) code |= 2
       if (y < 0) code |= 4
-      else if (y > LOGICAL_VIEWPORT_HEIGHT - 1) code |= 8
+      else if (y > this.uiHeight_ - 1) code |= 8
       return code
     }
 
-    private viewportLeft(): number {
-      return Math.max(0, this.physicalEdgeXFromLogical(0))
+    private physicalPixelXFromUi(uiX: number): number {
+      return this.clampPhysicalX(Math.floor(this.offsetX_ + uiX * this.uiToPhysicalScaleX_))
     }
 
-    private viewportTop(): number {
-      return Math.max(0, this.physicalEdgeYFromLogical(0))
+    private physicalPixelYFromUi(uiY: number): number {
+      return this.clampPhysicalY(Math.floor(this.offsetY_ + uiY * this.uiToPhysicalScaleY_))
     }
 
-    private viewportRight(): number {
-      return Math.min(this.bitmap_.width, this.physicalEdgeXFromLogical(LOGICAL_VIEWPORT_WIDTH))
+    private physicalEdgeXFromUi(uiX: number): number {
+      return this.roundPixel(this.offsetX_ + uiX * this.uiToPhysicalScaleX_)
     }
 
-    private viewportBottom(): number {
-      return Math.min(this.bitmap_.height, this.physicalEdgeYFromLogical(LOGICAL_VIEWPORT_HEIGHT))
+    private physicalEdgeYFromUi(uiY: number): number {
+      return this.roundPixel(this.offsetY_ + uiY * this.uiToPhysicalScaleY_)
     }
 
-    private physicalPixelXFromLogical(logicalX: number): number {
-      return this.clampPhysicalX(Math.floor(this.offsetX() + logicalX * this.scale()))
+    private physicalFillLeftFromUi(uiX: number): number {
+      return Math.floor(this.offsetX_ + uiX * this.uiToPhysicalScaleX_)
     }
 
-    private physicalPixelYFromLogical(logicalY: number): number {
-      return this.clampPhysicalY(Math.floor(this.offsetY() + logicalY * this.scale()))
+    private physicalFillTopFromUi(uiY: number): number {
+      return Math.floor(this.offsetY_ + uiY * this.uiToPhysicalScaleY_)
     }
 
-    private physicalEdgeXFromLogical(logicalX: number): number {
-      return this.roundPixel(this.offsetX() + logicalX * this.scale())
+    private physicalFillRightFromUi(uiX: number): number {
+      return Math.ceil(this.offsetX_ + uiX * this.uiToPhysicalScaleX_)
     }
 
-    private physicalEdgeYFromLogical(logicalY: number): number {
-      return this.roundPixel(this.offsetY() + logicalY * this.scale())
+    private physicalFillBottomFromUi(uiY: number): number {
+      return Math.ceil(this.offsetY_ + uiY * this.uiToPhysicalScaleY_)
     }
 
     private clampPhysicalX(physicalX: number): number {
@@ -401,12 +490,94 @@ namespace ui {
       return Math.max(0, Math.min(this.bitmap_.height - 1, physicalY))
     }
 
-    private physicalLengthFromLogical(logicalLength: number): number {
-      const length = this.roundPixel(logicalLength * this.scale())
+    private physicalLengthFromUi(uiLength: number): number {
+      const length = this.roundPixel(uiLength * this.minUiToPhysicalScale_)
       return Math.max(0, length)
     }
 
-    private visualPixelAspectRatio(): number {
+    private uiSampleXFromPhysical(physicalX: number): number {
+      return (physicalX + 0.5 - this.offsetX_) * this.physicalToUiScaleX_
+    }
+
+    private uiSampleYFromPhysical(physicalY: number): number {
+      return (physicalY + 0.5 - this.offsetY_) * this.physicalToUiScaleY_
+    }
+
+    private bitmapScale(options?: DrawBitmapOptions): number {
+      if (!options || options.scale === undefined) return 1
+
+      const scale = options.scale | 0
+      if (scale <= 0 || scale != options.scale) return 1
+      return scale
+    }
+
+    private bitmapViewportUiScale(options?: DrawBitmapOptions): number {
+      return this.viewportUiScale(
+        !!(options && options.allowDownscale),
+        !options || options.allowUpscale !== false
+      )
+    }
+
+    private textLogicalScale(options?: DrawTextOptions): number {
+      return this.viewportUiScale(
+        !!(options && options.allowDownscale),
+        !options || options.allowUpscale !== false
+      )
+    }
+
+    private viewportUiScale(allowDownscale: boolean, allowUpscale: boolean): number {
+      let logicalScale = 1
+      if (!allowDownscale && this.minUiToPhysicalScale_ < 1) {
+        logicalScale = Math.ceil(this.minPhysicalToUiScale_)
+      }
+      if (!allowUpscale && logicalScale * this.minUiToPhysicalScale_ > 1) {
+        logicalScale = this.minPhysicalToUiScale_
+      }
+      return logicalScale
+    }
+
+    private updateMapping(): void {
+      this.uiWidth_ = this.displayProfile_.logicalWidth * this.logicalToUiScaleX_
+      this.uiHeight_ = this.displayProfile_.logicalHeight * this.logicalToUiScaleY_
+      this.profileToPhysicalScale_ = _uiDisplay.physicalDisplayScale(
+        this.bitmap_.width,
+        this.bitmap_.height,
+        this.displayProfile_,
+        this.scaleMode_
+      )
+      this.offsetX_ = (
+        this.bitmap_.width -
+        this.displayProfile_.logicalWidth * this.profileToPhysicalScale_
+      ) / 2
+      this.offsetY_ = (
+        this.bitmap_.height -
+        this.displayProfile_.logicalHeight * this.profileToPhysicalScale_
+      ) / 2
+      this.viewportLeft_ = Math.max(0, this.roundPixel(this.offsetX_))
+      this.viewportTop_ = Math.max(0, this.roundPixel(this.offsetY_))
+      this.viewportRight_ = Math.min(
+        this.bitmap_.width,
+        this.roundPixel(this.offsetX_ + this.displayProfile_.logicalWidth * this.profileToPhysicalScale_)
+      )
+      this.viewportBottom_ = Math.min(
+        this.bitmap_.height,
+        this.roundPixel(this.offsetY_ + this.displayProfile_.logicalHeight * this.profileToPhysicalScale_)
+      )
+      this.uiToPhysicalScaleX_ =
+        this.displayProfile_.designToLogicalScaleX * this.profileToPhysicalScale_
+      this.uiToPhysicalScaleY_ =
+        this.displayProfile_.designToLogicalScaleY * this.profileToPhysicalScale_
+      this.physicalToUiScaleX_ = 1 / this.uiToPhysicalScaleX_
+      this.physicalToUiScaleY_ = 1 / this.uiToPhysicalScaleY_
+      this.minUiToPhysicalScale_ = Math.min(
+        this.uiToPhysicalScaleX_,
+        this.uiToPhysicalScaleY_
+      )
+      this.minPhysicalToUiScale_ = 1 / this.minUiToPhysicalScale_
+      this.visualPixelAspectRatio_ = this.resolveVisualPixelAspectRatio()
+    }
+
+    private resolveVisualPixelAspectRatio(): number {
       if (
         this.bitmap_.width <= 0 ||
         this.bitmap_.height <= 0 ||
@@ -415,60 +586,6 @@ namespace ui {
       ) return 1
 
       return (this.displayedWidth_ / this.bitmap_.width) / (this.displayedHeight_ / this.bitmap_.height)
-    }
-
-    private logicalSampleXFromPhysical(physicalX: number): number {
-      return (physicalX + 0.5 - this.offsetX()) / this.scale()
-    }
-
-    private logicalSampleYFromPhysical(physicalY: number): number {
-      return (physicalY + 0.5 - this.offsetY()) / this.scale()
-    }
-
-    private scale(): number {
-      return physicalViewportScale(this.bitmap_.width, this.bitmap_.height, this.scaleMode_)
-    }
-
-    private offsetX(): number {
-      return physicalViewportOffsetX(this.bitmap_.width, this.bitmap_.height, this.scaleMode_)
-    }
-
-    private offsetY(): number {
-      return physicalViewportOffsetY(this.bitmap_.width, this.bitmap_.height, this.scaleMode_)
-    }
-
-    private logicalBitmapScale(options?: DrawBitmapOptions): number {
-      if (!options || options.scale === undefined) return 1
-
-      const scale = options.scale | 0
-      if (scale <= 0 || scale != options.scale) return 1
-      return scale
-    }
-
-    private bitmapViewportLogicalScale(options?: DrawBitmapOptions): number {
-      return this.viewportLogicalScale(
-        !!(options && options.allowDownscale),
-        !options || options.allowUpscale !== false
-      )
-    }
-
-    private textLogicalScale(options?: DrawTextOptions): number {
-      return this.viewportLogicalScale(
-        !!(options && options.allowDownscale),
-        !options || options.allowUpscale !== false
-      )
-    }
-
-    private viewportLogicalScale(allowDownscale: boolean, allowUpscale: boolean): number {
-      const scale = this.scale()
-      let logicalScale = 1
-      if (!allowDownscale && scale < 1) {
-        logicalScale = Math.ceil(1 / scale)
-      }
-      if (!allowUpscale && logicalScale * scale > 1) {
-        logicalScale = 1 / scale
-      }
-      return logicalScale
     }
 
     private textFont(text: string, font?: TextFont): TextFont {

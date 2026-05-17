@@ -10,7 +10,7 @@ namespace ui {
     }
 
     /**
-     * Logical draw surface backed by the current physical screen bitmap.
+     * Draw surface backed by the current physical screen bitmap.
      */
     public get surface(): PhysicalBitmapDrawSurface {
       return this.surface_

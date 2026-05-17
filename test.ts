@@ -1,17 +1,122 @@
 namespace ui {
-  /**
-   * Smoke harness for logical viewport drawing and scale-mode rendering.
-   */
-  export function renderLogicalViewportSmokeTest(): void {
-    const adapter = new DisplayShieldFrameAdapter({ scaleMode: "cover" })
-    const surface = adapter.surface
-    const coverScale = physicalViewportScale(160, 100, "cover")
-    const fitScale = physicalViewportScale(160, 100, "fit")
+  class TestBitmapDisplayAdapter implements UiDisplayAdapter {
+    private surface_: PhysicalBitmapDrawSurface
 
-    control.assert(coverScale == 1, "cover scale")
-    control.assert(physicalViewportOffsetY(160, 100, "cover") == -10, "cover clip")
-    control.assert(fitScale > 0.833 && fitScale < 0.834, "fit scale")
-    control.assert(physicalViewportOffsetX(160, 100, "fit") > 13, "fit bars")
+    constructor(bitmap: Bitmap, options?: PhysicalDrawSurfaceOptions) {
+      this.surface_ = new PhysicalBitmapDrawSurface(bitmap, options)
+    }
+
+    public get surface(): PhysicalBitmapDrawSurface {
+      return this.surface_
+    }
+
+    public commit(): Bitmap {
+      return this.surface_.bitmap
+    }
+  }
+
+  /**
+   * Smoke harness for display-profile drawing and scale-mode rendering.
+   */
+  export function renderLogicalViewportSmokeTest(fillColor: number): void {
+    const coverAdapter = new DisplayShieldFrameAdapter({
+      scaleMode: "cover",
+      displayProfile: UiDisplayProfileId.HighDensity,
+      designWidth: STANDARD_DISPLAY_WIDTH,
+      designHeight: STANDARD_DISPLAY_HEIGHT
+    })
+    const coverSurface = coverAdapter.surface
+    const coverRuntime = new UiRuntime({ display: coverAdapter })
+    const coverProfile = coverRuntime.displayProfile
+    const expectedCoverWidth = coverProfile.id == UiDisplayProfileId.HighDensity ?
+      HIGH_DENSITY_DISPLAY_WIDTH :
+      STANDARD_DISPLAY_WIDTH
+    const expectedCoverHeight = coverProfile.id == UiDisplayProfileId.HighDensity ?
+      HIGH_DENSITY_DISPLAY_HEIGHT :
+      STANDARD_DISPLAY_HEIGHT
+    const coverUiWidth = coverProfile.logicalWidth / coverProfile.designToLogicalScaleX
+    const coverUiHeight = coverProfile.logicalHeight / coverProfile.designToLogicalScaleY
+
+    control.assert(coverProfile.logicalWidth == expectedCoverWidth, "cover profile width")
+    control.assert(coverProfile.logicalHeight == expectedCoverHeight, "cover profile height")
+    control.assert(
+      coverUiWidth == STANDARD_DISPLAY_WIDTH || coverUiWidth == HIGH_DENSITY_DISPLAY_WIDTH,
+      "cover ui width"
+    )
+    control.assert(
+      coverUiHeight == STANDARD_DISPLAY_HEIGHT || coverUiHeight == HIGH_DENSITY_DISPLAY_HEIGHT,
+      "cover ui height"
+    )
+
+    const standardBitmap = bitmaps.create(STANDARD_DISPLAY_WIDTH, STANDARD_DISPLAY_HEIGHT)
+    const standardAdapter = new TestBitmapDisplayAdapter(standardBitmap)
+    const standardRuntime = new UiRuntime({ display: standardAdapter })
+    const standardProfile = standardRuntime.displayProfile
+
+    control.assert(standardProfile.id == UiDisplayProfileId.Standard, "standard profile id")
+    control.assert(
+      standardProfile.logicalWidth == STANDARD_DISPLAY_WIDTH,
+      "standard profile width"
+    )
+    control.assert(
+      standardProfile.logicalHeight == STANDARD_DISPLAY_HEIGHT,
+      "standard profile height"
+    )
+    control.assert(standardProfile.designToLogicalScaleX == 1, "standard scale x")
+    control.assert(standardProfile.designToLogicalScaleY == 1, "standard scale y")
+
+    standardAdapter.surface.fillRect(new Rect(0, 74, standardProfile.logicalWidth, 33), 2)
+    control.assert(standardBitmap.getPixel(0, 74) == 2, "standard ui rect left")
+    control.assert(
+      standardBitmap.getPixel(standardProfile.logicalWidth - 1, 106) == 2,
+      "standard ui rect right"
+    )
+
+    const highBitmap = bitmaps.create(HIGH_DENSITY_DISPLAY_WIDTH, HIGH_DENSITY_DISPLAY_HEIGHT)
+    const highAdapter = new TestBitmapDisplayAdapter(highBitmap, {
+      displayProfile: UiDisplayProfileId.HighDensity,
+      designWidth: standardProfile.logicalWidth,
+      designHeight: standardProfile.logicalHeight
+    })
+    const highRuntime = new UiRuntime({ display: highAdapter })
+    const highProfile = highRuntime.displayProfile
+    const highUiWidth = highProfile.logicalWidth / highProfile.designToLogicalScaleX
+    highAdapter.surface.fillRect(new Rect(0, 74, highUiWidth, 33), 3)
+    control.assert(
+      highProfile.logicalWidth == HIGH_DENSITY_DISPLAY_WIDTH,
+      "high profile width"
+    )
+    control.assert(
+      highProfile.logicalHeight == HIGH_DENSITY_DISPLAY_HEIGHT,
+      "high profile height"
+    )
+    control.assert(highProfile.designToLogicalScaleX == 2, "high scale x")
+    control.assert(highProfile.designToLogicalScaleY == 2, "high scale y")
+    control.assert(highBitmap.getPixel(0, 148) == 3, "high ui rect left")
+    control.assert(
+      highBitmap.getPixel(highProfile.logicalWidth - 1, 213) == 3,
+      "high ui rect right"
+    )
+    control.assert(highBitmap.getPixel(0, 147) == 0, "high ui rect top clip")
+
+    const measuredStandard = standardAdapter.surface.measureText("profile", bitmaps.font5)
+    const measuredHigh = highAdapter.surface.measureText("profile", bitmaps.font5)
+    control.assert(measuredStandard.width == measuredHigh.width, "profile measure width")
+    control.assert(measuredStandard.height == measuredHigh.height, "profile measure height")
+
+    const highUiBitmap = bitmaps.create(STANDARD_DISPLAY_WIDTH, STANDARD_DISPLAY_HEIGHT)
+    const highUiSurface = new PhysicalBitmapDrawSurface(highUiBitmap, {
+      displayProfile: UiDisplayProfileId.HighDensity,
+      designWidth: HIGH_DENSITY_DISPLAY_WIDTH,
+      designHeight: HIGH_DENSITY_DISPLAY_HEIGHT
+    })
+    highUiSurface.drawRect(
+      new Rect(4, 4, HIGH_DENSITY_DISPLAY_WIDTH - 8, HIGH_DENSITY_DISPLAY_HEIGHT - 8),
+      4
+    )
+    control.assert(highUiBitmap.getPixel(2, 2) == 4, "downscaled outline top start")
+    control.assert(highUiBitmap.getPixel(STANDARD_DISPLAY_WIDTH - 3, 60) == 4, "downscaled outline right")
+    control.assert(highUiBitmap.getPixel(80, STANDARD_DISPLAY_HEIGHT - 3) == 4, "downscaled outline bottom")
 
     const displayBitmap = bitmaps.create(80, 60)
     const displaySurface = new PhysicalBitmapDrawSurface(displayBitmap, {
@@ -29,20 +134,19 @@ namespace ui {
     control.assert(displayBitmap.getPixel(40, 11) == 0, "visual circle top outside")
     control.assert(displayBitmap.getPixel(40, 49) == 0, "visual circle bottom outside")
 
-    surface.setScaleMode("fit")
-    surface.clear(0)
-    surface.drawRect(new Rect(4, 4, 152, 112), 1)
-    surface.drawText(`fit (${screen().width}x${screen().height})`, 12, 12, { color: 1 })
-    adapter.commit()
+    const fitAdapter = new DisplayShieldFrameAdapter({ scaleMode: "fit" })
+    const fitSurface = fitAdapter.surface
+    fitSurface.clear(0)
+    fitSurface.drawRect(new Rect(4, 4, 152, 112), 1)
+    fitSurface.drawText(`fit (${screen().width}x${screen().height})`, 12, 12, { color: 1 })
+    fitAdapter.commit()
 
-    surface.setScaleMode("cover")
-    surface.clear(1)
-    surface.fillRect(new Rect(0, 0, LOGICAL_VIEWPORT_WIDTH, LOGICAL_VIEWPORT_HEIGHT), 2)
-    surface.drawRect(new Rect(4, 4, 152, 112), 15)
-    surface.drawLine(0, 0, LOGICAL_VIEWPORT_WIDTH - 1, LOGICAL_VIEWPORT_HEIGHT - 1, 7)
-    surface.drawCircle(80, 60, 18, 10)
-    surface.fillCircle(80, 60, 6, 5)
-    surface.drawBitmap(
+    coverSurface.clear(0)
+    coverSurface.fillRect(new Rect(0, 0, coverUiWidth, coverUiHeight), fillColor)
+    coverSurface.drawLine(0, 0, coverUiWidth, coverUiHeight, 6)
+    coverSurface.drawCircle(coverUiWidth >> 1, coverUiHeight >> 1, 18, 10)
+    coverSurface.fillCircle(coverUiWidth >> 1, coverUiHeight >> 1, 6, 5)
+    coverSurface.drawBitmap(
       bmp`
         9 . . 9 . . 9
         . 9 . 9 . 9 .
@@ -55,7 +159,7 @@ namespace ui {
       72,
       76
     )
-    surface.drawBitmap(
+    coverSurface.drawBitmap(
       bmp`
         9 9 9 9 9 9 9
         9 9 9 9 9 9 9
@@ -69,9 +173,10 @@ namespace ui {
       76,
       { allowDownscale: true }
     )
-    surface.drawText(`cover (${screen().width}x${screen().height})`, 6, 6, { color: 0 })
-    surface.drawText("downscaled text", 6, 18, { color: 0, allowDownscale: true })
-    adapter.commit()
+    coverSurface.drawText(`cover (${screen().width}x${screen().height})`, 6, 6, { color: 0 })
+    coverSurface.drawText("downscaled text", 6, 18, { color: 0, allowDownscale: true })
+    coverSurface.drawRect(new Rect(4, 4, coverUiWidth - 8, coverUiHeight - 8), 15)
+    coverAdapter.commit()
   }
 
   class RuntimeSmokeDisplayAdapter implements UiDisplayAdapter {
@@ -83,7 +188,7 @@ namespace ui {
       this.onCommit_ = onCommit
     }
 
-    public get surface(): DrawSurface {
+    public get surface(): PhysicalDrawSurface {
       return this.inner_.surface
     }
 
@@ -402,6 +507,12 @@ namespace ui {
     control.assert(measured.preferredWidth == 11, "fill preferred width")
     control.assert(measured.minHeight == 3, "fill min height")
     control.assert(measured.preferredHeight == 6, "fill preferred height")
+
+    measureLayoutSpec(undefined, { maxWidth: 50, maxHeight: 50 }, 6, 4, 14, 9, measured)
+    control.assert(measured.minWidth == 6, "missing spec min width")
+    control.assert(measured.preferredWidth == 14, "missing spec preferred width")
+    control.assert(measured.minHeight == 4, "missing spec min height")
+    control.assert(measured.preferredHeight == 9, "missing spec preferred height")
   }
 
   function layoutContentSpec(): UiLayoutSpec {
@@ -2051,6 +2162,25 @@ namespace ui {
     }
   }
 
+  class InputCoordinateScreen implements UiScreen {
+    public pointerEvent: UiInputEvent
+    public wheelEvent: UiInputEvent
+
+    public enter(runtime: UiRuntime, input: UiInputScope): void {
+      input.onAction("pointerClick", (event: UiInputEvent): boolean => {
+        this.pointerEvent = event
+        return true
+      })
+      input.onAction("wheel", (event: UiInputEvent): boolean => {
+        this.wheelEvent = event
+        return true
+      })
+    }
+
+    public render(surface: DrawSurface): void {
+    }
+  }
+
   /**
    * Smoke harness for focus input runtime composition.
    */
@@ -2635,6 +2765,7 @@ namespace ui {
     const runtime = new UiRuntime({
       display: new RuntimeSmokeDisplayAdapter(() => {})
     })
+    const runtimeProfile = runtime.displayProfile
 
     runtime.push(screen)
     runtime.dispatchInput({ action: "pointerMove", source: "pointer", x: 21, y: 1 })
@@ -2696,6 +2827,94 @@ namespace ui {
     control.assert(screen.wheelEvent.source == "wheel", "runtime wheel source")
     control.assert(screen.wheelEvent.dx == 3, "runtime wheel dx")
     control.assert(screen.wheelEvent.dy == -4, "runtime wheel dy")
+
+    const highBitmap = bitmaps.create(HIGH_DENSITY_DISPLAY_WIDTH, HIGH_DENSITY_DISPLAY_HEIGHT)
+    const highRuntime = new UiRuntime({
+      display: new TestBitmapDisplayAdapter(highBitmap, {
+        displayProfile: UiDisplayProfileId.HighDensity,
+        designWidth: runtimeProfile.logicalWidth,
+        designHeight: runtimeProfile.logicalHeight
+      })
+    })
+    const coordinateScreen = new InputCoordinateScreen()
+    highRuntime.push(coordinateScreen)
+    const highInputProfile = highRuntime.displayProfile
+    const highPointerX = highInputProfile.logicalWidth / 2
+    const highPointerY = highInputProfile.logicalHeight * 3 / 4
+    highRuntime.dispatchInput({
+      action: "pointerClick",
+      source: "pointer",
+      x: highPointerX,
+      y: highPointerY
+    })
+    highRuntime.runFrame()
+    control.assert(
+      coordinateScreen.pointerEvent.x == highPointerX / highInputProfile.designToLogicalScaleX,
+      "high pointer ui x"
+    )
+    control.assert(
+      coordinateScreen.pointerEvent.y == highPointerY / highInputProfile.designToLogicalScaleY,
+      "high pointer ui y"
+    )
+
+    coordinateScreen.pointerEvent = undefined
+    highRuntime.dispatchInput({
+      action: "pointerClick",
+      source: "pointer",
+      x: highInputProfile.logicalWidth + 1,
+      y: highPointerY
+    })
+    highRuntime.runFrame()
+    control.assert(coordinateScreen.pointerEvent === undefined, "high pointer outside ignored")
+
+    const highFocusScreen = new DirectSimulatorInputScreen()
+    const highFocusRuntime = new UiRuntime({
+      display: new TestBitmapDisplayAdapter(
+        bitmaps.create(highInputProfile.logicalWidth, highInputProfile.logicalHeight),
+        {
+          displayProfile: UiDisplayProfileId.HighDensity,
+          designWidth: runtimeProfile.logicalWidth,
+          designHeight: runtimeProfile.logicalHeight
+        }
+      )
+    })
+    highFocusRuntime.push(highFocusScreen)
+    highFocusRuntime.dispatchInput({ action: "pointerClick", source: "pointer", x: 42, y: 2 })
+    highFocusRuntime.runFrame()
+    assertFocusInputResult(
+      highFocusScreen.pointerClickResult,
+      {
+        action: "pointerClick",
+        handled: true,
+        kind: "activated",
+        detail: {
+          focusResult: {
+            kind: "focused",
+            scopeId: "main",
+            targetId: "b",
+            previousScopeId: "main",
+            previousTargetId: "a",
+            scrollRequest: {
+              scopeId: "main",
+              targetId: "b",
+              scrollOwnerId: "main-scroll",
+              targetRect: new Rect(20, 0, 10, 10),
+              reason: "focus"
+            }
+          },
+          activationResult: { kind: "activated", scopeId: "main", targetId: "b" },
+          hitTestResult: { kind: "hit", scopeId: "main", targetId: "b", disabled: false }
+        },
+        scrollRequest: {
+          scopeId: "main",
+          targetId: "b",
+          scrollOwnerId: "main-scroll",
+          targetRect: new Rect(20, 0, 10, 10),
+          reason: "focus"
+        }
+      },
+      "high runtime pointer click"
+    )
   }
 
   class TestInputScope implements UiInputScope {
@@ -3914,7 +4133,7 @@ namespace ui {
   }
 }
 
-ui.renderLogicalViewportSmokeTest()
+ui.renderLogicalViewportSmokeTest(2)
 ui.runAssetResolverSmokeTest()
 ui.runRuntimeSmokeTest()
 ui.runLayoutSmokeTest()
@@ -3936,7 +4155,7 @@ ui.runWidgetToggleGridSmokeTest()
 ui.runWidgetNumericEntrySmokeTest()
 ui.runWidgetObservationSmokeTest()
 
-// run logical viewport test again as it produces something visual
-ui.renderLogicalViewportSmokeTest()
+// run display-profile test again as it produces something visual
+ui.renderLogicalViewportSmokeTest(7)
 
 control.__log(1, "All tests passed!")

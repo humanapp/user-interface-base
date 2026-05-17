@@ -14,7 +14,7 @@ namespace ui {
     children?: UiLayoutNode[]
 
     /**
-     * Space between adjacent children in logical viewport pixels.
+     * Space between adjacent children in UI units.
      */
     gap?: number
 
@@ -39,7 +39,7 @@ namespace ui {
     child?: UiLayoutNode
 
     /**
-     * Insets in logical viewport pixels. A number applies to all edges.
+     * Insets in UI units. A number applies to all edges.
      */
     padding?: number | UiLayoutEdgeInsets
   }
@@ -134,7 +134,7 @@ namespace ui {
     }
 
     /**
-     * Space between adjacent children in logical viewport pixels.
+     * Space between adjacent children in UI units.
      */
     public get gap(): number {
       return this.gap_
@@ -286,7 +286,7 @@ namespace ui {
     }
 
     /**
-     * Space between adjacent children in logical viewport pixels.
+     * Space between adjacent children in UI units.
      */
     public get gap(): number {
       return this.gap_

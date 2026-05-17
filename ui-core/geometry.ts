@@ -1,15 +1,15 @@
 namespace ui {
   /**
-   * Logical point in the fixed UI viewport.
+   * Point in UI coordinates.
    */
   export class Point {
     /**
-     * Horizontal logical coordinate in pixels.
+     * Horizontal coordinate in UI units.
      */
     public x: number
 
     /**
-     * Vertical logical coordinate in pixels.
+     * Vertical coordinate in UI units.
      */
     public y: number
 
@@ -45,16 +45,16 @@ namespace ui {
   }
 
   /**
-   * Logical width and height in pixels.
+   * Width and height in UI units.
    */
   export class Size {
     /**
-     * Horizontal extent in logical pixels.
+     * Horizontal extent in UI units.
      */
     public width: number
 
     /**
-     * Vertical extent in logical pixels.
+     * Vertical extent in UI units.
      */
     public height: number
 
@@ -90,29 +90,29 @@ namespace ui {
   }
 
   /**
-   * Upper-left logical rectangle.
+   * Rectangle in UI coordinates.
    *
    * Hit testing uses the half-open interval
    * `x <= px < right` and `y <= py < bottom`.
    */
   export class Rect {
     /**
-     * Left logical coordinate in pixels.
+     * Left coordinate in UI units.
      */
     public x: number
 
     /**
-     * Top logical coordinate in pixels.
+     * Top coordinate in UI units.
      */
     public y: number
 
     /**
-     * Horizontal extent in logical pixels.
+     * Horizontal extent in UI units.
      */
     public width: number
 
     /**
-     * Vertical extent in logical pixels.
+     * Vertical extent in UI units.
      */
     public height: number
 
@@ -167,14 +167,14 @@ namespace ui {
     }
 
     /**
-     * Tests whether a logical coordinate is inside this half-open rectangle.
+     * Tests whether coordinates are inside this half-open rectangle.
      */
     public contains(x: number, y: number): boolean {
       return x >= this.x && x < this.right && y >= this.y && y < this.bottom
     }
 
     /**
-     * Tests whether a logical point is inside this half-open rectangle.
+     * Tests whether a point is inside this half-open rectangle.
      */
     public containsPoint(point: Point): boolean {
       return this.contains(point.x, point.y)
