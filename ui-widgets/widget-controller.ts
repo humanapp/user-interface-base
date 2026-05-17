@@ -75,6 +75,21 @@ namespace ui {
     }
 
     /**
+     * Layout options applied before a controller opens a modal.
+     */
+    export interface UiModalOpenOptions {
+        /**
+         * Measurement limits used when the controller arranges the modal.
+         */
+        constraints?: UiLayoutConstraints
+
+        /**
+         * Concrete rectangle assigned to the modal before opening.
+         */
+        rect?: Rect
+    }
+
+    /**
      * Modal widget lifecycle used by screen controllers.
      */
     export interface UiModal<TResult> extends UiWidget<TResult> {
@@ -103,6 +118,9 @@ namespace ui {
     export class UiWidgetController {
         private focus_: UiFocusState
         private focusInput_: UiFocusInputController
+        private activeModal_: UiModal<any>
+        private modalRect_: Rect
+        private modalSize_: UiMeasuredSize
 
         constructor(options?: UiWidgetControllerOptions) {
             this.focus_ = new UiFocusState()
@@ -111,6 +129,9 @@ namespace ui {
                 scroll: options ? options.scroll : undefined,
                 wheel: options ? options.wheel : undefined,
             })
+            this.activeModal_ = undefined
+            this.modalRect_ = new Rect()
+            this.modalSize_ = new UiMeasuredSize()
         }
 
         /**
@@ -125,6 +146,13 @@ namespace ui {
          */
         public get focusInput(): UiFocusInputController {
             return this.focusInput_
+        }
+
+        /**
+         * Whether this controller currently owns an open modal.
+         */
+        public get hasModal(): boolean {
+            return !!this.activeModal_
         }
 
         /**
@@ -165,11 +193,15 @@ namespace ui {
         }
 
         /**
-         * Opens an arranged modal and makes it the active focus scope.
+         * Opens a modal, optionally arranges it, and makes it the active focus scope.
          */
         public openModal<TResult>(
             modal: UiModal<TResult>,
+            options?: UiModalOpenOptions,
         ): UiFocusSetResult {
+            if (this.activeModal_) this.closeModal()
+            if (options) this.arrangeModal(modal, options)
+            this.activeModal_ = modal
             return modal.open(this.focus_, this.focusInput_)
         }
 
@@ -177,13 +209,92 @@ namespace ui {
          * Closes a modal and removes its registered focus and navigation.
          */
         public closeModal<TResult>(
-            modal: UiModal<TResult>,
-        ): UiFocusSetResult {
-            const modalScopeId = modal.modalScopeId
-            const result = modal.close(this.focus_)
+            modal?: UiModal<TResult>,
+        ): UiFocusSetResult | undefined {
+            const target = modal || this.activeModal_
+            if (!target) return undefined
+            const modalScopeId = target.modalScopeId
+            const result = target.close(this.focus_)
             this.focusInput_.clearNavigation(modalScopeId)
             this.focus_.removeScope(modalScopeId)
+            if (
+                this.activeModal_ &&
+                this.activeModal_.modalScopeId == modalScopeId
+            )
+                this.activeModal_ = undefined
             return result
+        }
+
+        /**
+         * Renders the active modal when one is open.
+         */
+        public renderModal(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+        ): boolean {
+            if (!this.activeModal_) return false
+            this.render(surface, assets, this.activeModal_)
+            return true
+        }
+
+        /**
+         * Handles one input event for the active modal.
+         */
+        public handleModalInput<TResult>(
+            event: UiInputEvent,
+            modal?: UiModal<TResult>,
+            handler?: UiWidgetInputResultHandler<TResult>,
+        ): boolean {
+            const target = modal || this.activeModal_
+            if (!target) return false
+            return this.handleFocusInput(event, (
+                result: UiFocusInputResult,
+                deliveredEvent: UiInputEvent,
+            ): boolean | undefined => {
+                const modalResult = target.handleFocusInput(result)
+                if (modalResult) {
+                    const handled = handler
+                        ? handler(modalResult, deliveredEvent)
+                        : undefined
+                    return handled !== undefined
+                        ? handled
+                        : this.defaultWidgetHandled(modalResult)
+                }
+                if (
+                    deliveredEvent.action == "pointerClick" &&
+                    result.kind == "miss"
+                )
+                    return true
+                return undefined
+            })
+        }
+
+        private arrangeModal<TResult>(
+            modal: UiModal<TResult>,
+            options: UiModalOpenOptions,
+        ): void {
+            if (options.rect) {
+                modal.arrange(options.rect)
+                return
+            }
+            if (!options.constraints) return
+
+            modal.measure(options.constraints, this.modalSize_)
+            this.modalRect_.set(
+                Math.idiv(
+                    options.constraints.maxWidth -
+                        this.modalSize_.preferredWidth,
+                    2,
+                ),
+                Math.idiv(
+                    options.constraints.maxHeight -
+                        this.modalSize_.preferredHeight,
+                    2,
+                ),
+                this.modalSize_.preferredWidth,
+                this.modalSize_.preferredHeight,
+            )
+            modal.arrange(this.modalRect_)
         }
 
         /**
@@ -217,36 +328,6 @@ namespace ui {
                     : undefined
                 if (handled !== undefined) return handled
                 return this.defaultWidgetHandled(widgetResult)
-            })
-        }
-
-        /**
-         * Handles one input event for a modal.
-         */
-        public handleModalInput<TResult>(
-            event: UiInputEvent,
-            modal: UiModal<TResult>,
-            handler?: UiWidgetInputResultHandler<TResult>,
-        ): boolean {
-            return this.handleFocusInput(event, (
-                result: UiFocusInputResult,
-                deliveredEvent: UiInputEvent,
-            ): boolean | undefined => {
-                const modalResult = modal.handleFocusInput(result)
-                if (modalResult) {
-                    const handled = handler
-                        ? handler(modalResult, deliveredEvent)
-                        : undefined
-                    return handled !== undefined
-                        ? handled
-                        : this.defaultWidgetHandled(modalResult)
-                }
-                if (
-                    deliveredEvent.action == "pointerClick" &&
-                    result.kind == "miss"
-                )
-                    return true
-                return undefined
             })
         }
 

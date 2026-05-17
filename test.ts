@@ -5534,29 +5534,48 @@ namespace ui {
                     rowLog += "cancel;"
                 },
             })
-        modal.arrange(new Rect(0, 0, 60, 40))
-        const modalFocus = widgets.openModal(modal)
+        const modalFocus = widgets.openModal(modal, {
+            constraints: { maxWidth: 100, maxHeight: 80 },
+        })
         control.assert(
             modalFocus.kind == "focused",
             "widget controller modal focus",
         )
+        assertLayoutRect(
+            modal.finalRect,
+            34,
+            20,
+            32,
+            40,
+            "widget controller modal layout",
+        )
+        control.assert(widgets.hasModal, "widget controller has modal")
         control.assert(
             widgets.focus.getActiveScopeId() == "controller-modal",
             "widget controller modal active scope",
         )
+        const modalSurface = new WidgetSmokeSurface()
+        control.assert(
+            widgets.renderModal(modalSurface, new WidgetSmokeAssets()),
+            "widget controller renders active modal",
+        )
         control.assert(
             widgets.handleModalInput(
                 { action: "pointerClick", x: -1, y: -1 },
-                modal,
             ),
             "widget controller modal pointer miss handled",
         )
         control.assert(
-            widgets.handleModalInput({ action: "cancel" }, modal),
+            widgets.handleModalInput({ action: "cancel" }),
             "widget controller modal cancel handled",
         )
         control.assert(rowLog == "B;cancel;", "widget controller modal cancel")
-        widgets.closeModal(modal)
+        widgets.closeModal()
+        control.assert(!widgets.hasModal, "widget controller modal cleared")
+        control.assert(
+            !widgets.renderModal(modalSurface, new WidgetSmokeAssets()),
+            "widget controller render skips absent modal",
+        )
         control.assert(
             widgets.focus.getActiveScopeId() == "controller-row",
             "widget controller modal close restores parent",
