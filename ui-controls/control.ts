@@ -406,6 +406,24 @@ namespace _uiControls {
         )
     }
 
+    const labelBoundsScratch = new ui.Rect()
+
+    export function resolveLabelBounds(
+        surface: ui.DrawSurface,
+        explicitBounds: ui.Rect | undefined,
+    ): ui.Rect | undefined {
+        if (explicitBounds) return explicitBounds
+        const profile = surface.displayProfile
+        if (!profile) return undefined
+        labelBoundsScratch.set(
+            0,
+            0,
+            Math.round(profile.logicalWidth / profile.designToLogicalScaleX),
+            Math.round(profile.logicalHeight / profile.designToLogicalScaleY),
+        )
+        return labelBoundsScratch
+    }
+
     export function copyRect(target: ui.Rect, source: ui.Rect): void {
         ui.copyArrangedLayoutRect(target, source)
     }

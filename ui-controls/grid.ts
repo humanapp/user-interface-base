@@ -69,7 +69,8 @@ namespace ui {
         controlStyle?: UiButtonStyle
 
         /**
-         * Bounds used to keep control focus labels visible.
+         * Bounds used to keep control focus labels visible. Omitted values use the
+         * active display surface's UI coordinate bounds when available.
          */
         labelBounds?: Rect
 
@@ -382,6 +383,10 @@ namespace ui {
             focus?: UiFocusState,
         ): void {
             this.ensureControlRects()
+            const labelBounds = _uiControls.resolveLabelBounds(
+                surface,
+                this.labelBounds_,
+            )
             const activeTargetId = focus
                 ? focus.getActiveTargetId(this.scopeId_)
                 : undefined
@@ -401,7 +406,7 @@ namespace ui {
                     focused && !!control.draw,
                     this.controlView_,
                     this.controlStyle_,
-                    this.labelBounds_,
+                    labelBounds,
                 )
             }
             if (focusedIndex >= 0) {
@@ -412,7 +417,7 @@ namespace ui {
                     this.controlRects_[focusedIndex],
                     this.controlView_,
                     this.controlStyle_,
-                    this.labelBounds_,
+                    labelBounds,
                 )
             }
         }

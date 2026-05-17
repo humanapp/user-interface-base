@@ -1556,6 +1556,24 @@ namespace ui {
                 },
             },
             {
+                name: "stored target reference",
+                scopes: [mainScope],
+                targets: [],
+                operation: state => {
+                    const stored = state.setTarget(targetA)
+                    if (stored.kind == "stored")
+                        return state.setActiveTarget(stored)
+                    return stored
+                },
+                expectedResult: {
+                    kind: "focused",
+                    scopeId: "main",
+                    targetId: "a",
+                },
+                expectedActiveScopeId: "main",
+                expectedActiveTargetId: "a",
+            },
+            {
                 name: "scope mismatch",
                 scopes: [mainScope, secondaryScope],
                 targets: [targetA],
@@ -1589,6 +1607,30 @@ namespace ui {
                     scopeId: "main",
                     targetId: "disabled",
                     disabled: true,
+                },
+            },
+            {
+                name: "hit test target focus",
+                scopes: [mainScope],
+                targets: [targetA],
+                operation: state => state.setActiveTarget(state.hitTest(11, 12)),
+                expectedResult: {
+                    kind: "focused",
+                    scopeId: "main",
+                    targetId: "a",
+                },
+                expectedActiveScopeId: "main",
+                expectedActiveTargetId: "a",
+            },
+            {
+                name: "miss hit test target focus",
+                scopes: [mainScope],
+                targets: [targetA],
+                operation: state =>
+                    state.setActiveTarget(state.hitTest(120, 90)),
+                expectedResult: {
+                    kind: "rejected",
+                    reason: "missingTargetReference",
                 },
             },
             {
@@ -3090,12 +3132,26 @@ namespace ui {
 
     class RejectingPointerFocusState extends UiFocusState {
         public setActiveTarget(
-            scopeId: UiFocusScopeId,
-            targetId: UiFocusId,
+            scopeOrTarget:
+                | UiFocusScopeId
+                | UiFocusTargetReference
+                | UiFocusHitTestResult,
+            targetId?: UiFocusId,
         ): UiFocusSetResult {
+            if (typeof scopeOrTarget != "string") {
+                if ((<UiFocusHitTestResult>scopeOrTarget).kind == "miss") {
+                    return {
+                        kind: "rejected",
+                        reason: "missingTargetReference",
+                    }
+                }
+                const reference = <UiFocusTargetReference>scopeOrTarget
+                scopeOrTarget = reference.scopeId
+                targetId = reference.targetId
+            }
             return {
                 kind: "rejected",
-                scopeId,
+                scopeId: <UiFocusScopeId>scopeOrTarget,
                 targetId,
                 reason: "missingTarget",
             }
@@ -5358,6 +5414,32 @@ namespace ui {
         }
     }
 
+    class PositionSmokeSurface extends ControlSmokeSurface {
+        private displayProfile_: UiDisplayProfile
+        public textX: number
+        public textY: number
+
+        constructor(displayProfile?: UiDisplayProfile) {
+            super()
+            this.displayProfile_ = displayProfile
+        }
+
+        public get displayProfile(): UiDisplayProfile {
+            return this.displayProfile_
+        }
+
+        public drawText(
+            text: string,
+            x: number,
+            y: number,
+            options?: DrawTextOptions,
+        ): void {
+            this.textX = x
+            this.textY = y
+            super.drawText(text, x, y, options)
+        }
+    }
+
     class ControlSmokeAssets implements UiAssetResolver {
         public fallbackBitmap: Bitmap
         public knownBitmap: Bitmap
@@ -6056,6 +6138,40 @@ namespace ui {
         control.assert(
             raggedFocus.getActiveTargetId("ragged") == "ragged/r2a",
             "ragged nearest down",
+        )
+
+        const labelFocus = new UiFocusState()
+        const labelSurface = new PositionSmokeSurface({
+            id: UiDisplayProfileId.Standard,
+            logicalWidth: STANDARD_DISPLAY_WIDTH,
+            logicalHeight: STANDARD_DISPLAY_HEIGHT,
+            aspectRatio: STANDARD_DISPLAY_WIDTH / STANDARD_DISPLAY_HEIGHT,
+            designToLogicalScaleX: 2,
+            designToLogicalScaleY: 2,
+        })
+        const labelGrid = new UiGrid<string>({
+            scopeId: "grid-labels",
+            controls: [{ id: "label", value: "label", textId: "knownText" }],
+            controlWidth: 24,
+            controlHeight: 20,
+            controlStyle: buttonStyle(
+                UiButtonStyles.Transparent,
+                UiButtonStyles.FocusLabel,
+            ),
+        })
+        labelGrid.arrange(new Rect(70, 50, 24, 20))
+        labelGrid.registerFocusTargets(labelFocus)
+        labelGrid.focusDefault(labelFocus)
+        labelGrid.render(labelSurface, new ControlSmokeAssets(), labelFocus)
+        const labelTextWidth = bitmaps.font5.charWidth * "resolved".length
+        const labelTextHeight = bitmaps.font5.charHeight
+        control.assert(
+            labelSurface.textX <= 80 - 1 - labelTextWidth,
+            "grid default label bounds x",
+        )
+        control.assert(
+            labelSurface.textY <= 60 - 1 - labelTextHeight,
+            "grid default label bounds y",
         )
     }
 

@@ -132,6 +132,11 @@ namespace ui {
      */
     export interface DrawSurface {
         /**
+         * Active immutable display profile when a runtime display adapter provides it.
+         */
+        readonly displayProfile?: UiDisplayProfile
+
+        /**
          * Fills the target with a palette color.
          */
         clear(color: number): void

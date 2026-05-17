@@ -20,6 +20,21 @@ namespace ui {
     export type UiFocusDirection = "up" | "down" | "left" | "right"
 
     /**
+     * Reference to one focus target in one focus scope.
+     */
+    export interface UiFocusTargetReference {
+        /**
+         * Scope that owns the target.
+         */
+        scopeId: UiFocusScopeId
+
+        /**
+         * Target to focus.
+         */
+        targetId: UiFocusId
+    }
+
+    /**
      * Request to bring a focused target into view.
      */
     export interface UiFocusScrollRequest {
@@ -172,6 +187,7 @@ namespace ui {
               scopeId?: UiFocusScopeId
               targetId?: UiFocusId
               reason:
+                  | "missingTargetReference"
                   | "missingScope"
                   | "missingTarget"
                   | "scopeMismatch"
@@ -546,12 +562,29 @@ namespace ui {
         }
 
         /**
-         * Makes a target active within its scope.
+         * Makes a target active within its scope. The target can be passed as a
+         * scope/target id pair or as a result value that identifies one target.
          */
         public setActiveTarget(
-            scopeId: UiFocusScopeId,
-            targetId: UiFocusId,
+            scopeOrTarget:
+                | UiFocusScopeId
+                | UiFocusTargetReference
+                | UiFocusHitTestResult,
+            targetId?: UiFocusId,
         ): UiFocusSetResult {
+            const targetReference = this.resolveTargetReference(
+                scopeOrTarget,
+                targetId,
+            )
+            if (!targetReference) {
+                return {
+                    kind: "rejected",
+                    reason: "missingTargetReference",
+                }
+            }
+            const scopeId = targetReference.scopeId
+            targetId = targetReference.targetId
+
             const scope = this.findScope(scopeId)
             if (!scope)
                 return {
@@ -975,6 +1008,30 @@ namespace ui {
             }
 
             return false
+        }
+
+        private resolveTargetReference(
+            scopeOrTarget:
+                | UiFocusScopeId
+                | UiFocusTargetReference
+                | UiFocusHitTestResult,
+            targetId: UiFocusId | undefined,
+        ): UiFocusTargetReference | undefined {
+            if (typeof scopeOrTarget == "string") {
+                if (targetId === undefined) return undefined
+                return { scopeId: scopeOrTarget, targetId }
+            }
+
+            if ((<UiFocusHitTestResult>scopeOrTarget).kind == "miss")
+                return undefined
+
+            const reference = <UiFocusTargetReference>scopeOrTarget
+            if (
+                reference.scopeId === undefined ||
+                reference.targetId === undefined
+            )
+                return undefined
+            return reference
         }
 
         private focusedResult(
