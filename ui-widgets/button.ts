@@ -194,7 +194,7 @@ namespace ui {
         style?: UiButtonStyle
 
         /**
-         * Palette override for action-item compatibility.
+         * Palette override for button rendering.
          */
         palette?: UiButtonStyle
 
@@ -249,7 +249,7 @@ namespace ui {
             this.style_ =
                 options && options.style
                     ? options.style
-                    : UiButtonStyles.ActionItem
+                    : UiButtonStyles.Default
             this.scratch_ = new Rect()
         }
 
@@ -257,7 +257,7 @@ namespace ui {
          * Replaces the default style used by later render calls.
          */
         public setStyle(style: UiButtonStyle): void {
-            this.style_ = style || UiButtonStyles.ActionItem
+            this.style_ = style || UiButtonStyles.Default
         }
 
         /**
@@ -580,9 +580,9 @@ namespace ui {
      */
     export namespace UiButtonStyles {
         /**
-         * Default action-item style.
+         * Default button style.
          */
-        export const ActionItem: UiButtonStyle = {
+        export const Default: UiButtonStyle = {
             backgroundColor: 0,
             foregroundColor: 15,
             disabledForegroundColor: 8,

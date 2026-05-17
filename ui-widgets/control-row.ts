@@ -1,22 +1,22 @@
 namespace ui {
     /**
-     * Options for a one-dimensional action collection.
+     * Options for a one-dimensional control collection.
      */
-    export interface UiActionRowOptions<T> {
+    export interface UiControlRowOptions<T> {
         /**
          * Focus scope id for this row.
          */
         scopeId: UiFocusScopeId
 
         /**
-         * Caller-owned item records in row order.
+         * Caller-owned control records in row order.
          */
-        items: UiActionItem<T>[]
+        controls: UiControl<T>[]
 
         /**
-         * Item id to focus first when available.
+         * Control id to focus first when available.
          */
-        defaultItemId?: string
+        defaultControlId?: string
 
         /**
          * Scroll owner used when this row is arranged in scroll content.
@@ -34,92 +34,92 @@ namespace ui {
         layoutSpec?: UiLayoutSpec
 
         /**
-         * Width assigned to each item.
+         * Width assigned to each control.
          */
-        itemWidth?: number
+        controlWidth?: number
 
         /**
-         * Height assigned to each item.
+         * Height assigned to each control.
          */
-        itemHeight?: number
+        controlHeight?: number
 
         /**
-         * Space between adjacent items.
+         * Space between adjacent controls.
          */
         gap?: number
 
         /**
-         * Button style used by items without a custom draw callback.
+         * Control style used by controls without a custom draw callback.
          */
-        buttonStyle?: UiButtonStyle
+        controlStyle?: UiButtonStyle
 
         /**
-         * Bounds used to keep item focus labels visible.
+         * Bounds used to keep control focus labels visible.
          */
         labelBounds?: Rect
 
         /**
-         * Called when an enabled row item is activated.
+         * Called when an enabled row control is activated.
          */
-        onActivate?: UiActionActivateHandler<T>
+        onActivate?: UiControlActivateHandler<T>
     }
 
     /**
-     * Result emitted by an action row.
+     * Result emitted by a control row.
      */
-    export type UiActionRowResult<T> =
-        | { kind: "activated"; itemId: string; value: T; item: UiActionItem<T> }
+    export type UiControlRowResult<T> =
+        | { kind: "activated"; controlId: string; value: T; control: UiControl<T> }
         | {
               kind: "exited"
               direction: UiFocusDirection
               scopeId: UiFocusScopeId
-              itemId?: string
+              controlId?: string
           }
 
     /**
-     * Renders and navigates one horizontal action row.
+     * Renders and navigates one horizontal control row.
      */
-    export class UiActionRow<T>
-        implements UiFocusableWidget<UiActionRowResult<T>> {
+    export class UiControlRow<T>
+        implements UiFocusableWidget<UiControlRowResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
         private scopeId_: UiFocusScopeId
-        private items_: UiActionItem<T>[]
-        private defaultItemId_: string
+        private controls_: UiControl<T>[]
+        private defaultControlId_: string
         private scrollOwnerId_: UiFocusScrollOwnerId
         private wrap_: boolean
-        private itemWidth_: number
-        private itemHeight_: number
+        private controlWidth_: number
+        private controlHeight_: number
         private gap_: number
-        private itemRects_: Rect[]
+        private controlRects_: Rect[]
         private registeredTargetIds_: string[]
         private measured_: UiMeasuredSize
-        private itemButtonView_: UiButtonView
-        private buttonStyle_: UiButtonStyle
+        private controlView_: UiButtonView
+        private controlStyle_: UiButtonStyle
         private labelBounds_: Rect
-        private onActivate_: UiActionActivateHandler<T>
+        private onActivate_: UiControlActivateHandler<T>
 
-        constructor(options: UiActionRowOptions<T>) {
+        constructor(options: UiControlRowOptions<T>) {
             this.scopeId_ = options.scopeId
-            this.items_ = options.items
-            this.defaultItemId_ = options.defaultItemId
+            this.controls_ = options.controls
+            this.defaultControlId_ = options.defaultControlId
             this.scrollOwnerId_ = options.scrollOwnerId
             this.wrap_ = options.wrap || false
-            this.itemWidth_ = _uiWidgets.itemWidth(options.itemWidth)
-            this.itemHeight_ = _uiWidgets.itemHeight(options.itemHeight)
+            this.controlWidth_ = _uiWidgets.controlWidth(options.controlWidth)
+            this.controlHeight_ = _uiWidgets.controlHeight(options.controlHeight)
             this.gap_ = _uiWidgets.gap(options.gap)
             this.layoutSpec =
                 options.layoutSpec || _uiWidgets.defaultLayoutSpec()
             this.finalRect = new Rect()
             this.layoutDirty = true
-            this.itemRects_ = []
+            this.controlRects_ = []
             this.registeredTargetIds_ = []
             this.measured_ = new UiMeasuredSize()
-            this.buttonStyle_ = options.buttonStyle
+            this.controlStyle_ = options.controlStyle
             this.labelBounds_ = options.labelBounds
-            this.itemButtonView_ = new UiButtonView({
-                style: options.buttonStyle,
+            this.controlView_ = new UiButtonView({
+                style: options.controlStyle,
             })
             this.onActivate_ = options.onActivate
         }
@@ -132,17 +132,17 @@ namespace ui {
         }
 
         /**
-         * Current caller-owned item array.
+         * Current caller-owned control array.
          */
-        public get items(): UiActionItem<T>[] {
-            return this.items_
+        public get controls(): UiControl<T>[] {
+            return this.controls_
         }
 
         /**
-         * Replaces the caller-owned item array used on later layout and render passes.
+         * Replaces the caller-owned control array used on later layout and render passes.
          */
-        public setItems(items: UiActionItem<T>[]): void {
-            this.items_ = items
+        public setControls(controls: UiControl<T>[]): void {
+            this.controls_ = controls
             this.invalidateLayout()
         }
 
@@ -153,12 +153,12 @@ namespace ui {
             constraints: UiLayoutConstraints,
             output: UiMeasuredSize,
         ): void {
-            const count = this.items_.length
+            const count = this.controls_.length
             const width =
                 count > 0
-                    ? count * this.itemWidth_ + (count - 1) * this.gap_
+                    ? count * this.controlWidth_ + (count - 1) * this.gap_
                     : 0
-            const height = count > 0 ? this.itemHeight_ : 0
+            const height = count > 0 ? this.controlHeight_ : 0
             measureLayoutSpec(
                 this.layoutSpec,
                 constraints,
@@ -178,20 +178,20 @@ namespace ui {
         }
 
         /**
-         * Arranges row item rectangles in the assigned bounds.
+         * Arranges row control rectangles in the assigned bounds.
          */
         public arrange(rect: Rect): void {
             copyArrangedLayoutRect(this.finalRect, rect)
-            this.ensureItemRects()
+            this.ensureControlRects()
             let x = this.finalRect.x
-            for (let i = 0; i < this.items_.length; i++) {
-                this.itemRects_[i].set(
+            for (let i = 0; i < this.controls_.length; i++) {
+                this.controlRects_[i].set(
                     x,
                     this.finalRect.y,
-                    this.itemWidth_,
-                    Math.min(this.itemHeight_, this.finalRect.height),
+                    this.controlWidth_,
+                    Math.min(this.controlHeight_, this.finalRect.height),
                 )
-                x += this.itemWidth_ + this.gap_
+                x += this.controlWidth_ + this.gap_
             }
             this.clearLayoutInvalidation()
         }
@@ -211,12 +211,12 @@ namespace ui {
         }
 
         /**
-         * Copies one arranged item rectangle into `output`.
+         * Copies one arranged control rectangle into `output`.
          */
-        public getItemRect(itemId: string, output: Rect): boolean {
-            for (let i = 0; i < this.items_.length; i++) {
-                if (this.items_[i].id == itemId && this.itemRects_[i]) {
-                    output.copyFrom(this.itemRects_[i])
+        public getControlRect(controlId: string, output: Rect): boolean {
+            for (let i = 0; i < this.controls_.length; i++) {
+                if (this.controls_[i].id == controlId && this.controlRects_[i]) {
+                    output.copyFrom(this.controlRects_[i])
                     return true
                 }
             }
@@ -230,10 +230,10 @@ namespace ui {
             focus: UiFocusState,
             scopeOptions?: UiFocusScopeOptions,
         ): void {
-            const preferred = _uiWidgets.preferredItemId(
+            const preferred = _uiWidgets.preferredControlId(
                 this.scopeId_,
-                this.items_,
-                this.defaultItemId_,
+                this.controls_,
+                this.defaultControlId_,
             )
             focus.setScope(
                 scopeOptions || {
@@ -242,11 +242,11 @@ namespace ui {
                     wrap: this.wrap_,
                 },
             )
-            this.ensureItemRects()
+            this.ensureControlRects()
             const currentTargetIds: string[] = []
-            for (let i = 0; i < this.items_.length; i++) {
+            for (let i = 0; i < this.controls_.length; i++) {
                 currentTargetIds.push(
-                    _uiWidgets.targetId(this.scopeId_, this.items_[i].id),
+                    _uiWidgets.targetId(this.scopeId_, this.controls_[i].id),
                 )
             }
             for (let i = 0; i < this.registeredTargetIds_.length; i++) {
@@ -254,17 +254,17 @@ namespace ui {
                 if (!_uiWidgets.containsString(currentTargetIds, targetId))
                     focus.removeTarget(targetId)
             }
-            for (let i = 0; i < this.items_.length; i++) {
-                const item = this.items_[i]
-                const rect = this.itemRects_[i] || new Rect()
+            for (let i = 0; i < this.controls_.length; i++) {
+                const control = this.controls_[i]
+                const rect = this.controlRects_[i] || new Rect()
                 focus.setTarget({
-                    id: _uiWidgets.targetId(this.scopeId_, item.id),
+                    id: _uiWidgets.targetId(this.scopeId_, control.id),
                     scopeId: this.scopeId_,
                     rect,
                     scrollOwnerId: this.scrollOwnerId_,
                     scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                    disabled: _uiWidgets.isDisabled(item),
-                    hidden: !_uiWidgets.isVisible(item),
+                    disabled: _uiWidgets.isDisabled(control),
+                    hidden: !_uiWidgets.isVisible(control),
                     activatable: true,
                 })
             }
@@ -283,20 +283,20 @@ namespace ui {
         }
 
         /**
-         * Focuses the row's retained, default, selected, or first enabled item.
+         * Focuses the row's retained, default, selected, or first enabled control.
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
             return focus.setActiveScope(this.scopeId_)
         }
 
         /**
-         * Returns the target id chosen by default-item and selected-item rules.
+         * Returns the target id chosen by default-control and selected-control rules.
          */
         public resolvePreferredTargetId(): UiFocusId | undefined {
-            return _uiWidgets.preferredItemId(
+            return _uiWidgets.preferredControlId(
                 this.scopeId_,
-                this.items_,
-                this.defaultItemId_,
+                this.controls_,
+                this.defaultControlId_,
             )
         }
 
@@ -305,7 +305,7 @@ namespace ui {
          */
         public handleFocusInput(
             result: UiFocusInputResult,
-        ): UiActionRowResult<T> {
+        ): UiControlRowResult<T> {
             if (
                 result.kind == "activated" &&
                 result.detail &&
@@ -332,20 +332,20 @@ namespace ui {
          */
         public createResultForActivation(
             result: UiFocusActivationResult,
-        ): UiActionRowResult<T> {
+        ): UiControlRowResult<T> {
             if (result.kind != "activated" || result.scopeId != this.scopeId_)
                 return undefined
-            const item = _uiWidgets.findItemByTargetId(
+            const control = _uiWidgets.findControlByTargetId(
                 this.scopeId_,
-                this.items_,
+                this.controls_,
                 result.targetId,
             )
-            if (!item) return undefined
+            if (!control) return undefined
             return {
                 kind: "activated",
-                itemId: item.id,
-                value: item.value,
-                item,
+                controlId: control.id,
+                value: control.value,
+                control,
             }
         }
 
@@ -354,14 +354,14 @@ namespace ui {
          */
         public createResultForMove(
             result: UiFocusMoveResult,
-        ): UiActionRowResult<T> {
+        ): UiControlRowResult<T> {
             if (result.kind != "exited" || result.scopeId != this.scopeId_)
                 return undefined
             return {
                 kind: "exited",
                 direction: result.direction,
                 scopeId: result.scopeId,
-                itemId: _uiWidgets.itemIdFromTargetId(
+                controlId: _uiWidgets.controlIdFromTargetId(
                     this.scopeId_,
                     result.targetId,
                 ),
@@ -369,80 +369,80 @@ namespace ui {
         }
 
         /**
-         * Renders visible row items through the supplied draw surface.
+         * Renders visible row controls through the supplied draw surface.
          */
         public render(
             surface: DrawSurface,
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
-            this.ensureItemRects()
+            this.ensureControlRects()
             const activeTargetId = focus
                 ? focus.getActiveTargetId(this.scopeId_)
                 : undefined
             let focusedIndex = -1
-            for (let i = 0; i < this.items_.length; i++) {
-                const item = this.items_[i]
-                if (!_uiWidgets.isVisible(item)) continue
+            for (let i = 0; i < this.controls_.length; i++) {
+                const control = this.controls_[i]
+                if (!_uiWidgets.isVisible(control)) continue
                 const focused =
                     activeTargetId ==
-                    _uiWidgets.targetId(this.scopeId_, item.id)
-                if (focused && !item.draw) focusedIndex = i
-                _uiWidgets.renderActionItem(
+                    _uiWidgets.targetId(this.scopeId_, control.id)
+                if (focused && !control.draw) focusedIndex = i
+                _uiWidgets.renderControl(
                     surface,
                     assets,
-                    item,
-                    this.itemRects_[i],
-                    focused && !!item.draw,
-                    this.itemButtonView_,
-                    this.buttonStyle_,
+                    control,
+                    this.controlRects_[i],
+                    focused && !!control.draw,
+                    this.controlView_,
+                    this.controlStyle_,
                     this.labelBounds_,
                 )
             }
             if (focusedIndex >= 0) {
-                _uiWidgets.renderActionItemFocus(
+                _uiWidgets.renderControlFocus(
                     surface,
                     assets,
-                    this.items_[focusedIndex],
-                    this.itemRects_[focusedIndex],
-                    this.itemButtonView_,
-                    this.buttonStyle_,
+                    this.controls_[focusedIndex],
+                    this.controlRects_[focusedIndex],
+                    this.controlView_,
+                    this.controlStyle_,
                     this.labelBounds_,
                 )
             }
         }
 
-        private ensureItemRects(): void {
-            while (this.itemRects_.length < this.items_.length)
-                this.itemRects_.push(new Rect())
-            while (this.itemRects_.length > this.items_.length)
-                this.itemRects_.pop()
+        private ensureControlRects(): void {
+            while (this.controlRects_.length < this.controls_.length)
+                this.controlRects_.push(new Rect())
+            while (this.controlRects_.length > this.controls_.length)
+                this.controlRects_.pop()
         }
 
         private navigationTargets(): UiFocusNavigationTarget[] {
-            this.ensureItemRects()
+            this.ensureControlRects()
             const targets: UiFocusNavigationTarget[] = []
-            for (let i = 0; i < this.items_.length; i++) {
-                const item = this.items_[i]
-                const rect = this.itemRects_[i]
+            for (let i = 0; i < this.controls_.length; i++) {
+                const control = this.controls_[i]
+                const rect = this.controlRects_[i]
                 targets.push({
-                    id: _uiWidgets.targetId(this.scopeId_, item.id),
+                    id: _uiWidgets.targetId(this.scopeId_, control.id),
                     rect,
                     scrollOwnerId: this.scrollOwnerId_,
                     scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                    disabled: _uiWidgets.isDisabled(item),
-                    hidden: !_uiWidgets.isVisible(item),
+                    disabled: _uiWidgets.isDisabled(control),
+                    hidden: !_uiWidgets.isVisible(control),
                 })
             }
             return targets
         }
 
-        private emitActivate(result: UiActionRowResult<T>): void {
+        private emitActivate(result: UiControlRowResult<T>): void {
             if (!result || result.kind != "activated") return
-            _uiWidgets.emitActionActivate(
+            _uiWidgets.emitControlActivate(
                 result.value,
-                result.item,
-                result.itemId,
+                result.control,
+                result.controlId,
                 this.onActivate_,
             )
         }

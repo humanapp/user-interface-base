@@ -5419,11 +5419,11 @@ namespace ui {
     }
 
     /**
-     * Smoke harness for reusable button visuals.
+     * Smoke harness for reusable control visuals.
      */
     export function runWidgetButtonSmokeTest(): void {
         const surface = new WidgetSmokeSurface()
-        const button = new UiButtonView({
+        const buttonView = new UiButtonView({
             style: UiButtonStyles.LightShadowedWhite,
         })
         const rect = new Rect(10, 20, 18, 18)
@@ -5434,16 +5434,16 @@ namespace ui {
       2 2
     `
 
-        button.measure({ bitmap }, measured)
-        control.assert(measured.preferredWidth == 6, "button measured width")
-        control.assert(measured.preferredHeight == 6, "button measured height")
-        button.render(surface, rect, { bitmap }, { focused: true, contentRect })
+        buttonView.measure({ bitmap }, measured)
+        control.assert(measured.preferredWidth == 6, "control measured width")
+        control.assert(measured.preferredHeight == 6, "control measured height")
+        buttonView.render(surface, rect, { bitmap }, { focused: true, contentRect })
 
-        assertLayoutRect(contentRect, 18, 28, 2, 2, "button content rect")
-        control.assert(surface.log.indexOf("fill:1;") >= 0, "button fill")
-        control.assert(surface.log.indexOf("line:11;") >= 0, "button shadow")
-        control.assert(surface.log.indexOf("bitmap:2x2;") >= 0, "button bitmap")
-        control.assert(surface.log.indexOf("line:9;") >= 0, "button focus")
+        assertLayoutRect(contentRect, 18, 28, 2, 2, "control content rect")
+        control.assert(surface.log.indexOf("fill:1;") >= 0, "control fill")
+        control.assert(surface.log.indexOf("line:11;") >= 0, "control shadow")
+        control.assert(surface.log.indexOf("bitmap:2x2;") >= 0, "control bitmap")
+        control.assert(surface.log.indexOf("line:9;") >= 0, "control focus")
 
         const focusLabelStyle = buttonStyle(
             UiButtonStyles.Transparent,
@@ -5456,28 +5456,28 @@ namespace ui {
                 focusLabelGap: 2,
             },
         )
-        control.assert(focusLabelStyle.focusColor == 4, "button style override")
+        control.assert(focusLabelStyle.focusColor == 4, "control style override")
         surface.log = ""
-        button.render(surface, rect, { bitmap, text: "go" }, {
+        buttonView.render(surface, rect, { bitmap, text: "go" }, {
             style: focusLabelStyle,
         })
         control.assert(
             surface.log.indexOf("text:go;") < 0,
-            "button focus label hidden",
+            "control focus label hidden",
         )
         surface.log = ""
-        button.render(surface, rect, { bitmap, text: "go" }, {
+        buttonView.render(surface, rect, { bitmap, text: "go" }, {
             focused: true,
             style: focusLabelStyle,
             labelBounds: new Rect(0, 0, 40, 40),
         })
         control.assert(
             surface.log.indexOf("fill:7;") >= 0,
-            "button focus label fill",
+            "control focus label fill",
         )
         control.assert(
             surface.log.indexOf("text:go;") >= 0,
-            "button focus label text",
+            "control focus label text",
         )
     }
 
@@ -5526,10 +5526,10 @@ namespace ui {
         )
 
         let rowLog = ""
-        const row: UiFocusableWidget<UiActionRowResult<string>> =
-            new UiActionRow<string>({
+        const row: UiFocusableWidget<UiControlRowResult<string>> =
+            new UiControlRow<string>({
                 scopeId: "controller-row",
-                items: [
+                controls: [
                     { id: "a", value: "A" },
                     { id: "b", value: "B", selected: true },
                 ],
@@ -5564,7 +5564,7 @@ namespace ui {
             new UiModalGrid<string>({
                 parentScopeId: "controller-row",
                 modalScopeId: "controller-modal",
-                items: [{ id: "modal-item", value: "M" }],
+                controls: [{ id: "modal-control", value: "M" }],
                 onCancel: () => {
                     rowLog += "cancel;"
                 },
@@ -5625,40 +5625,40 @@ namespace ui {
     function assertWidgetActivation<T>(
         result: any,
         kind: string,
-        itemId: string,
+        controlId: string,
         value: T,
         name: string,
     ): void {
         control.assert(!!result, name + " result exists")
         control.assert(result.kind == kind, name + " result kind")
-        control.assert(result.itemId == itemId, name + " item id")
+        control.assert(result.controlId == controlId, name + " control id")
         control.assert(result.value == value, name + " value")
         control.assert(
-            !!result.item && result.item.id == itemId,
-            name + " source item",
+            !!result.control && result.control.id == controlId,
+            name + " source control",
         )
     }
 
     /**
-     * Smoke harness for shared action item records and default rendering.
+     * Smoke harness for shared control records and default rendering.
      */
-    export function runWidgetActionItemSmokeTest(): void {
+    export function runWidgetControlSmokeTest(): void {
         const assets = new WidgetSmokeAssets()
         const surface = new WidgetSmokeSurface()
         let drawLog = ""
-        const drawItem: UiActionItem<string> = {
+        const drawControl: UiControl<string> = {
             id: "custom",
             value: "custom-value",
             draw: (
                 target: DrawSurface,
-                item: UiActionItem<string>,
+                control: UiControl<string>,
                 rect: Rect,
                 focused: boolean,
             ) => {
-                drawLog += item.id + ":" + focused + ";"
+                drawLog += control.id + ":" + focused + ";"
             },
         }
-        const items: UiActionItem<string>[] = [
+        const controls: UiControl<string>[] = [
             { id: "text", value: "typed", text: "caller", selected: true },
             { id: "textId", value: "text-id", textId: "knownText" },
             { id: "bitmap", value: "bitmap", bitmap: bmp`3` },
@@ -5678,32 +5678,32 @@ namespace ui {
             },
             { id: "hidden", value: "hidden", text: "hidden", visible: false },
             { id: "toggle", value: "toggle", text: "toggle", toggled: true },
-            drawItem,
+            drawControl,
         ]
-        const row = new UiActionRow<string>({
-            scopeId: "items",
-            items,
-            itemWidth: 30,
-            itemHeight: 12,
+        const row = new UiControlRow<string>({
+            scopeId: "controls",
+            controls,
+            controlWidth: 30,
+            controlHeight: 12,
             gap: 1,
         })
         const measured = new UiMeasuredSize()
         row.measure({ maxWidth: 400, maxHeight: 40 }, measured)
         control.assert(
             measured.preferredWidth == 309,
-            "item row measured width",
+            "control row measured width",
         )
         row.arrange(new Rect(0, 0, 400, 20))
         row.render(surface, assets)
 
         const labelFocus = new UiFocusState()
         const labelSurface = new WidgetSmokeSurface()
-        const labelRow = new UiActionRow<string>({
-            scopeId: "item-labels",
-            items: [{ id: "label", value: "label", textId: "knownText" }],
-            itemWidth: 24,
-            itemHeight: 20,
-            buttonStyle: buttonStyle(
+        const labelRow = new UiControlRow<string>({
+            scopeId: "control-labels",
+            controls: [{ id: "label", value: "label", textId: "knownText" }],
+            controlWidth: 24,
+            controlHeight: 20,
+            controlStyle: buttonStyle(
                 UiButtonStyles.Transparent,
                 UiButtonStyles.FocusLabel,
                 { focusLabelBackgroundColor: 7 },
@@ -5716,20 +5716,20 @@ namespace ui {
         labelRow.render(labelSurface, assets, labelFocus)
         control.assert(
             labelSurface.log.indexOf("text:resolved;") >= 0,
-            "action item focus label text",
+            "control focus label text",
         )
         control.assert(
             labelSurface.log.indexOf("fill:7;") >= 0,
-            "action item focus label fill",
+            "control focus label fill",
         )
 
         control.assert(
-            items[0].visible === undefined,
+            controls[0].visible === undefined,
             "visible omitted default",
         )
-        control.assert(_uiWidgets.isVisible(items[0]), "visible default true")
+        control.assert(_uiWidgets.isVisible(controls[0]), "visible default true")
         control.assert(
-            _uiWidgets.itemText(
+            _uiWidgets.controlText(
                 {
                     id: "precedence",
                     value: "value",
@@ -5741,7 +5741,7 @@ namespace ui {
             "caller text precedence",
         )
         control.assert(
-            _uiWidgets.itemBitmap(
+            _uiWidgets.controlBitmap(
                 {
                     id: "precedence",
                     value: "value",
@@ -5775,45 +5775,45 @@ namespace ui {
         )
         control.assert(drawLog == "custom:false;", "draw callback precedence")
         control.assert(
-            _uiWidgets.itemBitmap(items[4], assets) == assets.fallbackBitmap,
+            _uiWidgets.controlBitmap(controls[4], assets) == assets.fallbackBitmap,
             "missing bitmap fallback",
         )
         control.assert(
-            _uiWidgets.itemBitmap(items[5], assets) === undefined,
+            _uiWidgets.controlBitmap(controls[5], assets) === undefined,
             "missing bitmap omitted",
         )
-        control.assert(_uiWidgets.isDisabled(items[6]), "disabled flag")
-        control.assert(!_uiWidgets.isVisible(items[7]), "hidden flag")
-        control.assert(_uiWidgets.isSelected(items[0]), "selected flag")
-        control.assert(_uiWidgets.isToggled(items[8]), "toggled flag")
+        control.assert(_uiWidgets.isDisabled(controls[6]), "disabled flag")
+        control.assert(!_uiWidgets.isVisible(controls[7]), "hidden flag")
+        control.assert(_uiWidgets.isSelected(controls[0]), "selected flag")
+        control.assert(_uiWidgets.isToggled(controls[8]), "toggled flag")
     }
 
     /**
-     * Smoke harness for action row focus, navigation, activation, and exits.
+     * Smoke harness for control row focus, navigation, activation, and exits.
      */
-    export function runWidgetActionRowSmokeTest(): void {
+    export function runWidgetControlRowSmokeTest(): void {
         const focus = new UiFocusState()
         const controller = new UiFocusInputController({ focus })
         let activationLog = ""
-        const row = new UiActionRow<number>({
+        const row = new UiControlRow<number>({
             scopeId: "row",
-            defaultItemId: "disabled",
-            items: [
+            defaultControlId: "disabled",
+            controls: [
                 {
                     id: "a",
                     value: 1,
                     onActivate: (
                         value: number,
-                        item: UiActionItem<number>,
-                        itemId: string,
+                        control: UiControl<number>,
+                        controlId: string,
                     ) => {
                         activationLog +=
-                            "item:" +
-                            itemId +
+                            "control:" +
+                            controlId +
                             ":" +
                             value +
                             ":" +
-                            item.id +
+                            control.id +
                             ";"
                     },
                 },
@@ -5821,15 +5821,15 @@ namespace ui {
                 { id: "disabled", value: 3, disabled: true },
                 { id: "c", value: 4, selected: true },
             ],
-            itemWidth: 10,
-            itemHeight: 10,
+            controlWidth: 10,
+            controlHeight: 10,
             gap: 0,
             onActivate: (
                 value: number,
-                item: UiActionItem<number>,
-                itemId: string,
+                control: UiControl<number>,
+                controlId: string,
             ) => {
-                activationLog += itemId + ":" + value + ":" + item.id + ";"
+                activationLog += controlId + ":" + value + ":" + control.id + ";"
             },
         })
 
@@ -5852,20 +5852,20 @@ namespace ui {
         const activated = row.handleFocusInput(inputResult)
         assertWidgetActivation(activated, "activated", "a", 1, "row activated")
         control.assert(
-            activationLog == "item:a:1:a;a:1:a;",
+            activationLog == "control:a:1:a;a:1:a;",
             "row activation callback",
         )
         inputResult = controller.handleInput({ action: "left" })
         const exited = row.handleFocusInput(inputResult)
         control.assert(exited.kind == "exited", "row boundary exit")
         control.assert((<any>exited).direction == "left", "row exit direction")
-        control.assert((<any>exited).itemId == "a", "row exit item")
+        control.assert((<any>exited).controlId == "a", "row exit control")
 
         const rect = new Rect()
-        control.assert(row.getItemRect("c", rect), "row item rect exists")
-        assertLayoutRect(rect, 30, 0, 10, 10, "row item rect")
+        control.assert(row.getControlRect("c", rect), "row control rect exists")
+        assertLayoutRect(rect, 30, 0, 10, 10, "row control rect")
 
-        row.setItems([{ id: "replacement", value: 9 }])
+        row.setControls([{ id: "replacement", value: 9 }])
         row.arrange(new Rect(0, 0, 20, 10))
         row.registerFocusTargets(focus)
         row.registerNavigation(controller)
@@ -5894,15 +5894,15 @@ namespace ui {
         )
         control.assert(
             activationLog ==
-                "item:a:1:a;a:1:a;replacement:9:replacement;",
+                "control:a:1:a;a:1:a;replacement:9:replacement;",
             "row replacement callback",
         )
     }
 
     /**
-     * Smoke harness for action grid rectangular, ragged, scroll, and exit behavior.
+     * Smoke harness for control grid rectangular, ragged, scroll, and exit behavior.
      */
-    export function runWidgetActionGridSmokeTest(): void {
+    export function runWidgetControlGridSmokeTest(): void {
         const focus = new UiFocusState()
         const scrollRequests: UiFocusScrollRequest[] = []
         const controller = new UiFocusInputController({
@@ -5910,9 +5910,9 @@ namespace ui {
             scroll: request => scrollRequests.push(request),
         })
         let activationLog = ""
-        const grid = new UiActionGrid<number>({
+        const grid = new UiControlGrid<number>({
             scopeId: "grid",
-            items: [
+            controls: [
                 { id: "a", value: 1 },
                 { id: "b", value: 2, visible: false },
                 {
@@ -5920,16 +5920,16 @@ namespace ui {
                     value: 3,
                     onActivate: (
                         value: number,
-                        item: UiActionItem<number>,
-                        itemId: string,
+                        control: UiControl<number>,
+                        controlId: string,
                     ) => {
                         activationLog +=
-                            "item:" +
-                            itemId +
+                            "control:" +
+                            controlId +
                             ":" +
                             value +
                             ":" +
-                            item.id +
+                            control.id +
                             ";"
                     },
                 },
@@ -5937,17 +5937,17 @@ namespace ui {
                 { id: "e", value: 5, selected: true },
             ],
             columnCount: 3,
-            itemWidth: 8,
-            itemHeight: 6,
+            controlWidth: 8,
+            controlHeight: 6,
             rowGap: 1,
             columnGap: 2,
             scrollOwnerId: "grid-scroll",
             onActivate: (
                 value: number,
-                item: UiActionItem<number>,
-                itemId: string,
+                control: UiControl<number>,
+                controlId: string,
             ) => {
-                activationLog += itemId + ":" + value + ":" + item.id + ";"
+                activationLog += controlId + ":" + value + ":" + control.id + ";"
             },
         })
 
@@ -6010,7 +6010,7 @@ namespace ui {
             "grid activated",
         )
         control.assert(
-            activationLog == "item:c:3:c;c:3:c;",
+            activationLog == "control:c:3:c;c:3:c;",
             "grid activation callback",
         )
         inputResult = controller.handleInput({ action: "right" })
@@ -6018,7 +6018,7 @@ namespace ui {
         control.assert(exit.kind == "exited", "grid boundary exit")
         control.assert((<any>exit).direction == "right", "grid exit direction")
 
-        grid.setItems([{ id: "replacement", value: 99 }])
+        grid.setControls([{ id: "replacement", value: 99 }])
         grid.arrange(new Rect(10, 20, 40, 20))
         grid.registerFocusTargets(focus)
         grid.registerNavigation(controller)
@@ -6047,7 +6047,7 @@ namespace ui {
         )
         control.assert(
             activationLog ==
-                "item:c:3:c;c:3:c;replacement:99:replacement;",
+                "control:c:3:c;c:3:c;replacement:99:replacement;",
             "grid replacement callback",
         )
 
@@ -6055,17 +6055,17 @@ namespace ui {
         const raggedController = new UiFocusInputController({
             focus: raggedFocus,
         })
-        const ragged = new UiActionGrid<string>({
+        const ragged = new UiControlGrid<string>({
             scopeId: "ragged",
-            items: [
+            controls: [
                 { id: "r0a", value: "r0a" },
                 { id: "r1a", value: "r1a" },
                 { id: "r1b", value: "r1b" },
                 { id: "r2a", value: "r2a" },
             ],
             rows: [1, 2, 1],
-            itemWidth: 10,
-            itemHeight: 8,
+            controlWidth: 10,
+            controlHeight: 8,
         })
         ragged.arrange(new Rect(0, 0, 60, 60))
         ragged.registerFocusTargets(raggedFocus)
@@ -6103,23 +6103,23 @@ namespace ui {
         let cancelLog = ""
         focus.setScope({ id: "parent" })
         focus.setTarget({
-            id: "parent/item",
+            id: "parent/control",
             scopeId: "parent",
             rect: new Rect(0, 0, 10, 10),
             activatable: true,
         })
-        focus.setActiveTarget("parent", "parent/item")
+        focus.setActiveTarget("parent", "parent/control")
 
         const modal = new UiModalGrid<string>({
             parentScopeId: "parent",
             modalScopeId: "modal",
             title: "Caller title",
             titleId: "knownText",
-            defaultItemId: "disabled",
+            defaultControlId: "disabled",
             deleteEnabled: true,
             closeOnActivate: true,
             columnCount: 2,
-            items: [
+            controls: [
                 { id: "a", value: "A" },
                 { id: "disabled", value: "D", disabled: true },
                 { id: "hidden", value: "H", visible: false },
@@ -6129,51 +6129,51 @@ namespace ui {
                     selected: true,
                     onActivate: (
                         value: string,
-                        item: UiActionItem<string>,
-                        itemId: string,
+                        control: UiControl<string>,
+                        controlId: string,
                     ) => {
                         activationLog +=
-                            "item:" +
-                            itemId +
+                            "control:" +
+                            controlId +
                             ":" +
                             value +
                             ":" +
-                            item.id +
+                            control.id +
                             ";"
                     },
                 },
             ],
             onActivate: (
                 value: string,
-                item: UiActionItem<string>,
-                itemId: string,
+                control: UiControl<string>,
+                controlId: string,
             ) => {
-                activationLog += itemId + ":" + value + ":" + item.id + ";"
+                activationLog += controlId + ":" + value + ":" + control.id + ";"
             },
             onCancel: (modalScopeId: UiFocusScopeId) => {
                 cancelLog += modalScopeId + ";"
             },
         })
         modal.arrange(new Rect(20, 20, 80, 60))
-        const modalItemRect = new Rect()
+        const modalControlRect = new Rect()
         control.assert(
-            modal.getItemRect("selected", modalItemRect),
-            "modal item rect exists",
+            modal.getControlRect("selected", modalControlRect),
+            "modal control rect exists",
         )
         assertLayoutRect(
-            modalItemRect,
+            modalControlRect,
             50,
             58,
             24,
             20,
-            "modal selected item rect",
+            "modal selected control rect",
         )
         const roomyModal = new UiModalGrid<string>({
             parentScopeId: "parent",
             modalScopeId: "roomy",
             contentMargin: 6,
             columnCount: 2,
-            items: [
+            controls: [
                 { id: "a", value: "A" },
                 { id: "b", value: "B" },
             ],
@@ -6192,7 +6192,7 @@ namespace ui {
             parentScopeId: "parent",
             modalScopeId: "gapped",
             titleGap: 3,
-            items: [{ id: "a", value: "A" }],
+            controls: [{ id: "a", value: "A" }],
         })
         const gappedMeasured = new UiMeasuredSize()
         gappedModal.measure({ maxWidth: 100, maxHeight: 100 }, gappedMeasured)
@@ -6202,16 +6202,16 @@ namespace ui {
         )
         gappedModal.arrange(new Rect(0, 0, 40, 50))
         control.assert(
-            gappedModal.getItemRect("a", modalItemRect),
-            "modal title gap item rect exists",
+            gappedModal.getControlRect("a", modalControlRect),
+            "modal title gap control rect exists",
         )
         assertLayoutRect(
-            modalItemRect,
+            modalControlRect,
             4,
             19,
             24,
             20,
-            "modal title gap item rect",
+            "modal title gap control rect",
         )
         modal.open(focus, controller)
         control.assert(
@@ -6219,7 +6219,7 @@ namespace ui {
             "modal active scope",
         )
         control.assert(
-            focus.getActiveTargetId("parent") == "parent/item",
+            focus.getActiveTargetId("parent") == "parent/control",
             "modal preserved parent target",
         )
         control.assert(
@@ -6234,7 +6234,7 @@ namespace ui {
             parentScopeId: "parent",
             modalScopeId: "title",
             titleId: "knownText",
-            items: [{ id: "a", value: "A" }],
+            controls: [{ id: "a", value: "A" }],
         })
         control.assert(
             resolverTitle.resolveTitleText(assets) == "resolved",
@@ -6268,7 +6268,7 @@ namespace ui {
             "modal close restores parent",
         )
         control.assert(
-            focus.getActiveTargetId("parent") == "parent/item",
+            focus.getActiveTargetId("parent") == "parent/control",
             "modal close restores target",
         )
 
@@ -6283,7 +6283,7 @@ namespace ui {
             "modal activate",
         )
         control.assert(
-            activationLog == "item:selected:S:selected;selected:S:selected;",
+            activationLog == "control:selected:S:selected;selected:S:selected;",
             "modal activation callback",
         )
         control.assert((<any>activated).close, "modal activate close flag")
@@ -6301,32 +6301,32 @@ namespace ui {
             parentScopeId: "parent",
             modalScopeId: "keep",
             closeOnActivate: false,
-            items: [
+            controls: [
                 {
                     id: "edit",
                     value: "E",
                     onActivate: (
                         value: string,
-                        item: UiActionItem<string>,
-                        itemId: string,
+                        control: UiControl<string>,
+                        controlId: string,
                     ) => {
                         activationLog +=
-                            "item:" +
-                            itemId +
+                            "control:" +
+                            controlId +
                             ":" +
                             value +
                             ":" +
-                            item.id +
+                            control.id +
                             ";"
                     },
                 },
             ],
             onActivate: (
                 value: string,
-                item: UiActionItem<string>,
-                itemId: string,
+                control: UiControl<string>,
+                controlId: string,
             ) => {
-                activationLog += itemId + ":" + value + ":" + item.id + ";"
+                activationLog += controlId + ":" + value + ":" + control.id + ";"
             },
         })
         keepOpen.arrange(new Rect(0, 0, 60, 40))
@@ -6342,8 +6342,8 @@ namespace ui {
         )
         control.assert(
             activationLog ==
-                "item:selected:S:selected;selected:S:selected;" +
-                    "item:edit:E:edit;edit:E:edit;",
+                "control:selected:S:selected;selected:S:selected;" +
+                    "control:edit:E:edit;edit:E:edit;",
             "modal keep-open callback",
         )
         control.assert(
@@ -6368,16 +6368,16 @@ namespace ui {
         const controller = new UiFocusInputController({ focus })
         focus.setScope({ id: "parent" })
         focus.setTarget({
-            id: "parent/item",
+            id: "parent/control",
             scopeId: "parent",
             rect: new Rect(0, 0, 10, 10),
             activatable: true,
         })
-        focus.setActiveTarget("parent", "parent/item")
+        focus.setActiveTarget("parent", "parent/control")
 
-        const ledItems: UiActionItem<number>[] = []
+        const ledControls: UiControl<number>[] = []
         for (let i = 0; i < 25; i++) {
-            ledItems.push({
+            ledControls.push({
                 id: "led" + i,
                 value: i,
                 toggled: i == 12,
@@ -6387,11 +6387,11 @@ namespace ui {
         const led = new UiToggleGrid<number>({
             parentScopeId: "parent",
             modalScopeId: "led",
-            items: ledItems,
+            controls: ledControls,
             columnCount: 5,
-            defaultItemId: "led12",
+            defaultControlId: "led12",
             deleteEnabled: true,
-            toggle: item => ({ kind: "keepOpen", value: item.value + 100 }),
+            toggle: control => ({ kind: "keepOpen", value: control.value + 100 }),
         })
         led.arrange(new Rect(0, 0, 100, 100))
         led.open(focus, controller)
@@ -6429,10 +6429,10 @@ namespace ui {
             "led close restore",
         )
 
-        const melodyItems: UiActionItem<string>[] = []
+        const melodyControls: UiControl<string>[] = []
         for (let column = 0; column < 4; column++) {
             for (let row = 0; row < 5; row++) {
-                melodyItems.push({
+                melodyControls.push({
                     id: "m" + column + "-" + row,
                     value: column + ":" + row,
                 })
@@ -6442,11 +6442,11 @@ namespace ui {
         const melody = new UiToggleGrid<string>({
             parentScopeId: "parent",
             modalScopeId: "melody",
-            items: melodyItems,
+            controls: melodyControls,
             columnCount: 4,
-            defaultItemId: "m2-3",
-            toggle: item => {
-                melodyColumn = item.id.substr(1, 1)
+            defaultControlId: "m2-3",
+            toggle: control => {
+                melodyColumn = control.id.substr(1, 1)
                 return { kind: "keepOpen", value: "column-" + melodyColumn }
             },
         })
@@ -6601,9 +6601,9 @@ namespace ui {
         focus.addFocusObserver((event: UiFocusEvent) => {
             focusRequests++
         })
-        const row = new UiActionRow<number>({
+        const row = new UiControlRow<number>({
             scopeId: "observe-row",
-            items: [
+            controls: [
                 { id: "a", value: 1 },
                 { id: "b", value: 2 },
             ],
@@ -6673,9 +6673,9 @@ ui.runModalFocusSmokeTest()
 ui.runObservationSmokeTest()
 ui.runWidgetButtonSmokeTest()
 ui.runWidgetControllerSmokeTest()
-ui.runWidgetActionItemSmokeTest()
-ui.runWidgetActionRowSmokeTest()
-ui.runWidgetActionGridSmokeTest()
+ui.runWidgetControlSmokeTest()
+ui.runWidgetControlRowSmokeTest()
+ui.runWidgetControlGridSmokeTest()
 ui.runWidgetModalGridSmokeTest()
 ui.runWidgetToggleGridSmokeTest()
 ui.runWidgetNumericEntrySmokeTest()

@@ -1,6 +1,6 @@
 namespace ui {
     /**
-     * Options for a modal picker or action grid.
+     * Options for a modal picker or control grid.
      */
     export interface UiModalGridOptions<T> {
         /**
@@ -14,9 +14,9 @@ namespace ui {
         modalScopeId: UiFocusScopeId
 
         /**
-         * Caller-owned modal item records.
+         * Caller-owned modal control records.
          */
-        items: UiActionItem<T>[]
+        controls: UiControl<T>[]
 
         /**
          * Visible modal title. Takes precedence over `titleId`.
@@ -29,9 +29,9 @@ namespace ui {
         titleId?: string
 
         /**
-         * Item id to focus first when available.
+         * Control id to focus first when available.
          */
-        defaultItemId?: string
+        defaultControlId?: string
 
         /**
          * Whether delete may emit a `deleted` result.
@@ -54,27 +54,27 @@ namespace ui {
         rows?: number[]
 
         /**
-         * Width assigned to each item.
+         * Width assigned to each control.
          */
-        itemWidth?: number
+        controlWidth?: number
 
         /**
-         * Height assigned to each item.
+         * Height assigned to each control.
          */
-        itemHeight?: number
+        controlHeight?: number
 
         /**
-         * Button style used by items without a custom draw callback.
+         * Control style used by controls without a custom draw callback.
          */
-        buttonStyle?: UiButtonStyle
+        controlStyle?: UiButtonStyle
 
         /**
-         * Inset between the modal outline and item grid. Defaults to `4`.
+         * Inset between the modal outline and control grid. Defaults to `4`.
          */
         contentMargin?: number
 
         /**
-         * Extra vertical space between the title band and item grid. Defaults to `0`.
+         * Extra vertical space between the title band and control grid. Defaults to `0`.
          */
         titleGap?: number
 
@@ -94,9 +94,9 @@ namespace ui {
         titleColor?: number
 
         /**
-         * Called when an enabled modal item is activated.
+         * Called when an enabled modal control is activated.
          */
-        onActivate?: UiActionActivateHandler<T>
+        onActivate?: UiControlActivateHandler<T>
 
         /**
          * Called when the modal reports cancellation.
@@ -120,16 +120,16 @@ namespace ui {
     export type UiModalGridResult<T> =
         | {
               kind: "activated"
-              itemId: string
+              controlId: string
               value: T
-              item: UiActionItem<T>
+              control: UiControl<T>
               close: true
           }
         | {
               kind: "keepOpen"
-              itemId: string
+              controlId: string
               value: T
-              item: UiActionItem<T>
+              control: UiControl<T>
               updatedValue?: T
           }
         | { kind: "cancelled"; modalScopeId: UiFocusScopeId }
@@ -137,7 +137,7 @@ namespace ui {
         | { kind: "deleted"; modalScopeId: UiFocusScopeId }
 
     /**
-     * Modal picker or action grid backed by a `ui-core` modal focus scope.
+     * Modal picker or control grid backed by a `ui-core` modal focus scope.
      */
     export class UiModalGrid<T> implements UiModal<UiModalGridResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
@@ -154,8 +154,8 @@ namespace ui {
         private titleColor_: number
         private contentMargin_: number
         private titleGap_: number
-        private grid_: UiActionGrid<T>
-        private onActivate_: UiActionActivateHandler<T>
+        private grid_: UiControlGrid<T>
+        private onActivate_: UiControlActivateHandler<T>
         private onCancel_: UiModalGridCancelHandler
         private scratch_: Rect
 
@@ -180,15 +180,15 @@ namespace ui {
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.scratch_ = new Rect()
-            this.grid_ = new UiActionGrid<T>({
+            this.grid_ = new UiControlGrid<T>({
                 scopeId: options.modalScopeId,
-                items: options.items,
-                defaultItemId: options.defaultItemId,
+                controls: options.controls,
+                defaultControlId: options.defaultControlId,
                 columnCount: options.columnCount,
                 rows: options.rows,
-                itemWidth: options.itemWidth,
-                itemHeight: options.itemHeight,
-                buttonStyle: options.buttonStyle,
+                controlWidth: options.controlWidth,
+                controlHeight: options.controlHeight,
+                controlStyle: options.controlStyle,
             })
             this.layoutSpec = _uiWidgets.defaultLayoutSpec()
             this.finalRect = new Rect()
@@ -203,17 +203,17 @@ namespace ui {
         }
 
         /**
-         * Current caller-owned item array.
+         * Current caller-owned control array.
          */
-        public get items(): UiActionItem<T>[] {
-            return this.grid_.items
+        public get controls(): UiControl<T>[] {
+            return this.grid_.controls
         }
 
         /**
-         * Copies one arranged modal item rectangle into `output`.
+         * Copies one arranged modal control rectangle into `output`.
          */
-        public getItemRect(itemId: string, output: Rect): boolean {
-            return this.grid_.getItemRect(itemId, output)
+        public getControlRect(controlId: string, output: Rect): boolean {
+            return this.grid_.getControlRect(controlId, output)
         }
 
         /**
@@ -235,7 +235,7 @@ namespace ui {
         }
 
         /**
-         * Arranges the modal panel and item grid.
+         * Arranges the modal panel and control grid.
          */
         public arrange(rect: Rect): void {
             copyArrangedLayoutRect(this.finalRect, rect)
@@ -270,7 +270,7 @@ namespace ui {
         }
 
         /**
-         * Registers the modal scope, item targets, and optional navigation.
+         * Registers the modal scope, control targets, and optional navigation.
          */
         public open(
             focus: UiFocusState,
@@ -315,17 +315,17 @@ namespace ui {
             if (this.closeOnActivate_) {
                 return {
                     kind: "activated",
-                    itemId: gridResult.itemId,
+                    controlId: gridResult.controlId,
                     value: gridResult.value,
-                    item: gridResult.item,
+                    control: gridResult.control,
                     close: true,
                 }
             }
             return {
                 kind: "keepOpen",
-                itemId: gridResult.itemId,
+                controlId: gridResult.controlId,
                 value: gridResult.value,
-                item: gridResult.item,
+                control: gridResult.control,
             }
         }
 
@@ -377,7 +377,7 @@ namespace ui {
         }
 
         /**
-         * Renders the modal panel, title, and visible items.
+         * Renders the modal panel, title, and visible controls.
          */
         public render(
             surface: DrawSurface,
@@ -438,10 +438,10 @@ namespace ui {
                 (result.kind != "activated" && result.kind != "keepOpen")
             )
                 return
-            _uiWidgets.emitActionActivate(
+            _uiWidgets.emitControlActivate(
                 result.value,
-                result.item,
-                result.itemId,
+                result.control,
+                result.controlId,
                 this.onActivate_,
             )
         }

@@ -185,7 +185,7 @@ namespace ui {
     /**
      * Renders the current entry text.
      */
-    public render(surface: DrawSurface, rect: Rect, palette?: UiActionItemPalette): void {
+    public render(surface: DrawSurface, rect: Rect, palette?: UiControlPalette): void {
       const background = palette && palette.backgroundColor !== undefined ? palette.backgroundColor : 0
       const foreground = palette && palette.foregroundColor !== undefined ? palette.foregroundColor : 15
       surface.fillRect(rect, background)
