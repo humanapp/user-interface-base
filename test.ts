@@ -5482,144 +5482,112 @@ namespace ui {
     }
 
     /**
-     * Smoke harness for screen-local widget focus and input plumbing.
+     * Smoke harness for screen-owned widget focus and input plumbing.
      */
-    export function runWidgetControllerSmokeTest(): void {
-        const widgets = new UiWidgetController()
-        const input = new TestInputScope()
-        let log = ""
-
-        widgets.focus.setScope({ id: "controller" })
-        widgets.focus.setTarget({
-            id: "controller/action",
-            scopeId: "controller",
-            rect: new Rect(0, 0, 10, 10),
-            activatable: true,
+    export function runScreenControllerSmokeTest(): void {
+        let screenLog = ""
+        const screen = new UiScreenController()
+        const screenInput = new TestInputScope()
+        const screenRuntime = new UiRuntime({
+            display: new RuntimeSmokeDisplayAdapter(() => {}),
+            assets: new WidgetSmokeAssets(),
         })
-        widgets.focus.setActiveTarget("controller", "controller/action")
-        widgets.registerInput(input, (event: UiInputEvent): boolean =>
-            widgets.handleFocusInput(event, (
-                result: UiFocusInputResult,
-                deliveredEvent: UiInputEvent,
-            ): boolean | undefined => {
-                log += deliveredEvent.action + ":" + result.kind + ";"
-                if (result.kind == "activated") return true
-                return undefined
-            }),
-        )
-
-        control.assert(
-            input.deliver({ action: "activate" }),
-            "widget controller activation handled",
-        )
-        control.assert(
-            !input.deliver({ action: "cancel" }),
-            "widget controller default handled result",
-        )
-        control.assert(
-            !input.deliver({ action: "menu" }),
-            "widget controller leaves menu unregistered",
-        )
-        control.assert(
-            log == "activate:activated;cancel:notCancelled;",
-            "widget controller input log",
-        )
-
-        let rowLog = ""
-        const row: UiFocusableWidget<UiControlRowResult<string>> =
-            new UiControlRow<string>({
-                scopeId: "controller-row",
-                controls: [
-                    { id: "a", value: "A" },
-                    { id: "b", value: "B", selected: true },
-                ],
-                onActivate: value => {
-                    rowLog += value + ";"
-                },
-            })
-        row.arrange(new Rect(0, 0, 60, 20))
-        const rowFocus = widgets.registerWidget(row)
-        control.assert(
-            rowFocus.kind == "focused",
-            "widget controller row focus",
-        )
-        control.assert(
-            widgets.focus.getActiveTargetId("controller-row") ==
-                "controller-row/b",
-            "widget controller row selected target",
-        )
-        control.assert(
-            widgets.handleInput({ action: "activate" }, row),
-            "widget controller row activation handled",
-        )
-        control.assert(rowLog == "B;", "widget controller row callback")
-        const rowSurface = new WidgetSmokeSurface()
-        widgets.render(rowSurface, new WidgetSmokeAssets(), row)
-        control.assert(
-            rowSurface.log.length > 0,
-            "widget controller renders widget",
-        )
-
-        const modal: UiModal<UiModalGridResult<string>> =
-            new UiModalGrid<string>({
-                parentScopeId: "controller-row",
-                modalScopeId: "controller-modal",
-                controls: [{ id: "modal-control", value: "M" }],
-                onCancel: () => {
-                    rowLog += "cancel;"
-                },
-            })
-        const modalFocus = widgets.openModal(modal, {
-            constraints: { maxWidth: 100, maxHeight: 80 },
+        const screenRow = new UiControlRow<string>({
+            scopeId: "screen-row",
+            controls: [
+                { id: "a", value: "A" },
+                { id: "b", value: "B", selected: true },
+            ],
+            onActivate: value => {
+                screenLog += value + ";"
+            },
+        })
+        screen.add(screenRow, {
+            x: 10,
+            y: 5,
+            width: 80,
+            height: 20,
+            horizontalAlignment: "center",
+            verticalAlignment: "center",
+        })
+        screen.enter(screenRuntime, screenInput, event => {
+            if (event.action == "cancel" && event.phase != "released") {
+                screenLog += "root-cancel;"
+                return true
+            }
+            return undefined
         })
         control.assert(
-            modalFocus.kind == "focused",
-            "widget controller modal focus",
+            screen.focus.getActiveTargetId("screen-row") == "screen-row/b",
+            "screen controller root focus",
+        )
+        const screenControlRect = new Rect()
+        control.assert(
+            screenRow.getControlRect("b", screenControlRect),
+            "screen controller placed control exists",
         )
         assertLayoutRect(
-            modal.finalRect,
-            34,
+            screenControlRect,
+            51,
+            5,
+            24,
             20,
+            "screen controller placed control rect",
+        )
+        control.assert(
+            screenInput.deliver({ action: "activate" }),
+            "screen controller activation handled",
+        )
+        control.assert(screenLog == "B;", "screen controller root callback")
+        control.assert(
+            screenInput.deliver({ action: "cancel" }),
+            "screen controller root cancel handled",
+        )
+        control.assert(
+            !screenInput.deliver({ action: "cancel", phase: "released" }),
+            "screen controller cancel release unhandled",
+        )
+        control.assert(
+            !screenInput.deliver({ action: "menu" }),
+            "screen controller leaves menu unregistered",
+        )
+
+        const screenSurface = new WidgetSmokeSurface()
+        screen.render(screenSurface)
+        control.assert(
+            screenSurface.log.length > 0,
+            "screen controller renders roots",
+        )
+
+        const screenModal = new UiModalGrid<string>({
+            parentScopeId: "screen-row",
+            modalScopeId: "screen-modal",
+            controls: [{ id: "modal", value: "M" }],
+            onCancel: () => {
+                screenLog += "modal-cancel;"
+            },
+        })
+        screen.openModal(screenModal)
+        assertLayoutRect(
+            screenModal.finalRect,
+            64,
+            40,
             32,
             40,
-            "widget controller modal layout",
+            "screen controller default modal layout",
         )
-        control.assert(widgets.hasModal, "widget controller has modal")
+        control.assert(screen.hasModal, "screen controller has modal")
         control.assert(
-            widgets.focus.getActiveScopeId() == "controller-modal",
-            "widget controller modal active scope",
-        )
-        const modalSurface = new WidgetSmokeSurface()
-        control.assert(
-            widgets.renderModal(modalSurface, new WidgetSmokeAssets()),
-            "widget controller renders active modal",
+            screenInput.deliver({ action: "cancel" }),
+            "screen controller modal input handled",
         )
         control.assert(
-            widgets.handleModalInput(
-                { action: "pointerClick", x: -1, y: -1 },
-            ),
-            "widget controller modal pointer miss handled",
+            screenLog == "B;root-cancel;modal-cancel;",
+            "screen controller modal-first input",
         )
-        control.assert(
-            widgets.handleModalInput({ action: "cancel" }),
-            "widget controller modal cancel handled",
-        )
-        control.assert(rowLog == "B;cancel;", "widget controller modal cancel")
-        widgets.closeModal()
-        control.assert(!widgets.hasModal, "widget controller modal cleared")
-        control.assert(
-            !widgets.renderModal(modalSurface, new WidgetSmokeAssets()),
-            "widget controller render skips absent modal",
-        )
-        control.assert(
-            widgets.focus.getActiveScopeId() == "controller-row",
-            "widget controller modal close restores parent",
-        )
-        control.assert(
-            widgets.focus.setActiveScope("controller-modal").kind ==
-                "rejected",
-            "widget controller modal scope removed",
-        )
+        screen.closeModal()
+        control.assert(!screen.hasModal, "screen controller modal cleared")
+        screen.exit()
     }
 
     function assertWidgetActivation<T>(
@@ -6672,7 +6640,7 @@ ui.runDirectSimulatorInputSmokeTest()
 ui.runModalFocusSmokeTest()
 ui.runObservationSmokeTest()
 ui.runWidgetButtonSmokeTest()
-ui.runWidgetControllerSmokeTest()
+ui.runScreenControllerSmokeTest()
 ui.runWidgetControlSmokeTest()
 ui.runWidgetControlRowSmokeTest()
 ui.runWidgetControlGridSmokeTest()

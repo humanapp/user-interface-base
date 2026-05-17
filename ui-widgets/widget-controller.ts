@@ -1,16 +1,5 @@
 namespace ui {
     /**
-     * Handles a focus input result before the controller returns whether the
-     * original event was consumed.
-     */
-    export interface UiFocusInputResultHandler {
-        /**
-         * Returns a handled value to override default focus handling.
-         */
-        (result: UiFocusInputResult, event: UiInputEvent): boolean | undefined
-    }
-
-    /**
      * Widget lifecycle shared by controller-managed controls.
      */
     export interface UiWidget<TResult> extends UiLayoutNode {
@@ -50,19 +39,20 @@ namespace ui {
     }
 
     /**
-     * Handles a widget result after focus input runs.
+     * Handles screen input before root widgets receive it.
      */
-    export interface UiWidgetInputResultHandler<TResult> {
+    export interface UiScreenInputHandler {
         /**
-         * Returns a handled value to override default widget handling.
+         * Returns `true` or `false` to stop default widget routing, or
+         * `undefined` to let root widgets handle the event.
          */
-        (result: TResult, event: UiInputEvent): boolean | undefined
+        (event: UiInputEvent): boolean | undefined
     }
 
     /**
-     * Options for a widget controller.
+     * Options for a screen-level widget controller.
      */
-    export interface UiWidgetControllerOptions {
+    export interface UiScreenControllerOptions {
         /**
          * Optional scroll request sink used by focus movement.
          */
@@ -72,6 +62,56 @@ namespace ui {
          * Optional wheel handler used by focus input.
          */
         wheel?: UiFocusWheelHandler
+
+        /**
+         * Default measurement limits used when opening modals without options.
+         */
+        modalConstraints?: UiLayoutConstraints
+    }
+
+    /**
+     * Fixed screen placement for a root widget.
+     */
+    export interface UiPlacement {
+        /**
+         * Left edge of the placement rectangle. Defaults to `0`.
+         */
+        x?: number
+
+        /**
+         * Top edge of the placement rectangle. Defaults to `0`.
+         */
+        y?: number
+
+        /**
+         * Horizontal center of the placement rectangle. Used when `x` is omitted.
+         */
+        centerX?: number
+
+        /**
+         * Vertical center of the placement rectangle. Used when `y` is omitted.
+         */
+        centerY?: number
+
+        /**
+         * Width of the placement rectangle.
+         */
+        width: number
+
+        /**
+         * Height of the placement rectangle.
+         */
+        height: number
+
+        /**
+         * Horizontal child placement inside the rectangle. Defaults to `start`.
+         */
+        horizontalAlignment?: UiLayoutAlignment
+
+        /**
+         * Vertical child placement inside the rectangle. Defaults to `start`.
+         */
+        verticalAlignment?: UiLayoutAlignment
     }
 
     /**
@@ -113,25 +153,47 @@ namespace ui {
     }
 
     /**
-     * Screen-local helper for the focus and input plumbing used by widgets.
+     * Owns focus, input, root widgets, and modal routing for one screen.
      */
-    export class UiWidgetController {
+    export class UiScreenController {
+        private options_: UiScreenControllerOptions
         private focus_: UiFocusState
         private focusInput_: UiFocusInputController
+        private roots_: UiScreenRoot<any>[]
+        private assets_: UiAssetResolver
         private activeModal_: UiModal<any>
+        private modalConstraints_: UiLayoutConstraints
+        private defaultModalOptions_: UiModalOpenOptions
         private modalRect_: Rect
         private modalSize_: UiMeasuredSize
+        private inputHandler_: UiScreenInputHandler
+        private entered_: boolean
 
-        constructor(options?: UiWidgetControllerOptions) {
+        constructor(options?: UiScreenControllerOptions) {
+            this.options_ = options || {}
             this.focus_ = new UiFocusState()
-            this.focusInput_ = new UiFocusInputController({
-                focus: this.focus_,
-                scroll: options ? options.scroll : undefined,
-                wheel: options ? options.wheel : undefined,
-            })
+            this.focusInput_ = this.createFocusInputController()
+            this.roots_ = []
+            this.assets_ = undefined
             this.activeModal_ = undefined
+            this.modalConstraints_ = {
+                maxWidth: 0,
+                maxHeight: 0,
+            }
+            this.defaultModalOptions_ = {
+                constraints: this.modalConstraints_,
+            }
             this.modalRect_ = new Rect()
             this.modalSize_ = new UiMeasuredSize()
+            this.inputHandler_ = undefined
+            this.entered_ = false
+        }
+
+        /**
+         * Asset resolver from the active runtime.
+         */
+        public get assets(): UiAssetResolver {
+            return this.assets_
         }
 
         /**
@@ -142,71 +204,93 @@ namespace ui {
         }
 
         /**
-         * Focus input controller owned by this screen controller.
-         */
-        public get focusInput(): UiFocusInputController {
-            return this.focusInput_
-        }
-
-        /**
-         * Whether this controller currently owns an open modal.
+         * Whether this screen currently owns an open modal.
          */
         public get hasModal(): boolean {
             return !!this.activeModal_
         }
 
         /**
-         * Registers the standard widget input actions on a screen input scope.
+         * Adds a root widget rendered and routed by this screen.
          */
-        public registerInput(input: UiInputScope, handler: UiInputHandler): void {
-            this.registerAction(input, "left", handler)
-            this.registerAction(input, "right", handler)
-            this.registerAction(input, "up", handler)
-            this.registerAction(input, "down", handler)
-            this.registerAction(input, "activate", handler)
-            this.registerAction(input, "cancel", handler)
-            this.registerAction(input, "pointerMove", handler)
-            this.registerAction(input, "pointerClick", handler)
-            this.registerAction(input, "wheel", handler)
-        }
-
-        /**
-         * Registers an arranged widget and focuses its default target.
-         */
-        public registerWidget<TResult>(
+        public add<TResult>(
             widget: UiFocusableWidget<TResult>,
-        ): UiFocusSetResult {
-            widget.registerFocusTargets(this.focus_)
-            widget.registerNavigation(this.focusInput_)
-            return widget.focusDefault(this.focus_)
+            placement?: UiPlacement,
+        ): UiFocusableWidget<TResult> {
+            const root = new UiScreenRoot<TResult>(widget, placement)
+            this.roots_.push(root)
+            if (placement) this.arrangeRoot(root)
+            if (this.entered_) {
+                this.registerRoot(root)
+                if (this.roots_.length == 1) widget.focusDefault(this.focus_)
+            }
+            return widget
         }
 
         /**
-         * Renders a widget using this controller's focus state.
+         * Registers input, runtime assets, root focus targets, and root navigation.
          */
-        public render<TResult>(
-            surface: DrawSurface,
-            assets: UiAssetResolver,
-            widget: UiWidget<TResult>,
+        public enter(
+            runtime: UiRuntime,
+            input: UiInputScope,
+            handler?: UiScreenInputHandler,
         ): void {
-            widget.render(surface, assets, this.focus_)
+            this.closeModal()
+            this.focus_ = new UiFocusState()
+            this.focusInput_ = this.createFocusInputController()
+            this.assets_ = runtime.assets
+            this.inputHandler_ = handler
+            this.entered_ = true
+            this.resolveModalConstraints(runtime)
+            this.registerInput(input)
+            for (let i = 0; i < this.roots_.length; i++) {
+                const root = this.roots_[i]
+                if (root.placement) this.arrangeRoot(root)
+                this.registerRoot(root)
+            }
+            if (this.roots_.length > 0)
+                this.roots_[0].widget.focusDefault(this.focus_)
         }
 
         /**
-         * Opens a modal, optionally arranges it, and makes it the active focus scope.
+         * Clears runtime-owned state after the screen exits.
+         */
+        public exit(): void {
+            this.closeModal()
+            this.assets_ = undefined
+            this.inputHandler_ = undefined
+            this.entered_ = false
+            this.focus_ = new UiFocusState()
+            this.focusInput_ = this.createFocusInputController()
+        }
+
+        /**
+         * Renders all root widgets, then the active modal when one is open.
+         */
+        public render(surface: DrawSurface): void {
+            if (!this.assets_) return
+            for (let i = 0; i < this.roots_.length; i++) {
+                this.roots_[i].widget.render(surface, this.assets_, this.focus_)
+            }
+            if (this.activeModal_)
+                this.activeModal_.render(surface, this.assets_, this.focus_)
+        }
+
+        /**
+         * Opens a modal using screen-sized constraints by default.
          */
         public openModal<TResult>(
             modal: UiModal<TResult>,
             options?: UiModalOpenOptions,
         ): UiFocusSetResult {
             if (this.activeModal_) this.closeModal()
-            if (options) this.arrangeModal(modal, options)
+            this.arrangeModal(modal, options || this.defaultModalOptions_)
             this.activeModal_ = modal
             return modal.open(this.focus_, this.focusInput_)
         }
 
         /**
-         * Closes a modal and removes its registered focus and navigation.
+         * Closes the active modal.
          */
         public closeModal<TResult>(
             modal?: UiModal<TResult>,
@@ -226,47 +310,97 @@ namespace ui {
         }
 
         /**
-         * Renders the active modal when one is open.
+         * Routes input to the active modal, screen handler, or root widgets.
          */
-        public renderModal(
-            surface: DrawSurface,
-            assets: UiAssetResolver,
-        ): boolean {
-            if (!this.activeModal_) return false
-            this.render(surface, assets, this.activeModal_)
-            return true
+        public handleInput(event: UiInputEvent): boolean {
+            if (this.activeModal_) return this.handleModalInput(event)
+            if (this.inputHandler_) {
+                const handled = this.inputHandler_(event)
+                if (handled !== undefined) return handled
+            }
+            const result = this.focusInput_.handleInput(event)
+            const handled = this.handleRootFocusInput(result)
+            return handled !== undefined ? handled : result.handled
         }
 
-        /**
-         * Handles one input event for the active modal.
-         */
-        public handleModalInput<TResult>(
-            event: UiInputEvent,
-            modal?: UiModal<TResult>,
-            handler?: UiWidgetInputResultHandler<TResult>,
-        ): boolean {
-            const target = modal || this.activeModal_
-            if (!target) return false
-            return this.handleFocusInput(event, (
-                result: UiFocusInputResult,
-                deliveredEvent: UiInputEvent,
-            ): boolean | undefined => {
-                const modalResult = target.handleFocusInput(result)
-                if (modalResult) {
-                    const handled = handler
-                        ? handler(modalResult, deliveredEvent)
-                        : undefined
-                    return handled !== undefined
-                        ? handled
-                        : this.defaultWidgetHandled(modalResult)
-                }
-                if (
-                    deliveredEvent.action == "pointerClick" &&
-                    result.kind == "miss"
+        private registerInput(input: UiInputScope): void {
+            this.registerAction(input, "left")
+            this.registerAction(input, "right")
+            this.registerAction(input, "up")
+            this.registerAction(input, "down")
+            this.registerAction(input, "activate")
+            this.registerAction(input, "cancel")
+            this.registerAction(input, "pointerMove")
+            this.registerAction(input, "pointerClick")
+            this.registerAction(input, "wheel")
+        }
+
+        private registerAction(
+            input: UiInputScope,
+            action: UiInputAction,
+        ): void {
+            input.onAction(action, event => this.handleInput(event))
+        }
+
+        private registerRoot<TResult>(root: UiScreenRoot<TResult>): void {
+            root.widget.registerFocusTargets(this.focus_)
+            root.widget.registerNavigation(this.focusInput_)
+        }
+
+        private arrangeRoot<TResult>(root: UiScreenRoot<TResult>): void {
+            const placement = root.placement
+            const width = _uiLayout.sanitizeDimension(placement.width)
+            const height = _uiLayout.sanitizeDimension(placement.height)
+            root.rect.set(
+                this.placementX(placement, width),
+                this.placementY(placement, height),
+                width,
+                height,
+            )
+            root.constraints.maxWidth = width
+            root.constraints.maxHeight = height
+            root.widget.measure(root.constraints, root.measured)
+            const horizontal = placement.horizontalAlignment || "start"
+            const vertical = placement.verticalAlignment || "start"
+            const childWidth = _uiLayout.alignedSize(
+                width,
+                root.measured.preferredWidth,
+                horizontal,
+            )
+            const childHeight = _uiLayout.alignedSize(
+                height,
+                root.measured.preferredHeight,
+                vertical,
+            )
+            root.childRect.set(
+                _uiLayout.alignedOffset(root.rect.x, width, childWidth, horizontal),
+                _uiLayout.alignedOffset(root.rect.y, height, childHeight, vertical),
+                childWidth,
+                childHeight,
+            )
+            root.widget.arrange(root.childRect)
+        }
+
+        private placementX(placement: UiPlacement, width: number): number {
+            if (placement.x !== undefined)
+                return _uiLayout.sanitizeCoordinate(placement.x)
+            if (placement.centerX !== undefined)
+                return (
+                    _uiLayout.sanitizeCoordinate(placement.centerX) -
+                    Math.idiv(width, 2)
                 )
-                    return true
-                return undefined
-            })
+            return 0
+        }
+
+        private placementY(placement: UiPlacement, height: number): number {
+            if (placement.y !== undefined)
+                return _uiLayout.sanitizeCoordinate(placement.y)
+            if (placement.centerY !== undefined)
+                return (
+                    _uiLayout.sanitizeCoordinate(placement.centerY) -
+                    Math.idiv(height, 2)
+                )
+            return 0
         }
 
         private arrangeModal<TResult>(
@@ -297,51 +431,29 @@ namespace ui {
             modal.arrange(this.modalRect_)
         }
 
-        /**
-         * Runs focus input handling and lets the screen interpret widget results.
-         */
-        public handleFocusInput(
-            event: UiInputEvent,
-            handler?: UiFocusInputResultHandler,
-        ): boolean {
+        private handleModalInput(event: UiInputEvent): boolean {
             const result = this.focusInput_.handleInput(event)
-            const handled = handler ? handler(result, event) : undefined
-            return handled !== undefined ? handled : result.handled
+            const modalResult = this.activeModal_.handleFocusInput(result)
+            if (modalResult) {
+                const handled = this.defaultHandled(modalResult)
+                return handled !== undefined ? handled : result.handled
+            }
+            if (event.action == "pointerClick" && result.kind == "miss")
+                return true
+            return result.handled
         }
 
-        /**
-         * Handles one input event for a widget.
-         */
-        public handleInput<TResult>(
-            event: UiInputEvent,
-            widget: UiWidget<TResult>,
-            handler?: UiWidgetInputResultHandler<TResult>,
-        ): boolean {
-            return this.handleFocusInput(event, (
-                result: UiFocusInputResult,
-                deliveredEvent: UiInputEvent,
-            ): boolean | undefined => {
-                const widgetResult = widget.handleFocusInput(result)
-                if (!widgetResult) return undefined
-                const handled = handler
-                    ? handler(widgetResult, deliveredEvent)
-                    : undefined
-                if (handled !== undefined) return handled
-                return this.defaultWidgetHandled(widgetResult)
-            })
-        }
-
-        private registerAction(
-            input: UiInputScope,
-            action: UiInputAction,
-            handler: UiInputHandler,
-        ): void {
-            input.onAction(action, handler)
-        }
-
-        private defaultWidgetHandled<TResult>(
-            result: TResult,
+        private handleRootFocusInput(
+            result: UiFocusInputResult,
         ): boolean | undefined {
+            for (let i = 0; i < this.roots_.length; i++) {
+                const widgetResult = this.roots_[i].widget.handleFocusInput(result)
+                if (widgetResult) return this.defaultHandled(widgetResult)
+            }
+            return undefined
+        }
+
+        private defaultHandled<TResult>(result: TResult): boolean | undefined {
             const kind = (<any>result).kind
             switch (kind) {
                 case "activated":
@@ -353,6 +465,50 @@ namespace ui {
                     return true
             }
             return undefined
+        }
+
+        private createFocusInputController(): UiFocusInputController {
+            return new UiFocusInputController({
+                focus: this.focus_,
+                scroll: this.options_.scroll,
+                wheel: this.options_.wheel,
+            })
+        }
+
+        private resolveModalConstraints(runtime: UiRuntime): void {
+            if (this.options_.modalConstraints) {
+                this.modalConstraints_.maxWidth =
+                    this.options_.modalConstraints.maxWidth
+                this.modalConstraints_.maxHeight =
+                    this.options_.modalConstraints.maxHeight
+                return
+            }
+
+            const profile = runtime.displayProfile
+            this.modalConstraints_.maxWidth = Math.round(
+                profile.logicalWidth / profile.designToLogicalScaleX,
+            )
+            this.modalConstraints_.maxHeight = Math.round(
+                profile.logicalHeight / profile.designToLogicalScaleY,
+            )
+        }
+    }
+
+    class UiScreenRoot<TResult> {
+        public widget: UiFocusableWidget<TResult>
+        public placement: UiPlacement
+        public rect: Rect
+        public childRect: Rect
+        public constraints: UiLayoutConstraints
+        public measured: UiMeasuredSize
+
+        constructor(widget: UiFocusableWidget<TResult>, placement?: UiPlacement) {
+            this.widget = widget
+            this.placement = placement
+            this.rect = new Rect()
+            this.childRect = new Rect()
+            this.constraints = { maxWidth: 0, maxHeight: 0 }
+            this.measured = new UiMeasuredSize()
         }
     }
 }

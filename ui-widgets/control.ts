@@ -143,6 +143,109 @@ namespace ui {
          */
         onActivate?: UiControlActivateHandler<T>
     }
+
+    /**
+     * Optional fields used when creating a `UiControl`.
+     */
+    export interface UiControlOptions<T> {
+        /**
+         * Visible label text. Takes precedence over `textId`.
+         */
+        text?: string
+
+        /**
+         * Resolver-backed label id used when `text` is omitted.
+         */
+        textId?: string
+
+        /**
+         * Bitmap drawn for this control when `draw` is omitted. Takes precedence over
+         * `bitmapId`.
+         */
+        bitmap?: Bitmap
+
+        /**
+         * Resolver-backed bitmap id used when `bitmap` is omitted.
+         */
+        bitmapId?: string | number
+
+        /**
+         * When true, missing resolver-backed bitmaps are not drawn.
+         */
+        omitMissingBitmap?: boolean
+
+        /**
+         * Optional colors used when `draw` is omitted.
+         */
+        palette?: UiControlPalette
+
+        /**
+         * Optional control style used when `draw` is omitted.
+         */
+        style?: UiButtonStyle
+
+        /**
+         * Whether this control participates in layout, rendering, focus, and hit
+         * testing. Omitted values are treated as `true`.
+         */
+        visible?: boolean
+
+        /**
+         * Whether this control is visible but cannot be focused or activated.
+         */
+        disabled?: boolean
+
+        /**
+         * Whether built-in control drawing should show selected state.
+         */
+        selected?: boolean
+
+        /**
+         * Whether built-in control drawing should show toggled state.
+         */
+        toggled?: boolean
+
+        /**
+         * Optional callback that draws the complete control rectangle.
+         */
+        draw?: UiControlDraw<T>
+
+        /**
+         * Optional callback invoked when this control is activated.
+         */
+        onActivate?: UiControlActivateHandler<T>
+    }
+
+    /**
+     * Creates a typed control record for rows, grids, and modal grids.
+     */
+    export function createControl<T>(
+        id: string,
+        value: T,
+        options?: UiControlOptions<T>,
+    ): UiControl<T> {
+        const result: UiControl<T> = {
+            id,
+            value,
+        }
+        if (!options) return result
+        if (options.text !== undefined) result.text = options.text
+        if (options.textId !== undefined) result.textId = options.textId
+        if (options.bitmap !== undefined) result.bitmap = options.bitmap
+        if (options.bitmapId !== undefined) result.bitmapId = options.bitmapId
+        if (options.omitMissingBitmap !== undefined)
+            result.omitMissingBitmap = options.omitMissingBitmap
+        if (options.palette !== undefined) result.palette = options.palette
+        if (options.style !== undefined) result.style = options.style
+        if (options.visible !== undefined) result.visible = options.visible
+        if (options.disabled !== undefined) result.disabled = options.disabled
+        if (options.selected !== undefined) result.selected = options.selected
+        if (options.toggled !== undefined) result.toggled = options.toggled
+        if (options.draw !== undefined) result.draw = options.draw
+        if (options.onActivate !== undefined)
+            result.onActivate = options.onActivate
+        return result
+    }
 }
 
 namespace _uiWidgets {
