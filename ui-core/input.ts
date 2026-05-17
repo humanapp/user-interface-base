@@ -70,25 +70,4 @@ namespace ui {
         dy?: number
     }
 
-    /**
-     * Handles an input event and returns `true` when delivery should stop.
-     */
-    export interface UiInputHandler {
-        (event: UiInputEvent): boolean
-    }
-
-    /**
-     * Input registrations for one screen while it is on the stack.
-     */
-    export interface UiInputScope {
-        /**
-         * Registers a handler for one action. Handlers run in registration order.
-         */
-        onAction(action: UiInputAction, handler: UiInputHandler): void
-
-        /**
-         * Prevents future handler registration and delivery for this screen.
-         */
-        dispose(): void
-    }
 }

@@ -173,11 +173,11 @@ namespace ui {
                 options.outlineColor !== undefined ? options.outlineColor : 15
             this.titleColor_ =
                 options.titleColor !== undefined ? options.titleColor : 15
-            this.contentMargin_ = _uiWidgets.sanitizeDimension(
+            this.contentMargin_ = _uiControls.sanitizeDimension(
                 options.contentMargin,
                 4,
             )
-            this.titleGap_ = _uiWidgets.sanitizeDimension(options.titleGap, 0)
+            this.titleGap_ = _uiControls.sanitizeDimension(options.titleGap, 0)
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.scratch_ = new Rect()
@@ -191,7 +191,7 @@ namespace ui {
                 controlHeight: options.controlHeight,
                 controlStyle: options.controlStyle,
             })
-            this.layoutSpec = _uiWidgets.defaultLayoutSpec()
+            this.layoutSpec = _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect()
             this.layoutDirty = true
         }
@@ -439,7 +439,7 @@ namespace ui {
                 (result.kind != "activated" && result.kind != "keepOpen")
             )
                 return
-            _uiWidgets.emitControlActivate(
+            _uiControls.emitControlActivate(
                 result.value,
                 result.control,
                 result.controlId,

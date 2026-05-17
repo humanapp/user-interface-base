@@ -123,17 +123,17 @@ namespace ui {
             this.defaultControlId_ = options.defaultControlId
             this.scrollOwnerId_ = options.scrollOwnerId
             this.wrap_ = options.wrap || false
-            this.columnCount_ = _uiWidgets.sanitizeDimension(
+            this.columnCount_ = _uiControls.sanitizeDimension(
                 options.columnCount,
                 Math.max(1, options.controls.length),
             )
             this.rows_ = options.rows
-            this.controlWidth_ = _uiWidgets.controlWidth(options.controlWidth)
-            this.controlHeight_ = _uiWidgets.controlHeight(options.controlHeight)
-            this.rowGap_ = _uiWidgets.gap(options.rowGap)
-            this.columnGap_ = _uiWidgets.gap(options.columnGap)
+            this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
+            this.controlHeight_ = _uiControls.controlHeight(options.controlHeight)
+            this.rowGap_ = _uiControls.gap(options.rowGap)
+            this.columnGap_ = _uiControls.gap(options.columnGap)
             this.layoutSpec =
-                options.layoutSpec || _uiWidgets.defaultLayoutSpec()
+                options.layoutSpec || _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect()
             this.layoutDirty = true
             this.controlRects_ = []
@@ -253,7 +253,7 @@ namespace ui {
             focus: UiFocusState,
             scopeOptions?: UiFocusScopeOptions,
         ): void {
-            const preferred = _uiWidgets.preferredControlId(
+            const preferred = _uiControls.preferredControlId(
                 this.scopeId_,
                 this.controls_,
                 this.defaultControlId_,
@@ -298,7 +298,7 @@ namespace ui {
          * Returns the target id chosen by default-control and selected-control rules.
          */
         public resolvePreferredTargetId(): UiFocusId | undefined {
-            return _uiWidgets.preferredControlId(
+            return _uiControls.preferredControlId(
                 this.scopeId_,
                 this.controls_,
                 this.defaultControlId_,
@@ -340,7 +340,7 @@ namespace ui {
         ): UiGridResult<T> {
             if (result.kind != "activated" || result.scopeId != this.scopeId_)
                 return undefined
-            const control = _uiWidgets.findControlByTargetId(
+            const control = _uiControls.findControlByTargetId(
                 this.scopeId_,
                 this.controls_,
                 result.targetId,
@@ -366,7 +366,7 @@ namespace ui {
                 kind: "exited",
                 direction: result.direction,
                 scopeId: result.scopeId,
-                controlId: _uiWidgets.controlIdFromTargetId(
+                controlId: _uiControls.controlIdFromTargetId(
                     this.scopeId_,
                     result.targetId,
                 ),
@@ -388,12 +388,12 @@ namespace ui {
             let focusedIndex = -1
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
-                if (!_uiWidgets.isVisible(control)) continue
+                if (!_uiControls.isVisible(control)) continue
                 const focused =
                     activeTargetId ==
-                    _uiWidgets.targetId(this.scopeId_, control.id)
+                    _uiControls.targetId(this.scopeId_, control.id)
                 if (focused && !control.draw) focusedIndex = i
-                _uiWidgets.renderControl(
+                _uiControls.renderControl(
                     surface,
                     assets,
                     control,
@@ -405,7 +405,7 @@ namespace ui {
                 )
             }
             if (focusedIndex >= 0) {
-                _uiWidgets.renderControlFocus(
+                _uiControls.renderControlFocus(
                     surface,
                     assets,
                     this.controls_[focusedIndex],
@@ -422,25 +422,25 @@ namespace ui {
             const currentTargetIds: string[] = []
             for (let i = 0; i < this.controls_.length; i++) {
                 currentTargetIds.push(
-                    _uiWidgets.targetId(this.scopeId_, this.controls_[i].id),
+                    _uiControls.targetId(this.scopeId_, this.controls_[i].id),
                 )
             }
             for (let i = 0; i < this.registeredTargetIds_.length; i++) {
                 const targetId = this.registeredTargetIds_[i]
-                if (!_uiWidgets.containsString(currentTargetIds, targetId))
+                if (!_uiControls.containsString(currentTargetIds, targetId))
                     focus.removeTarget(targetId)
             }
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 const rect = this.controlRects_[i] || new Rect()
                 focus.setTarget({
-                    id: _uiWidgets.targetId(this.scopeId_, control.id),
+                    id: _uiControls.targetId(this.scopeId_, control.id),
                     scopeId: this.scopeId_,
                     rect,
                     scrollOwnerId: this.scrollOwnerId_,
                     scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                    disabled: _uiWidgets.isDisabled(control),
-                    hidden: !_uiWidgets.isVisible(control),
+                    disabled: _uiControls.isDisabled(control),
+                    hidden: !_uiControls.isVisible(control),
                     activatable: true,
                 })
             }
@@ -499,12 +499,12 @@ namespace ui {
             rect: Rect,
         ): UiFocusNavigationTarget {
             return {
-                id: _uiWidgets.targetId(this.scopeId_, control.id),
+                id: _uiControls.targetId(this.scopeId_, control.id),
                 rect,
                 scrollOwnerId: this.scrollOwnerId_,
                 scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                disabled: _uiWidgets.isDisabled(control),
-                hidden: !_uiWidgets.isVisible(control),
+                disabled: _uiControls.isDisabled(control),
+                hidden: !_uiControls.isVisible(control),
             }
         }
 
@@ -541,7 +541,7 @@ namespace ui {
         private rowLength(row: number): number {
             if (!this.rows_) return this.columnCount_
             if (row < 0 || row >= this.rows_.length) return 0
-            return _uiWidgets.sanitizeDimension(this.rows_[row], 0)
+            return _uiControls.sanitizeDimension(this.rows_[row], 0)
         }
 
         private maxColumnCount(): number {
@@ -555,7 +555,7 @@ namespace ui {
 
         private emitActivate(result: UiGridResult<T>): void {
             if (!result || result.kind != "activated") return
-            _uiWidgets.emitControlActivate(
+            _uiControls.emitControlActivate(
                 result.value,
                 result.control,
                 result.controlId,

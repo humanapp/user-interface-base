@@ -337,31 +337,6 @@ namespace ui {
             }
         }
 
-        /**
-         * Registers focus-owned handlers on an input scope.
-         */
-        public register(input: UiInputScope): void {
-            this.registerAction(input, "up")
-            this.registerAction(input, "down")
-            this.registerAction(input, "left")
-            this.registerAction(input, "right")
-            this.registerAction(input, "activate")
-            this.registerAction(input, "cancel")
-            this.registerAction(input, "pointerMove")
-            this.registerAction(input, "pointerClick")
-            this.registerAction(input, "wheel")
-        }
-
-        private registerAction(
-            input: UiInputScope,
-            action: UiInputAction,
-        ): void {
-            input.onAction(
-                action,
-                (event: UiInputEvent) => this.handleInput(event).handled,
-            )
-        }
-
         private handleDirectionalInput(
             event: UiInputEvent,
             direction: UiFocusDirection,

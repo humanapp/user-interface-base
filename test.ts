@@ -324,12 +324,8 @@ namespace ui {
             this.exitCount = 0
         }
 
-        public enter(runtime: UiRuntime, input: UiInputScope): void {
+        public enter(runtime: UiRuntime): void {
             this.log_(this.prefix_ + "enter")
-            input.onAction("activate", (event: UiInputEvent) => {
-                this.log_(this.prefix_ + "scope")
-                return true
-            })
         }
 
         public exit(): void {
@@ -346,6 +342,10 @@ namespace ui {
         }
 
         public handleInput(event: UiInputEvent): boolean {
+            if (event.action == "activate") {
+                this.log_(this.prefix_ + "input")
+                return true
+            }
             this.log_(this.prefix_ + "handle")
             return false
         }
@@ -419,7 +419,7 @@ namespace ui {
     }
 
     /**
-     * Smoke harness for runtime stack lifecycle and scoped input delivery.
+     * Smoke harness for runtime stack lifecycle and direct input delivery.
      */
     export function runRuntimeSmokeTest(): void {
         let log = ""
@@ -450,7 +450,7 @@ namespace ui {
         control.assert(
             log ==
                 "baseenter;baseactivate;basedeactivate;overlayenter;overlayactivate;" +
-                    "overlayscope;overlayupdate;overlayrender;commit;",
+                    "overlayinput;overlayupdate;overlayrender;commit;",
             "input frame order",
         )
 
@@ -460,7 +460,7 @@ namespace ui {
         control.assert(
             log ==
                 "baseenter;baseactivate;basedeactivate;overlayenter;overlayactivate;" +
-                    "overlayscope;overlayupdate;overlayrender;commit;" +
+                    "overlayinput;overlayupdate;overlayrender;commit;" +
                     "overlaydeactivate;overlayexit;baseactivate;",
             "pop order",
         )
@@ -470,9 +470,9 @@ namespace ui {
         control.assert(
             log ==
                 "baseenter;baseactivate;basedeactivate;overlayenter;overlayactivate;" +
-                    "overlayscope;overlayupdate;overlayrender;commit;" +
+                    "overlayinput;overlayupdate;overlayrender;commit;" +
                     "overlaydeactivate;overlayexit;baseactivate;" +
-                    "basescope;baseupdate;baserender;commit;",
+                    "baseinput;baseupdate;baserender;commit;",
             "popped input disposed",
         )
 
@@ -3107,36 +3107,25 @@ namespace ui {
         public pointerClickResult: UiFocusInputResult
         public wheelEvent: UiInputEvent
         private simulatorFocus_: UiFocusState
+        private simulatorInput_: UiFocusInputController
 
         constructor() {
             super()
             this.simulatorFocus_ = createFocusInputState()
-        }
-
-        public enter(runtime: UiRuntime, input: UiInputScope): void {
-            const controller = new UiFocusInputController({
+            this.simulatorInput_ = new UiFocusInputController({
                 focus: this.simulatorFocus_,
                 wheel: (event: UiInputEvent): boolean => {
                     this.wheelEvent = event
                     return true
                 },
             })
-
-            input.onAction("pointerMove", (event: UiInputEvent): boolean => {
-                this.pointerMoveResult = controller.handleInput(event)
-                return this.pointerMoveResult.handled
-            })
-            input.onAction("pointerClick", (event: UiInputEvent): boolean => {
-                this.pointerClickResult = controller.handleInput(event)
-                return this.pointerClickResult.handled
-            })
-            input.onAction("wheel", (event: UiInputEvent): boolean => {
-                return controller.handleInput(event).handled
-            })
         }
 
         public handleInput(event: UiInputEvent): boolean {
-            return false
+            const result = this.simulatorInput_.handleInput(event)
+            if (event.action == "pointerMove") this.pointerMoveResult = result
+            if (event.action == "pointerClick") this.pointerClickResult = result
+            return result.handled
         }
 
         public render(surface: DrawSurface): void {}
@@ -3150,15 +3139,16 @@ namespace ui {
         public pointerEvent: UiInputEvent
         public wheelEvent: UiInputEvent
 
-        public enter(runtime: UiRuntime, input: UiInputScope): void {
-            input.onAction("pointerClick", (event: UiInputEvent): boolean => {
+        public handleInput(event: UiInputEvent): boolean {
+            if (event.action == "pointerClick") {
                 this.pointerEvent = event
                 return true
-            })
-            input.onAction("wheel", (event: UiInputEvent): boolean => {
+            }
+            if (event.action == "wheel") {
                 this.wheelEvent = event
                 return true
-            })
+            }
+            return false
         }
 
         public render(surface: DrawSurface): void {}
@@ -3167,6 +3157,7 @@ namespace ui {
     class ModalCancelHandoffScreen extends UiScreen {
         private onEnter_: () => void
         private onCancel_: () => void
+        private input_: UiFocusInputController
 
         constructor(onEnter: () => void, onCancel: () => void) {
             super()
@@ -3174,7 +3165,7 @@ namespace ui {
             this.onCancel_ = onCancel
         }
 
-        public enter(runtime: UiRuntime, input: UiInputScope): void {
+        public enter(runtime: UiRuntime): void {
             const screenFocus = createModalFocusState()
             screenFocus.setScope({ id: "main", handlesCancel: false })
             screenFocus.setScope({
@@ -3184,13 +3175,17 @@ namespace ui {
                 handlesCancel: false,
             })
             screenFocus.setActiveScope("modal")
-            new UiFocusInputController({ focus: screenFocus }).register(input)
+            this.input_ = new UiFocusInputController({ focus: screenFocus })
             this.onEnter_()
         }
 
         public handleInput(event: UiInputEvent): boolean {
-            if (event.action == "cancel") this.onCancel_()
-            return true
+            const result = this.input_.handleInput(event)
+            if (!result.handled && event.action == "cancel") {
+                this.onCancel_()
+                return true
+            }
+            return result.handled
         }
 
         public render(surface: DrawSurface): void {}
@@ -4043,30 +4038,16 @@ namespace ui {
             state,
             focusInputRowNavigation(),
         )
-        let scopeFallbackCount = 0
-        const input = new TestInputScope()
-        controller.register(input)
-        input.onAction("activate", (event: UiInputEvent): boolean => {
-            scopeFallbackCount++
-            return false
+        const repeatedActivate = controller.handleInput({
+            action: "activate",
+            phase: "repeated",
         })
-        input.onAction("menu", (event: UiInputEvent): boolean => {
-            scopeFallbackCount++
-            return true
+        control.assert(!repeatedActivate.handled, "long press falls through")
+        const menuInput = controller.handleInput({
+            action: "menu",
+            source: "displayShieldController",
         })
-        control.assert(
-            input.deliver({ action: "activate", phase: "repeated" }) == false,
-            "long press falls through",
-        )
-        control.assert(scopeFallbackCount == 1, "long press caller handler")
-        control.assert(
-            input.deliver({
-                action: "menu",
-                source: "displayShieldController",
-            }),
-            "menu caller handler",
-        )
-        control.assert(scopeFallbackCount == 2, "menu not registered by focus")
+        control.assert(!menuInput.handled, "menu caller handler")
     }
 
     /**
@@ -4290,40 +4271,6 @@ namespace ui {
             },
             "high runtime pointer click",
         )
-    }
-
-    class TestInputScope implements UiInputScope {
-        private actions_: UiInputAction[]
-        private handlers_: UiInputHandler[]
-        private disposed_: boolean
-
-        constructor() {
-            this.actions_ = []
-            this.handlers_ = []
-            this.disposed_ = false
-        }
-
-        public onAction(action: UiInputAction, handler: UiInputHandler): void {
-            if (this.disposed_) return
-            this.actions_.push(action)
-            this.handlers_.push(handler)
-        }
-
-        public dispose(): void {
-            this.disposed_ = true
-        }
-
-        public deliver(event: UiInputEvent): boolean {
-            if (this.disposed_) return false
-            for (let i = 0; i < this.actions_.length; i++) {
-                if (
-                    this.actions_[i] == event.action &&
-                    this.handlers_[i](event)
-                )
-                    return true
-            }
-            return false
-        }
     }
 
     function createModalFocusState(): UiFocusState {
@@ -4854,15 +4801,14 @@ namespace ui {
             handlesCancel: false,
         })
         state.setActiveScope("modal")
-        const input = new TestInputScope()
-        new UiFocusInputController({ focus: state }).register(input)
         let cancelFallbackCount = 0
-        input.onAction("cancel", (event: UiInputEvent): boolean => {
+        const unhandledCancel = new UiFocusInputController({
+            focus: state,
+        }).handleInput({ action: "cancel" })
+        if (!unhandledCancel.handled)
             cancelFallbackCount++
-            return true
-        })
         control.assert(
-            input.deliver({ action: "cancel" }),
+            !unhandledCancel.handled,
             "unhandled modal cancel falls through",
         )
         control.assert(cancelFallbackCount == 1, "cancel fallthrough handler")
@@ -5338,7 +5284,7 @@ namespace ui {
         )
     }
 
-    class WidgetSmokeSurface implements DrawSurface {
+    class ControlSmokeSurface implements DrawSurface {
         public log: string
 
         constructor() {
@@ -5412,7 +5358,7 @@ namespace ui {
         }
     }
 
-    class WidgetSmokeAssets implements UiAssetResolver {
+    class ControlSmokeAssets implements UiAssetResolver {
         public fallbackBitmap: Bitmap
         public knownBitmap: Bitmap
 
@@ -5436,7 +5382,7 @@ namespace ui {
         }
     }
 
-    class WidgetSmokeScreen extends UiScreen {
+    class ControlSmokeScreen extends UiScreen {
         private inputHandler_: (event: UiInputEvent) => boolean | undefined
 
         constructor(handler: (event: UiInputEvent) => boolean | undefined) {
@@ -5454,8 +5400,8 @@ namespace ui {
     /**
      * Smoke harness for reusable control visuals.
      */
-    export function runWidgetButtonSmokeTest(): void {
-        const surface = new WidgetSmokeSurface()
+    export function runControlButtonSmokeTest(): void {
+        const surface = new ControlSmokeSurface()
         const buttonView = new UiButtonView({
             style: UiButtonStyles.LightShadowedWhite,
         })
@@ -5515,21 +5461,20 @@ namespace ui {
     }
 
     /**
-     * Smoke harness for screen-owned widget focus and input plumbing.
+     * Smoke harness for screen-owned view focus and input plumbing.
      */
     export function runScreenControllerSmokeTest(): void {
         let screenLog = ""
-        const screen = new WidgetSmokeScreen((event: UiInputEvent) => {
+        const screen = new ControlSmokeScreen((event: UiInputEvent) => {
             if (event.action == "cancel" && event.phase != "released") {
                 screenLog += "root-cancel;"
                 return true
             }
             return undefined
         })
-        const screenInput = new TestInputScope()
         const screenRuntime = new UiRuntime({
             display: new RuntimeSmokeDisplayAdapter(() => {}),
-            assets: new WidgetSmokeAssets(),
+            assets: new ControlSmokeAssets(),
         })
         const screenRow = new UiRow<string>({
             scopeId: "screen-row",
@@ -5541,15 +5486,8 @@ namespace ui {
                 screenLog += value + ";"
             },
         })
-        screen.add(screenRow, {
-            x: 10,
-            y: 5,
-            width: 80,
-            height: 20,
-            horizontalAlignment: "center",
-            verticalAlignment: "center",
-        })
-        screen.enter(screenRuntime, screenInput)
+        screen.addCentered(screenRow, 15, 100, 20)
+        screen.enter(screenRuntime)
         control.assert(
             screen.focus.getActiveTargetId("screen-row") == "screen-row/b",
             "screen controller root focus",
@@ -5568,24 +5506,24 @@ namespace ui {
             "screen controller placed control rect",
         )
         control.assert(
-            screenInput.deliver({ action: "activate" }),
+            screen.handleInput({ action: "activate" }),
             "screen controller activation handled",
         )
         control.assert(screenLog == "B;", "screen controller root callback")
         control.assert(
-            screenInput.deliver({ action: "cancel" }),
+            screen.handleInput({ action: "cancel" }),
             "screen controller root cancel handled",
         )
         control.assert(
-            !screenInput.deliver({ action: "cancel", phase: "released" }),
+            !screen.handleInput({ action: "cancel", phase: "released" }),
             "screen controller cancel release unhandled",
         )
         control.assert(
-            !screenInput.deliver({ action: "menu" }),
+            !screen.handleInput({ action: "menu" }),
             "screen controller leaves menu unregistered",
         )
 
-        const screenSurface = new WidgetSmokeSurface()
+        const screenSurface = new ControlSmokeSurface()
         screen.render(screenSurface)
         control.assert(
             screenSurface.log.length > 0,
@@ -5611,7 +5549,7 @@ namespace ui {
         )
         control.assert(screen.hasModal, "screen controller has modal")
         control.assert(
-            screenInput.deliver({ action: "cancel" }),
+            screen.handleInput({ action: "cancel" }),
             "screen controller modal input handled",
         )
         control.assert(
@@ -5623,7 +5561,7 @@ namespace ui {
         screen.exit()
     }
 
-    function assertWidgetActivation<T>(
+    function assertControlActivation<T>(
         result: any,
         kind: string,
         controlId: string,
@@ -5643,9 +5581,9 @@ namespace ui {
     /**
      * Smoke harness for shared control records and default rendering.
      */
-    export function runWidgetControlSmokeTest(): void {
-        const assets = new WidgetSmokeAssets()
-        const surface = new WidgetSmokeSurface()
+    export function runControlRecordSmokeTest(): void {
+        const assets = new ControlSmokeAssets()
+        const surface = new ControlSmokeSurface()
         let drawLog = ""
         const drawControl: UiControl<string> = {
             id: "custom",
@@ -5698,7 +5636,7 @@ namespace ui {
         row.render(surface, assets)
 
         const labelFocus = new UiFocusState()
-        const labelSurface = new WidgetSmokeSurface()
+        const labelSurface = new ControlSmokeSurface()
         const labelRow = new UiRow<string>({
             scopeId: "control-labels",
             controls: [{ id: "label", value: "label", textId: "knownText" }],
@@ -5728,9 +5666,9 @@ namespace ui {
             controls[0].visible === undefined,
             "visible omitted default",
         )
-        control.assert(_uiWidgets.isVisible(controls[0]), "visible default true")
+        control.assert(_uiControls.isVisible(controls[0]), "visible default true")
         control.assert(
-            _uiWidgets.controlText(
+            _uiControls.controlText(
                 {
                     id: "precedence",
                     value: "value",
@@ -5742,7 +5680,7 @@ namespace ui {
             "caller text precedence",
         )
         control.assert(
-            _uiWidgets.controlBitmap(
+            _uiControls.controlBitmap(
                 {
                     id: "precedence",
                     value: "value",
@@ -5776,23 +5714,51 @@ namespace ui {
         )
         control.assert(drawLog == "custom:false;", "draw callback precedence")
         control.assert(
-            _uiWidgets.controlBitmap(controls[4], assets) == assets.fallbackBitmap,
+            _uiControls.controlBitmap(controls[4], assets) == assets.fallbackBitmap,
             "missing bitmap fallback",
         )
         control.assert(
-            _uiWidgets.controlBitmap(controls[5], assets) === undefined,
+            _uiControls.controlBitmap(controls[5], assets) === undefined,
             "missing bitmap omitted",
         )
-        control.assert(_uiWidgets.isDisabled(controls[6]), "disabled flag")
-        control.assert(!_uiWidgets.isVisible(controls[7]), "hidden flag")
-        control.assert(_uiWidgets.isSelected(controls[0]), "selected flag")
-        control.assert(_uiWidgets.isToggled(controls[8]), "toggled flag")
+        control.assert(_uiControls.isDisabled(controls[6]), "disabled flag")
+        control.assert(!_uiControls.isVisible(controls[7]), "hidden flag")
+        control.assert(_uiControls.isSelected(controls[0]), "selected flag")
+        control.assert(_uiControls.isToggled(controls[8]), "toggled flag")
+
+        let helperActivationLog = ""
+        const helperButton = button(
+            "helper",
+            "known",
+            "knownText",
+            () => {
+                helperActivationLog += "clicked;"
+            },
+        )
+        control.assert(helperButton.value == "helper", "button helper value")
+        control.assert(helperButton.bitmapId == "known", "button helper bitmap")
+        control.assert(helperButton.textId == "knownText", "button helper text")
+        _uiControls.emitControlActivate(
+            helperButton.value,
+            helperButton,
+            helperButton.id,
+        )
+        control.assert(
+            helperActivationLog == "clicked;",
+            "button helper activation",
+        )
+        const helperIcon = iconButton("icon", "known")
+        control.assert(helperIcon.value == "icon", "icon helper value")
+        control.assert(
+            helperIcon.textId === undefined,
+            "icon helper omits text",
+        )
     }
 
     /**
      * Smoke harness for control row focus, navigation, activation, and exits.
      */
-    export function runWidgetControlRowSmokeTest(): void {
+    export function runControlRowSmokeTest(): void {
         const focus = new UiFocusState()
         const controller = new UiFocusInputController({ focus })
         let activationLog = ""
@@ -5851,7 +5817,7 @@ namespace ui {
         )
         inputResult = controller.handleInput({ action: "activate" })
         const activated = row.handleFocusInput(inputResult)
-        assertWidgetActivation(activated, "activated", "a", 1, "row activated")
+        assertControlActivation(activated, "activated", "a", 1, "row activated")
         control.assert(
             activationLog == "control:a:1:a;a:1:a;",
             "row activation callback",
@@ -5886,7 +5852,7 @@ namespace ui {
             "row replacement focus",
         )
         inputResult = controller.handleInput({ action: "activate" })
-        assertWidgetActivation(
+        assertControlActivation(
             row.handleFocusInput(inputResult),
             "activated",
             "replacement",
@@ -5903,7 +5869,7 @@ namespace ui {
     /**
      * Smoke harness for control grid rectangular, ragged, scroll, and exit behavior.
      */
-    export function runWidgetControlGridSmokeTest(): void {
+    export function runControlGridSmokeTest(): void {
         const focus = new UiFocusState()
         const scrollRequests: UiFocusScrollRequest[] = []
         const controller = new UiFocusInputController({
@@ -6003,7 +5969,7 @@ namespace ui {
             "grid movement scroll rect",
         )
         inputResult = controller.handleInput({ action: "activate" })
-        assertWidgetActivation(
+        assertControlActivation(
             grid.handleFocusInput(inputResult),
             "activated",
             "c",
@@ -6039,7 +6005,7 @@ namespace ui {
             "grid replacement focus",
         )
         inputResult = controller.handleInput({ action: "activate" })
-        assertWidgetActivation(
+        assertControlActivation(
             grid.handleFocusInput(inputResult),
             "activated",
             "replacement",
@@ -6096,10 +6062,10 @@ namespace ui {
     /**
      * Smoke harness for modal grid result timing and focus restoration.
      */
-    export function runWidgetModalGridSmokeTest(): void {
+    export function runPickerSmokeTest(): void {
         const focus = new UiFocusState()
         const controller = new UiFocusInputController({ focus })
-        const assets = new WidgetSmokeAssets()
+        const assets = new ControlSmokeAssets()
         let activationLog = ""
         let cancelLog = ""
         focus.setScope({ id: "parent" })
@@ -6276,7 +6242,7 @@ namespace ui {
         modal.open(focus, controller)
         const activateInput = controller.handleInput({ action: "activate" })
         const activated = modal.handleFocusInput(activateInput)
-        assertWidgetActivation(
+        assertControlActivation(
             activated,
             "activated",
             "selected",
@@ -6334,7 +6300,7 @@ namespace ui {
         keepOpen.open(focus, controller)
         const keepInput = controller.handleInput({ action: "activate" })
         const keepResult = keepOpen.handleFocusInput(keepInput)
-        assertWidgetActivation(
+        assertControlActivation(
             keepResult,
             "keepOpen",
             "edit",
@@ -6352,7 +6318,7 @@ namespace ui {
             "keep-open modal remains active",
         )
 
-        const surface = new WidgetSmokeSurface()
+        const surface = new ControlSmokeSurface()
         keepOpen.render(surface, assets, focus)
         control.assert(surface.log.indexOf("fill:1;") >= 0, "modal panel fill")
         control.assert(
@@ -6364,7 +6330,7 @@ namespace ui {
     /**
      * Smoke harness for toggle grid keep-open, delete, cancel, and caller policy behavior.
      */
-    export function runWidgetToggleGridSmokeTest(): void {
+    export function runToggleGridSmokeTest(): void {
         const focus = new UiFocusState()
         const controller = new UiFocusInputController({ focus })
         focus.setScope({ id: "parent" })
@@ -6400,8 +6366,8 @@ namespace ui {
             focus.getActiveTargetId("led") == "led/led12",
             "led default focus",
         )
-        const ledSurface = new WidgetSmokeSurface()
-        led.render(ledSurface, new WidgetSmokeAssets(), focus)
+        const ledSurface = new ControlSmokeSurface()
+        led.render(ledSurface, new ControlSmokeAssets(), focus)
         control.assert(
             ledSurface.log.indexOf("fill:9;") >= 0,
             "led toggled rendering",
@@ -6409,7 +6375,7 @@ namespace ui {
         const ledResult = led.handleFocusInput(
             controller.handleInput({ action: "activate" }),
         )
-        assertWidgetActivation(ledResult, "keepOpen", "led12", 12, "led toggle")
+        assertControlActivation(ledResult, "keepOpen", "led12", 12, "led toggle")
         control.assert(
             (<any>ledResult).updatedValue == 112,
             "led updated value",
@@ -6456,7 +6422,7 @@ namespace ui {
         const melodyResult = melody.handleFocusInput(
             controller.handleInput({ action: "activate" }),
         )
-        assertWidgetActivation(
+        assertControlActivation(
             melodyResult,
             "keepOpen",
             "m2-3",
@@ -6476,7 +6442,7 @@ namespace ui {
     /**
      * Smoke harness for numeric entry edit rules and typed results.
      */
-    export function runWidgetNumericEntrySmokeTest(): void {
+    export function runNumericEntrySmokeTest(): void {
         const decimal = new UiNumericEntry({
             mode: "decimal",
             initialText: "1",
@@ -6594,9 +6560,9 @@ namespace ui {
     }
 
     /**
-     * Smoke harness for widget observation ownership.
+     * Smoke harness for control observation ownership.
      */
-    export function runWidgetObservationSmokeTest(): void {
+    export function runControlObservationSmokeTest(): void {
         const focus = new UiFocusState()
         let focusRequests = 0
         focus.addFocusObserver((event: UiFocusEvent) => {
@@ -6612,7 +6578,7 @@ namespace ui {
         row.arrange(new Rect(0, 0, 60, 20))
         row.registerFocusTargets(focus)
         row.focusDefault(focus)
-        control.assert(focusRequests == 1, "widget focus observer frame")
+        control.assert(focusRequests == 1, "control focus observer frame")
 
         let layoutRequests = 0
         const owner = new UiLayoutOwner({
@@ -6625,7 +6591,7 @@ namespace ui {
         })
         row.invalidateLayout()
         owner.runLayout()
-        control.assert(layoutRequests == 1, "widget layout observer frame")
+        control.assert(layoutRequests == 1, "control layout observer frame")
 
         const scrollChild = new LayoutSmokeNode(
             layoutFixedSpec(120, 100),
@@ -6648,12 +6614,12 @@ namespace ui {
         scroll.arrange(new Rect(0, 0, 80, 40))
         control.assert(
             scrollGeometryRequests == 1,
-            "widget scroll geometry observer frame",
+            "control scroll geometry observer frame",
         )
         scroll.scrollContentRectIntoView(new Rect(0, 80, 20, 10))
         control.assert(
             scrollOffsetRequests == 1,
-            "widget scroll offset observer frame",
+            "control scroll offset observer frame",
         )
     }
 }
@@ -6672,15 +6638,15 @@ ui.runFocusInputRuntimeSmokeTest()
 ui.runDirectSimulatorInputSmokeTest()
 ui.runModalFocusSmokeTest()
 ui.runObservationSmokeTest()
-ui.runWidgetButtonSmokeTest()
+ui.runControlButtonSmokeTest()
 ui.runScreenControllerSmokeTest()
-ui.runWidgetControlSmokeTest()
-ui.runWidgetControlRowSmokeTest()
-ui.runWidgetControlGridSmokeTest()
-ui.runWidgetModalGridSmokeTest()
-ui.runWidgetToggleGridSmokeTest()
-ui.runWidgetNumericEntrySmokeTest()
-ui.runWidgetObservationSmokeTest()
+ui.runControlRecordSmokeTest()
+ui.runControlRowSmokeTest()
+ui.runControlGridSmokeTest()
+ui.runPickerSmokeTest()
+ui.runToggleGridSmokeTest()
+ui.runNumericEntrySmokeTest()
+ui.runControlObservationSmokeTest()
 
 // run display-profile test again as it produces something visual
 ui.renderLogicalViewportSmokeTest(7)

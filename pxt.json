@@ -35,14 +35,15 @@
         "ui-core/focus-navigation.ts",
         "ui-core/focus-runtime.ts",
         "ui-core/observation.ts",
-        "ui-widgets/button.ts",
-        "ui-widgets/widget-controller.ts",
-        "ui-widgets/control.ts",
-        "ui-widgets/control-row.ts",
-        "ui-widgets/control-grid.ts",
-        "ui-widgets/modal-grid.ts",
-        "ui-widgets/toggle-grid.ts",
-        "ui-widgets/numeric-entry.ts"
+        "ui-controls/button.ts",
+        "ui-controls/view.ts",
+        "ui-controls/modal.ts",
+        "ui-controls/control.ts",
+        "ui-controls/row.ts",
+        "ui-controls/grid.ts",
+        "ui-controls/modal-grid.ts",
+        "ui-controls/toggle-grid.ts",
+        "ui-controls/numeric-entry.ts"
     ],
     "yotta": {
         "config": {

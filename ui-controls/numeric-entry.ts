@@ -87,7 +87,7 @@ namespace ui {
     constructor(options: UiNumericEntryOptions) {
       this.mode_ = options.mode
       this.text_ = options.initialText || ""
-      this.maxLength_ = _uiWidgets.sanitizeDimension(options.maxLength, 8)
+      this.maxLength_ = _uiControls.sanitizeDimension(options.maxLength, 8)
       this.deleteEnabled_ = options.deleteEnabled || false
       this.cancelEnabled_ = options.cancelEnabled || false
       this.validate_ = options.validate

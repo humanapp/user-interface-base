@@ -23,23 +23,23 @@ namespace ui {
      */
     export interface UiFocusableView<TResult> extends UiView<TResult> {
         /**
-         * Registers focus targets after layout has arranged this widget.
+         * Registers focus targets after layout has arranged this view.
          */
         registerFocusTargets(focus: UiFocusState): void
 
         /**
-         * Registers directional navigation after layout has arranged this widget.
+         * Registers directional navigation after layout has arranged this view.
          */
         registerNavigation(controller: UiFocusInputController): void
 
         /**
-         * Focuses the widget's default target.
+         * Focuses the view's default target.
          */
         focusDefault(focus: UiFocusState): UiFocusSetResult
     }
 
     /**
-     * Fixed screen placement for a root widget.
+     * Fixed screen placement for a root view.
      */
     export interface UiPlacement {
         /**
@@ -82,43 +82,4 @@ namespace ui {
          */
         verticalAlignment?: UiLayoutAlignment
     }
-
-    /**
-     * Layout options applied before a controller opens a modal.
-     */
-    export interface UiModalOpenOptions {
-        /**
-         * Measurement limits used when the controller arranges the modal.
-         */
-        constraints?: UiLayoutConstraints
-
-        /**
-         * Concrete rectangle assigned to the modal before opening.
-         */
-        rect?: Rect
-    }
-
-    /**
-     * Modal widget lifecycle used by screen controllers.
-     */
-    export interface UiModal<TResult> extends UiView<TResult> {
-        /**
-         * Modal focus scope owned while the modal is open.
-         */
-        readonly modalScopeId: UiFocusScopeId
-
-        /**
-         * Registers modal focus and makes the modal scope active.
-         */
-        open(
-            focus: UiFocusState,
-            controller?: UiFocusInputController,
-        ): UiFocusSetResult
-
-        /**
-         * Restores focus to the parent modal scope.
-         */
-        close(focus: UiFocusState): UiFocusSetResult
-    }
-
 }

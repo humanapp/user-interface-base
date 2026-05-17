@@ -103,7 +103,7 @@ namespace ui {
     }
 
     /**
-     * Options for a screen with widget-managed focus and modal routing.
+     * Options for a screen with view-managed focus and modal routing.
      */
     export interface UiScreenOptions {
         /**
@@ -185,40 +185,58 @@ namespace ui {
         }
 
         /**
-         * Adds a root widget rendered and routed by this screen.
+         * Adds a root view rendered and routed by this screen.
          */
         public add<TResult>(
-            widget: UiFocusableView<TResult>,
+            view: UiFocusableView<TResult>,
             placement?: UiPlacement,
         ): UiFocusableView<TResult> {
-            const root = new UiScreenRoot<TResult>(widget, placement)
+            const root = new UiScreenRoot<TResult>(view, placement)
             this.roots_.push(root)
             if (placement) this.arrangeRoot(root)
             if (this.entered_) {
                 this.registerRoot(root)
-                if (this.roots_.length == 1) widget.focusDefault(this.focus_)
+                if (this.roots_.length == 1) view.focusDefault(this.focus_)
             }
-            return widget
+            return view
         }
 
         /**
-         * Called after the screen has an input scope and controller bindings.
+         * Adds a root view in a horizontally centered band.
          */
-        public enter(runtime: UiRuntime, input: UiInputScope): void {
+        public addCentered<TResult>(
+            view: UiFocusableView<TResult>,
+            centerY: number,
+            width: number,
+            height: number,
+        ): UiFocusableView<TResult> {
+            return this.add(view, {
+                x: 0,
+                centerY,
+                width,
+                height,
+                horizontalAlignment: "center",
+                verticalAlignment: "center",
+            })
+        }
+
+        /**
+         * Called after the screen has been pushed onto a runtime stack.
+         */
+        public enter(runtime: UiRuntime): void {
             this.closeModal()
             this.focus_ = new UiFocusState()
             this.focusInput_ = this.createFocusInputController()
             this.assets_ = runtime.assets
             this.entered_ = true
             this.resolveModalConstraints(runtime)
-            this.registerInput(input)
             for (let i = 0; i < this.roots_.length; i++) {
                 const root = this.roots_[i]
                 if (root.placement) this.arrangeRoot(root)
                 this.registerRoot(root)
             }
             if (this.roots_.length > 0)
-                this.roots_[0].widget.focusDefault(this.focus_)
+                this.roots_[0].view.focusDefault(this.focus_)
         }
 
         /**
@@ -243,7 +261,7 @@ namespace ui {
         public deactivate(): void {}
 
         /**
-         * Handles input that no registered scope handler consumed.
+         * Handles one input event.
          */
         public handleInput(event: UiInputEvent): boolean {
             if (this.activeModal_) return this.handleModalInput(event)
@@ -260,10 +278,10 @@ namespace ui {
         public update(): void {}
 
         /**
-         * Renders this screen's widgets and active modal.
+         * Renders this screen's views and active modal.
          */
         public render(surface: DrawSurface): void {
-            this.renderWidgets(surface)
+            this.renderViews(surface)
         }
 
         /**
@@ -300,46 +318,24 @@ namespace ui {
         }
 
         /**
-         * Handles screen-level input before root widgets receive it.
+         * Handles screen-level input before root views receive it.
          */
         public handleScreenInput(event: UiInputEvent): boolean | undefined {
             return undefined
         }
 
-        /**
-         * Renders root widgets, then the active modal when one is open.
-         */
-        public renderWidgets(surface: DrawSurface): void {
+        private renderViews(surface: DrawSurface): void {
             if (!this.assets_) return
             for (let i = 0; i < this.roots_.length; i++) {
-                this.roots_[i].widget.render(surface, this.assets_, this.focus_)
+                this.roots_[i].view.render(surface, this.assets_, this.focus_)
             }
             if (this.activeModal_)
                 this.activeModal_.render(surface, this.assets_, this.focus_)
         }
 
-        private registerInput(input: UiInputScope): void {
-            this.registerAction(input, "left")
-            this.registerAction(input, "right")
-            this.registerAction(input, "up")
-            this.registerAction(input, "down")
-            this.registerAction(input, "activate")
-            this.registerAction(input, "cancel")
-            this.registerAction(input, "pointerMove")
-            this.registerAction(input, "pointerClick")
-            this.registerAction(input, "wheel")
-        }
-
-        private registerAction(
-            input: UiInputScope,
-            action: UiInputAction,
-        ): void {
-            input.onAction(action, event => this.handleInput(event))
-        }
-
         private registerRoot<TResult>(root: UiScreenRoot<TResult>): void {
-            root.widget.registerFocusTargets(this.focus_)
-            root.widget.registerNavigation(this.focusInput_)
+            root.view.registerFocusTargets(this.focus_)
+            root.view.registerNavigation(this.focusInput_)
         }
 
         private arrangeRoot<TResult>(root: UiScreenRoot<TResult>): void {
@@ -354,7 +350,7 @@ namespace ui {
             )
             root.constraints.maxWidth = width
             root.constraints.maxHeight = height
-            root.widget.measure(root.constraints, root.measured)
+            root.view.measure(root.constraints, root.measured)
             const horizontal = placement.horizontalAlignment || "start"
             const vertical = placement.verticalAlignment || "start"
             const childWidth = _uiLayout.alignedSize(
@@ -373,7 +369,7 @@ namespace ui {
                 childWidth,
                 childHeight,
             )
-            root.widget.arrange(root.childRect)
+            root.view.arrange(root.childRect)
         }
 
         private placementX(placement: UiPlacement, width: number): number {
@@ -442,8 +438,8 @@ namespace ui {
             result: UiFocusInputResult,
         ): boolean | undefined {
             for (let i = 0; i < this.roots_.length; i++) {
-                const widgetResult = this.roots_[i].widget.handleFocusInput(result)
-                if (widgetResult) return this.defaultHandled(widgetResult)
+                const viewResult = this.roots_[i].view.handleFocusInput(result)
+                if (viewResult) return this.defaultHandled(viewResult)
             }
             return undefined
         }
@@ -490,15 +486,15 @@ namespace ui {
     }
 
     class UiScreenRoot<TResult> {
-        public widget: UiFocusableView<TResult>
+        public view: UiFocusableView<TResult>
         public placement: UiPlacement
         public rect: Rect
         public childRect: Rect
         public constraints: UiLayoutConstraints
         public measured: UiMeasuredSize
 
-        constructor(widget: UiFocusableView<TResult>, placement?: UiPlacement) {
-            this.widget = widget
+        constructor(view: UiFocusableView<TResult>, placement?: UiPlacement) {
+            this.view = view
             this.placement = placement
             this.rect = new Rect()
             this.childRect = new Rect()

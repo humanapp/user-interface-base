@@ -106,11 +106,11 @@ namespace ui {
             this.defaultControlId_ = options.defaultControlId
             this.scrollOwnerId_ = options.scrollOwnerId
             this.wrap_ = options.wrap || false
-            this.controlWidth_ = _uiWidgets.controlWidth(options.controlWidth)
-            this.controlHeight_ = _uiWidgets.controlHeight(options.controlHeight)
-            this.gap_ = _uiWidgets.gap(options.gap)
+            this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
+            this.controlHeight_ = _uiControls.controlHeight(options.controlHeight)
+            this.gap_ = _uiControls.gap(options.gap)
             this.layoutSpec =
-                options.layoutSpec || _uiWidgets.defaultLayoutSpec()
+                options.layoutSpec || _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect()
             this.layoutDirty = true
             this.controlRects_ = []
@@ -230,7 +230,7 @@ namespace ui {
             focus: UiFocusState,
             scopeOptions?: UiFocusScopeOptions,
         ): void {
-            const preferred = _uiWidgets.preferredControlId(
+            const preferred = _uiControls.preferredControlId(
                 this.scopeId_,
                 this.controls_,
                 this.defaultControlId_,
@@ -246,25 +246,25 @@ namespace ui {
             const currentTargetIds: string[] = []
             for (let i = 0; i < this.controls_.length; i++) {
                 currentTargetIds.push(
-                    _uiWidgets.targetId(this.scopeId_, this.controls_[i].id),
+                    _uiControls.targetId(this.scopeId_, this.controls_[i].id),
                 )
             }
             for (let i = 0; i < this.registeredTargetIds_.length; i++) {
                 const targetId = this.registeredTargetIds_[i]
-                if (!_uiWidgets.containsString(currentTargetIds, targetId))
+                if (!_uiControls.containsString(currentTargetIds, targetId))
                     focus.removeTarget(targetId)
             }
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 const rect = this.controlRects_[i] || new Rect()
                 focus.setTarget({
-                    id: _uiWidgets.targetId(this.scopeId_, control.id),
+                    id: _uiControls.targetId(this.scopeId_, control.id),
                     scopeId: this.scopeId_,
                     rect,
                     scrollOwnerId: this.scrollOwnerId_,
                     scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                    disabled: _uiWidgets.isDisabled(control),
-                    hidden: !_uiWidgets.isVisible(control),
+                    disabled: _uiControls.isDisabled(control),
+                    hidden: !_uiControls.isVisible(control),
                     activatable: true,
                 })
             }
@@ -293,7 +293,7 @@ namespace ui {
          * Returns the target id chosen by default-control and selected-control rules.
          */
         public resolvePreferredTargetId(): UiFocusId | undefined {
-            return _uiWidgets.preferredControlId(
+            return _uiControls.preferredControlId(
                 this.scopeId_,
                 this.controls_,
                 this.defaultControlId_,
@@ -335,7 +335,7 @@ namespace ui {
         ): UiRowResult<T> {
             if (result.kind != "activated" || result.scopeId != this.scopeId_)
                 return undefined
-            const control = _uiWidgets.findControlByTargetId(
+            const control = _uiControls.findControlByTargetId(
                 this.scopeId_,
                 this.controls_,
                 result.targetId,
@@ -361,7 +361,7 @@ namespace ui {
                 kind: "exited",
                 direction: result.direction,
                 scopeId: result.scopeId,
-                controlId: _uiWidgets.controlIdFromTargetId(
+                controlId: _uiControls.controlIdFromTargetId(
                     this.scopeId_,
                     result.targetId,
                 ),
@@ -383,12 +383,12 @@ namespace ui {
             let focusedIndex = -1
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
-                if (!_uiWidgets.isVisible(control)) continue
+                if (!_uiControls.isVisible(control)) continue
                 const focused =
                     activeTargetId ==
-                    _uiWidgets.targetId(this.scopeId_, control.id)
+                    _uiControls.targetId(this.scopeId_, control.id)
                 if (focused && !control.draw) focusedIndex = i
-                _uiWidgets.renderControl(
+                _uiControls.renderControl(
                     surface,
                     assets,
                     control,
@@ -400,7 +400,7 @@ namespace ui {
                 )
             }
             if (focusedIndex >= 0) {
-                _uiWidgets.renderControlFocus(
+                _uiControls.renderControlFocus(
                     surface,
                     assets,
                     this.controls_[focusedIndex],
@@ -426,12 +426,12 @@ namespace ui {
                 const control = this.controls_[i]
                 const rect = this.controlRects_[i]
                 targets.push({
-                    id: _uiWidgets.targetId(this.scopeId_, control.id),
+                    id: _uiControls.targetId(this.scopeId_, control.id),
                     rect,
                     scrollOwnerId: this.scrollOwnerId_,
                     scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                    disabled: _uiWidgets.isDisabled(control),
-                    hidden: !_uiWidgets.isVisible(control),
+                    disabled: _uiControls.isDisabled(control),
+                    hidden: !_uiControls.isVisible(control),
                 })
             }
             return targets
@@ -439,7 +439,7 @@ namespace ui {
 
         private emitActivate(result: UiRowResult<T>): void {
             if (!result || result.kind != "activated") return
-            _uiWidgets.emitControlActivate(
+            _uiControls.emitControlActivate(
                 result.value,
                 result.control,
                 result.controlId,

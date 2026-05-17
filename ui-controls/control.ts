@@ -63,7 +63,7 @@ namespace ui {
     }
 
     /**
-     * Caller-owned control record consumed by action, modal, and toggle widgets.
+     * Caller-owned control record consumed by action, modal, and toggle views.
      */
     export interface UiControl<T> {
         /**
@@ -144,9 +144,45 @@ namespace ui {
         onActivate?: UiControlActivateHandler<T>
     }
 
+    /**
+     * Creates a bitmap-backed button control whose value is its id.
+     *
+     * Use this for simple action controls where focus, layout, and rendering are
+     * owned by a row, grid, picker, or toggle collection.
+     */
+    export function button<T extends string>(
+        id: T,
+        bitmapId: string | number,
+        textId?: string,
+        onActivate?: () => void,
+    ): UiControl<T> {
+        return {
+            id,
+            value: id,
+            bitmapId,
+            textId,
+            onActivate: onActivate
+                ? () => {
+                      onActivate()
+                  }
+                : undefined,
+        }
+    }
+
+    /**
+     * Creates a bitmap-only button control whose value is its id.
+     */
+    export function iconButton<T extends string>(
+        id: T,
+        bitmapId: string | number,
+        onActivate?: () => void,
+    ): UiControl<T> {
+        return button(id, bitmapId, undefined, onActivate)
+    }
+
 }
 
-namespace _uiWidgets {
+namespace _uiControls {
     export function targetId(scopeId: string, controlId: string): string {
         return scopeId + "/" + controlId
     }

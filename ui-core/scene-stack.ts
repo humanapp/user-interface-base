@@ -1,43 +1,15 @@
 namespace ui {
-    class UiActionHandlers {
-        public action: UiInputAction
-        public handlers: UiInputHandler[]
-
-        constructor(action: UiInputAction) {
-            this.action = action
-            this.handlers = []
-        }
-    }
-
-    class UiInputScopeState implements UiInputScope {
+    class UiSceneInput {
         private runtime_: UiRuntime
         private disposed_: boolean
-        private actionHandlers_: UiActionHandlers[]
 
         constructor(runtime: UiRuntime) {
             this.runtime_ = runtime
             this.disposed_ = false
-            this.actionHandlers_ = []
-        }
-
-        public onAction(action: UiInputAction, handler: UiInputHandler): void {
-            if (this.disposed_) return
-
-            let handlers = this.handlersForAction(action)
-            if (!handlers) {
-                handlers = new UiActionHandlers(action)
-                this.actionHandlers_.push(handlers)
-            }
-            handlers.handlers.push(handler)
         }
 
         public dispose(): void {
             this.disposed_ = true
-            for (let i = 0; i < this.actionHandlers_.length; i++) {
-                while (this.actionHandlers_[i].handlers.length)
-                    this.actionHandlers_[i].handlers.pop()
-            }
-            while (this.actionHandlers_.length) this.actionHandlers_.pop()
         }
 
         public dispatchAction(
@@ -48,50 +20,28 @@ namespace ui {
             if (this.disposed_) return
             this.runtime_.dispatchInput({ action, source, phase })
         }
-
-        public deliver(event: UiInputEvent): boolean {
-            if (this.disposed_) return false
-
-            const handlers = this.handlersForAction(event.action)
-            if (!handlers) return false
-
-            for (let i = 0; i < handlers.handlers.length; i++) {
-                if (handlers.handlers[i](event)) return true
-            }
-            return false
-        }
-
-        private handlersForAction(
-            action: UiInputAction,
-        ): UiActionHandlers | undefined {
-            for (let i = 0; i < this.actionHandlers_.length; i++) {
-                const handlers = this.actionHandlers_[i]
-                if (handlers.action == action) return handlers
-            }
-            return undefined
-        }
     }
 
-    class UiSceneRecord {
+    class UiScene {
         public screen: UiScreen
-        public input: UiInputScopeState
+        public input: UiSceneInput
 
-        constructor(screen: UiScreen, input: UiInputScopeState) {
+        constructor(screen: UiScreen, input: UiSceneInput) {
             this.screen = screen
             this.input = input
         }
     }
 
     /**
-     * Stack that owns screen lifecycle and input scopes.
+     * Stack that owns screen lifecycle and input routing.
      */
     export class UiSceneStack {
         private runtime_: UiRuntime
-        private records_: UiSceneRecord[]
+        private scenes_: UiScene[]
 
         constructor(runtime: UiRuntime) {
             this.runtime_ = runtime
-            this.records_ = []
+            this.scenes_ = []
         }
 
         /**
@@ -104,13 +54,13 @@ namespace ui {
             if (current) current.screen.deactivate()
 
             context.pushEventContext()
-            const input = new UiInputScopeState(this.runtime_)
+            const input = new UiSceneInput(this.runtime_)
             this.bindDefaultControllerActions(input)
 
-            const record = new UiSceneRecord(screen, input)
-            this.records_.push(record)
+            const record = new UiScene(screen, input)
+            this.scenes_.push(record)
 
-            screen.enter(this.runtime_, input)
+            screen.enter(this.runtime_)
             screen.activate()
         }
 
@@ -121,7 +71,7 @@ namespace ui {
         public pop(): UiScreen | undefined {
             this.runtime_.clearInputQueue()
 
-            const record = this.records_.pop()
+            const record = this.scenes_.pop()
             if (!record) return undefined
 
             record.screen.deactivate()
@@ -142,7 +92,7 @@ namespace ui {
         public replace(screen: UiScreen): UiScreen | undefined {
             this.runtime_.clearInputQueue()
 
-            const replaced = this.records_.pop()
+            const replaced = this.scenes_.pop()
             if (replaced) {
                 replaced.screen.deactivate()
                 replaced.screen.exit()
@@ -151,13 +101,13 @@ namespace ui {
             }
 
             context.pushEventContext()
-            const input = new UiInputScopeState(this.runtime_)
+            const input = new UiSceneInput(this.runtime_)
             this.bindDefaultControllerActions(input)
 
-            const record = new UiSceneRecord(screen, input)
-            this.records_.push(record)
+            const record = new UiScene(screen, input)
+            this.scenes_.push(record)
 
-            screen.enter(this.runtime_, input)
+            screen.enter(this.runtime_)
             screen.activate()
 
             return replaced ? replaced.screen : undefined
@@ -175,7 +125,7 @@ namespace ui {
          * Returns the number of screens in the stack.
          */
         public depth(): number {
-            return this.records_.length
+            return this.scenes_.length
         }
 
         /**
@@ -220,23 +170,22 @@ namespace ui {
             let index = 0
             while (index < queue.length && this.topRecord() == record) {
                 const event = queue[index++]
-                const consumed = record.input.deliver(event)
-                if (!consumed) record.screen.handleInput(event)
+                record.screen.handleInput(event)
             }
 
             this.clearInputQueue(queue)
         }
 
-        private topRecord(): UiSceneRecord | undefined {
-            if (!this.records_.length) return undefined
-            return this.records_[this.records_.length - 1]
+        private topRecord(): UiScene | undefined {
+            if (!this.scenes_.length) return undefined
+            return this.scenes_[this.scenes_.length - 1]
         }
 
         private clearInputQueue(queue: UiInputEvent[]): void {
             while (queue.length) queue.pop()
         }
 
-        private bindDefaultControllerActions(input: UiInputScopeState): void {
+        private bindDefaultControllerActions(input: UiSceneInput): void {
             this.bindDefaultControllerAction(input, controller.up.id, "up")
             this.bindDefaultControllerAction(input, controller.down.id, "down")
             this.bindDefaultControllerAction(input, controller.left.id, "left")
@@ -251,7 +200,7 @@ namespace ui {
         }
 
         private bindDefaultControllerAction(
-            input: UiInputScopeState,
+            input: UiSceneInput,
             buttonId: number,
             action: UiInputAction,
         ): void {
