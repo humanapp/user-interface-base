@@ -5446,6 +5446,51 @@ namespace ui {
         control.assert(surface.log.indexOf("line:9;") >= 0, "button focus")
     }
 
+    /**
+     * Smoke harness for screen-local widget focus and input plumbing.
+     */
+    export function runWidgetControllerSmokeTest(): void {
+        const widgets = new UiWidgetController()
+        const input = new TestInputScope()
+        let log = ""
+
+        widgets.focus.setScope({ id: "controller" })
+        widgets.focus.setTarget({
+            id: "controller/action",
+            scopeId: "controller",
+            rect: new Rect(0, 0, 10, 10),
+            activatable: true,
+        })
+        widgets.focus.setActiveTarget("controller", "controller/action")
+        widgets.registerInput(input, (event: UiInputEvent): boolean =>
+            widgets.handleInput(event, (
+                result: UiFocusInputResult,
+                deliveredEvent: UiInputEvent,
+            ): boolean | undefined => {
+                log += deliveredEvent.action + ":" + result.kind + ";"
+                if (result.kind == "activated") return true
+                return undefined
+            }),
+        )
+
+        control.assert(
+            input.deliver({ action: "activate" }),
+            "widget controller activation handled",
+        )
+        control.assert(
+            !input.deliver({ action: "cancel" }),
+            "widget controller default handled result",
+        )
+        control.assert(
+            !input.deliver({ action: "menu" }),
+            "widget controller leaves menu unregistered",
+        )
+        control.assert(
+            log == "activate:activated;cancel:notCancelled;",
+            "widget controller input log",
+        )
+    }
+
     function assertWidgetActivation<T>(
         result: any,
         kind: string,
@@ -6309,6 +6354,7 @@ ui.runDirectSimulatorInputSmokeTest()
 ui.runModalFocusSmokeTest()
 ui.runObservationSmokeTest()
 ui.runWidgetButtonSmokeTest()
+ui.runWidgetControllerSmokeTest()
 ui.runWidgetActionItemSmokeTest()
 ui.runWidgetActionRowSmokeTest()
 ui.runWidgetActionGridSmokeTest()
