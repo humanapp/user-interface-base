@@ -5463,7 +5463,7 @@ namespace ui {
         })
         widgets.focus.setActiveTarget("controller", "controller/action")
         widgets.registerInput(input, (event: UiInputEvent): boolean =>
-            widgets.handleInput(event, (
+            widgets.handleFocusInput(event, (
                 result: UiFocusInputResult,
                 deliveredEvent: UiInputEvent,
             ): boolean | undefined => {
@@ -5491,18 +5491,19 @@ namespace ui {
         )
 
         let rowLog = ""
-        const row = new UiActionRow<string>({
-            scopeId: "controller-row",
-            items: [
-                { id: "a", value: "A" },
-                { id: "b", value: "B", selected: true },
-            ],
-            onActivate: value => {
-                rowLog += value + ";"
-            },
-        })
+        const row: UiFocusableWidget<UiActionRowResult<string>> =
+            new UiActionRow<string>({
+                scopeId: "controller-row",
+                items: [
+                    { id: "a", value: "A" },
+                    { id: "b", value: "B", selected: true },
+                ],
+                onActivate: value => {
+                    rowLog += value + ";"
+                },
+            })
         row.arrange(new Rect(0, 0, 60, 20))
-        const rowFocus = widgets.registerActionRow(row)
+        const rowFocus = widgets.registerWidget(row)
         control.assert(
             rowFocus.kind == "focused",
             "widget controller row focus",
@@ -5513,10 +5514,16 @@ namespace ui {
             "widget controller row selected target",
         )
         control.assert(
-            widgets.handleActionRowInput({ action: "activate" }, row),
+            widgets.handleInput({ action: "activate" }, row),
             "widget controller row activation handled",
         )
         control.assert(rowLog == "B;", "widget controller row callback")
+        const rowSurface = new WidgetSmokeSurface()
+        widgets.render(rowSurface, new WidgetSmokeAssets(), row)
+        control.assert(
+            rowSurface.log.length > 0,
+            "widget controller renders widget",
+        )
 
         const modal: UiModal<UiModalGridResult<string>> =
             new UiModalGrid<string>({

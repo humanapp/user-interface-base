@@ -74,7 +74,8 @@ namespace ui {
     /**
      * Renders and navigates one horizontal action row.
      */
-    export class UiActionRow<T> implements UiLayoutNode {
+    export class UiActionRow<T>
+        implements UiFocusableWidget<UiActionRowResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean

@@ -3,7 +3,7 @@ namespace ui {
      * Handles a focus input result before the controller returns whether the
      * original event was consumed.
      */
-    export interface UiWidgetInputResultHandler {
+    export interface UiFocusInputResultHandler {
         /**
          * Returns a handled value to override default focus handling.
          */
@@ -11,29 +11,52 @@ namespace ui {
     }
 
     /**
-     * Handles an action row result after focus input runs.
+     * Widget lifecycle shared by controller-managed controls.
      */
-    export interface UiActionRowInputResultHandler<T> {
+    export interface UiWidget<TResult> extends UiLayoutNode {
         /**
-         * Returns a handled value to override default row handling.
+         * Renders the widget through the supplied draw surface.
          */
-        (
-            result: UiActionRowResult<T>,
-            event: UiInputEvent,
-        ): boolean | undefined
+        render(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void
+
+        /**
+         * Converts focus input into the widget's typed result.
+         */
+        handleFocusInput(result: UiFocusInputResult): TResult
     }
 
     /**
-     * Handles an action grid result after focus input runs.
+     * Widget lifecycle for controls that own a normal focus scope.
      */
-    export interface UiActionGridInputResultHandler<T> {
+    export interface UiFocusableWidget<TResult> extends UiWidget<TResult> {
         /**
-         * Returns a handled value to override default grid handling.
+         * Registers focus targets after layout has arranged this widget.
          */
-        (
-            result: UiActionGridResult<T>,
-            event: UiInputEvent,
-        ): boolean | undefined
+        registerFocusTargets(focus: UiFocusState): void
+
+        /**
+         * Registers directional navigation after layout has arranged this widget.
+         */
+        registerNavigation(controller: UiFocusInputController): void
+
+        /**
+         * Focuses the widget's default target.
+         */
+        focusDefault(focus: UiFocusState): UiFocusSetResult
+    }
+
+    /**
+     * Handles a widget result after focus input runs.
+     */
+    export interface UiWidgetInputResultHandler<TResult> {
+        /**
+         * Returns a handled value to override default widget handling.
+         */
+        (result: TResult, event: UiInputEvent): boolean | undefined
     }
 
     /**
@@ -54,7 +77,7 @@ namespace ui {
     /**
      * Modal widget lifecycle used by screen controllers.
      */
-    export interface UiModal<TResult> extends UiLayoutNode {
+    export interface UiModal<TResult> extends UiWidget<TResult> {
         /**
          * Modal focus scope owned while the modal is open.
          */
@@ -72,21 +95,6 @@ namespace ui {
          * Restores focus to the parent modal scope.
          */
         close(focus: UiFocusState): UiFocusSetResult
-
-        /**
-         * Converts focus input into the modal's typed result.
-         */
-        handleFocusInput(result: UiFocusInputResult): TResult
-    }
-
-    /**
-     * Handles a modal result after focus input runs.
-     */
-    export interface UiModalInputResultHandler<TResult> {
-        /**
-         * Returns a handled value to override default modal handling.
-         */
-        (result: TResult, event: UiInputEvent): boolean | undefined
     }
 
     /**
@@ -135,25 +143,25 @@ namespace ui {
         }
 
         /**
-         * Registers an arranged action row and focuses its default target.
+         * Registers an arranged widget and focuses its default target.
          */
-        public registerActionRow<T>(
-            row: UiActionRow<T>,
+        public registerWidget<TResult>(
+            widget: UiFocusableWidget<TResult>,
         ): UiFocusSetResult {
-            row.registerFocusTargets(this.focus_)
-            row.registerNavigation(this.focusInput_)
-            return row.focusDefault(this.focus_)
+            widget.registerFocusTargets(this.focus_)
+            widget.registerNavigation(this.focusInput_)
+            return widget.focusDefault(this.focus_)
         }
 
         /**
-         * Registers an arranged action grid and focuses its default target.
+         * Renders a widget using this controller's focus state.
          */
-        public registerActionGrid<T>(
-            grid: UiActionGrid<T>,
-        ): UiFocusSetResult {
-            grid.registerFocusTargets(this.focus_)
-            grid.registerNavigation(this.focusInput_)
-            return grid.focusDefault(this.focus_)
+        public render<TResult>(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            widget: UiWidget<TResult>,
+        ): void {
+            widget.render(surface, assets, this.focus_)
         }
 
         /**
@@ -181,9 +189,9 @@ namespace ui {
         /**
          * Runs focus input handling and lets the screen interpret widget results.
          */
-        public handleInput(
+        public handleFocusInput(
             event: UiInputEvent,
-            handler?: UiWidgetInputResultHandler,
+            handler?: UiFocusInputResultHandler,
         ): boolean {
             const result = this.focusInput_.handleInput(event)
             const handled = handler ? handler(result, event) : undefined
@@ -191,46 +199,24 @@ namespace ui {
         }
 
         /**
-         * Handles one input event for an action row.
+         * Handles one input event for a widget.
          */
-        public handleActionRowInput<T>(
+        public handleInput<TResult>(
             event: UiInputEvent,
-            row: UiActionRow<T>,
-            handler?: UiActionRowInputResultHandler<T>,
+            widget: UiWidget<TResult>,
+            handler?: UiWidgetInputResultHandler<TResult>,
         ): boolean {
-            return this.handleInput(event, (
+            return this.handleFocusInput(event, (
                 result: UiFocusInputResult,
                 deliveredEvent: UiInputEvent,
             ): boolean | undefined => {
-                const rowResult = row.handleFocusInput(result)
-                if (!rowResult) return undefined
+                const widgetResult = widget.handleFocusInput(result)
+                if (!widgetResult) return undefined
                 const handled = handler
-                    ? handler(rowResult, deliveredEvent)
+                    ? handler(widgetResult, deliveredEvent)
                     : undefined
                 if (handled !== undefined) return handled
-                return rowResult.kind == "activated" ? true : undefined
-            })
-        }
-
-        /**
-         * Handles one input event for an action grid.
-         */
-        public handleActionGridInput<T>(
-            event: UiInputEvent,
-            grid: UiActionGrid<T>,
-            handler?: UiActionGridInputResultHandler<T>,
-        ): boolean {
-            return this.handleInput(event, (
-                result: UiFocusInputResult,
-                deliveredEvent: UiInputEvent,
-            ): boolean | undefined => {
-                const gridResult = grid.handleFocusInput(result)
-                if (!gridResult) return undefined
-                const handled = handler
-                    ? handler(gridResult, deliveredEvent)
-                    : undefined
-                if (handled !== undefined) return handled
-                return gridResult.kind == "activated" ? true : undefined
+                return this.defaultWidgetHandled(widgetResult)
             })
         }
 
@@ -240,9 +226,9 @@ namespace ui {
         public handleModalInput<TResult>(
             event: UiInputEvent,
             modal: UiModal<TResult>,
-            handler?: UiModalInputResultHandler<TResult>,
+            handler?: UiWidgetInputResultHandler<TResult>,
         ): boolean {
-            return this.handleInput(event, (
+            return this.handleFocusInput(event, (
                 result: UiFocusInputResult,
                 deliveredEvent: UiInputEvent,
             ): boolean | undefined => {
@@ -251,7 +237,9 @@ namespace ui {
                     const handled = handler
                         ? handler(modalResult, deliveredEvent)
                         : undefined
-                    return handled !== undefined ? handled : true
+                    return handled !== undefined
+                        ? handled
+                        : this.defaultWidgetHandled(modalResult)
                 }
                 if (
                     deliveredEvent.action == "pointerClick" &&
@@ -268,6 +256,22 @@ namespace ui {
             handler: UiInputHandler,
         ): void {
             input.onAction(action, handler)
+        }
+
+        private defaultWidgetHandled<TResult>(
+            result: TResult,
+        ): boolean | undefined {
+            const kind = (<any>result).kind
+            switch (kind) {
+                case "activated":
+                case "keepOpen":
+                case "cancelled":
+                case "closed":
+                case "deleted":
+                case "completed":
+                    return true
+            }
+            return undefined
         }
     }
 }

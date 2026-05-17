@@ -89,7 +89,8 @@ namespace ui {
     /**
      * Renders and navigates a rectangular or ragged action grid.
      */
-    export class UiActionGrid<T> implements UiLayoutNode {
+    export class UiActionGrid<T>
+        implements UiFocusableWidget<UiActionGridResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
