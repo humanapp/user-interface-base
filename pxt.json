@@ -35,6 +35,7 @@
         "ui-core/focus-navigation.ts",
         "ui-core/focus-runtime.ts",
         "ui-core/observation.ts",
+        "ui-widgets/button.ts",
         "ui-widgets/action-item.ts",
         "ui-widgets/action-row.ts",
         "ui-widgets/action-grid.ts",
