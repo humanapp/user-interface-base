@@ -138,6 +138,7 @@ namespace ui {
         private assets_: UiAssetResolver
         private activeModal_: UiModal<any>
         private modalConstraints_: UiLayoutConstraints
+        private rootConstraints_: UiLayoutConstraints
         private defaultModalOptions_: UiModalOpenOptions
         private modalRect_: Rect
         private modalSize_: UiMeasuredSize
@@ -152,6 +153,10 @@ namespace ui {
             this.assets_ = undefined
             this.activeModal_ = undefined
             this.modalConstraints_ = {
+                maxWidth: 0,
+                maxHeight: 0,
+            }
+            this.rootConstraints_ = {
                 maxWidth: 0,
                 maxHeight: 0,
             }
@@ -193,7 +198,8 @@ namespace ui {
         ): UiFocusableView<TResult> {
             const root = new UiScreenRoot<TResult>(view, placement)
             this.roots_.push(root)
-            if (placement) this.arrangeRoot(root)
+            if (placement && (this.entered_ || this.hasExplicitSize(placement)))
+                this.arrangeRoot(root)
             if (this.entered_) {
                 this.registerRoot(root)
                 if (this.roots_.length == 1) view.focusDefault(this.focus_)
@@ -229,6 +235,7 @@ namespace ui {
             this.focusInput_ = this.createFocusInputController()
             this.assets_ = runtime.assets
             this.entered_ = true
+            this.resolveRootConstraints(runtime)
             this.resolveModalConstraints(runtime)
             for (let i = 0; i < this.roots_.length; i++) {
                 const root = this.roots_[i]
@@ -340,8 +347,19 @@ namespace ui {
 
         private arrangeRoot<TResult>(root: UiScreenRoot<TResult>): void {
             const placement = root.placement
-            const width = _uiLayout.sanitizeDimension(placement.width)
-            const height = _uiLayout.sanitizeDimension(placement.height)
+            const hasWidth = placement.width !== undefined
+            const hasHeight = placement.height !== undefined
+            let width = hasWidth
+                ? _uiLayout.sanitizeDimension(placement.width)
+                : this.rootConstraints_.maxWidth
+            let height = hasHeight
+                ? _uiLayout.sanitizeDimension(placement.height)
+                : this.rootConstraints_.maxHeight
+            root.constraints.maxWidth = width
+            root.constraints.maxHeight = height
+            root.view.measure(root.constraints, root.measured)
+            if (!hasWidth) width = root.measured.preferredWidth
+            if (!hasHeight) height = root.measured.preferredHeight
             root.rect.set(
                 this.placementX(placement, width),
                 this.placementY(placement, height),
@@ -350,7 +368,6 @@ namespace ui {
             )
             root.constraints.maxWidth = width
             root.constraints.maxHeight = height
-            root.view.measure(root.constraints, root.measured)
             const horizontal = placement.horizontalAlignment || "start"
             const vertical = placement.verticalAlignment || "start"
             const childWidth = _uiLayout.alignedSize(
@@ -370,6 +387,10 @@ namespace ui {
                 childHeight,
             )
             root.view.arrange(root.childRect)
+        }
+
+        private hasExplicitSize(placement: UiPlacement): boolean {
+            return placement.width !== undefined && placement.height !== undefined
         }
 
         private placementX(placement: UiPlacement, width: number): number {
@@ -464,6 +485,16 @@ namespace ui {
                 scroll: this.options_.scroll,
                 wheel: this.options_.wheel,
             })
+        }
+
+        private resolveRootConstraints(runtime: UiRuntime): void {
+            const profile = runtime.displayProfile
+            this.rootConstraints_.maxWidth = Math.round(
+                profile.logicalWidth / profile.designToLogicalScaleX,
+            )
+            this.rootConstraints_.maxHeight = Math.round(
+                profile.logicalHeight / profile.designToLogicalScaleY,
+            )
         }
 
         private resolveModalConstraints(runtime: UiRuntime): void {

@@ -176,18 +176,8 @@ namespace ui {
             constraints: UiLayoutConstraints,
             output: UiMeasuredSize,
         ): void {
-            const rowCount = this.rowCount()
-            const columnCount = this.maxColumnCount()
-            const width =
-                columnCount > 0
-                    ? columnCount * this.controlWidth_ +
-                      (columnCount - 1) * this.columnGap_
-                    : 0
-            const height =
-                rowCount > 0
-                    ? rowCount * this.controlHeight_ +
-                      (rowCount - 1) * this.rowGap_
-                    : 0
+            const width = this.contentWidth()
+            const height = this.contentHeight()
             measureLayoutSpec(
                 this.layoutSpec,
                 constraints,
@@ -547,6 +537,21 @@ namespace ui {
             if (!this.rows_) return this.columnCount_
             if (row < 0 || row >= this.rows_.length) return 0
             return _uiControls.sanitizeDimension(this.rows_[row], 0)
+        }
+
+        private contentWidth(): number {
+            const columnCount = this.maxColumnCount()
+            if (columnCount <= 0) return 0
+            return (
+                columnCount * this.controlWidth_ +
+                (columnCount - 1) * this.columnGap_
+            )
+        }
+
+        private contentHeight(): number {
+            const rowCount = this.rowCount()
+            if (rowCount <= 0) return 0
+            return rowCount * this.controlHeight_ + (rowCount - 1) * this.rowGap_
         }
 
         private maxColumnCount(): number {

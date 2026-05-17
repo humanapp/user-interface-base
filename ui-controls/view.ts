@@ -39,7 +39,7 @@ namespace ui {
     }
 
     /**
-     * Fixed screen placement for a root view.
+     * Screen placement for a root view.
      */
     export interface UiPlacement {
         /**
@@ -63,14 +63,16 @@ namespace ui {
         centerY?: number
 
         /**
-         * Width of the placement rectangle.
+         * Width of the placement rectangle. Omitted values use the view's
+         * measured preferred width.
          */
-        width: number
+        width?: number
 
         /**
-         * Height of the placement rectangle.
+         * Height of the placement rectangle. Omitted values use the view's
+         * measured preferred height.
          */
-        height: number
+        height?: number
 
         /**
          * Horizontal child placement inside the rectangle. Defaults to `start`.

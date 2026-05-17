@@ -5569,6 +5569,20 @@ namespace ui {
             },
         })
         screen.addCentered(screenRow, 15, 100, 20)
+        const autoRow = new UiRow<string>({
+            scopeId: "screen-auto-row",
+            controls: [
+                { id: "a", value: "A" },
+                { id: "b", value: "B" },
+            ],
+            controlWidth: 10,
+            controlHeight: 6,
+            gap: 3,
+        })
+        screen.add(autoRow, {
+            x: 7,
+            y: 32,
+        })
         screen.enter(screenRuntime)
         control.assert(
             screen.focus.getActiveTargetId("screen-row") == "screen-row/b",
@@ -5586,6 +5600,19 @@ namespace ui {
             24,
             20,
             "screen controller placed control rect",
+        )
+        const autoControlRect = new Rect()
+        control.assert(
+            autoRow.getControlRect("b", autoControlRect),
+            "screen auto placed control exists",
+        )
+        assertLayoutRect(
+            autoControlRect,
+            20,
+            32,
+            10,
+            6,
+            "screen auto placed control rect",
         )
         control.assert(
             screen.handleInput({ action: "activate" }),
