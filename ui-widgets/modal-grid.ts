@@ -134,7 +134,7 @@ namespace ui {
     /**
      * Modal picker or action grid backed by a `ui-core` modal focus scope.
      */
-    export class UiModalGrid<T> implements UiLayoutNode {
+    export class UiModalGrid<T> implements UiModal<UiModalGridResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean

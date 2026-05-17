@@ -5489,6 +5489,76 @@ namespace ui {
             log == "activate:activated;cancel:notCancelled;",
             "widget controller input log",
         )
+
+        let rowLog = ""
+        const row = new UiActionRow<string>({
+            scopeId: "controller-row",
+            items: [
+                { id: "a", value: "A" },
+                { id: "b", value: "B", selected: true },
+            ],
+            onActivate: value => {
+                rowLog += value + ";"
+            },
+        })
+        row.arrange(new Rect(0, 0, 60, 20))
+        const rowFocus = widgets.registerActionRow(row)
+        control.assert(
+            rowFocus.kind == "focused",
+            "widget controller row focus",
+        )
+        control.assert(
+            widgets.focus.getActiveTargetId("controller-row") ==
+                "controller-row/b",
+            "widget controller row selected target",
+        )
+        control.assert(
+            widgets.handleActionRowInput({ action: "activate" }, row),
+            "widget controller row activation handled",
+        )
+        control.assert(rowLog == "B;", "widget controller row callback")
+
+        const modal: UiModal<UiModalGridResult<string>> =
+            new UiModalGrid<string>({
+                parentScopeId: "controller-row",
+                modalScopeId: "controller-modal",
+                items: [{ id: "modal-item", value: "M" }],
+                onCancel: () => {
+                    rowLog += "cancel;"
+                },
+            })
+        modal.arrange(new Rect(0, 0, 60, 40))
+        const modalFocus = widgets.openModal(modal)
+        control.assert(
+            modalFocus.kind == "focused",
+            "widget controller modal focus",
+        )
+        control.assert(
+            widgets.focus.getActiveScopeId() == "controller-modal",
+            "widget controller modal active scope",
+        )
+        control.assert(
+            widgets.handleModalInput(
+                { action: "pointerClick", x: -1, y: -1 },
+                modal,
+            ),
+            "widget controller modal pointer miss handled",
+        )
+        control.assert(
+            widgets.handleModalInput({ action: "cancel" }, modal),
+            "widget controller modal cancel handled",
+        )
+        control.assert(rowLog == "B;cancel;", "widget controller modal cancel")
+        widgets.closeModal(modal)
+        control.assert(
+            widgets.focus.getActiveScopeId() == "controller-row",
+            "widget controller modal close restores parent",
+        )
+        control.assert(
+            widgets.focus.setActiveScope("controller-modal").kind ==
+                "rejected",
+            "widget controller modal scope removed",
+        )
     }
 
     function assertWidgetActivation<T>(
