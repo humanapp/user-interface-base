@@ -74,6 +74,11 @@ namespace ui {
         contentMargin?: number
 
         /**
+         * Extra vertical space between the title band and item grid. Defaults to `0`.
+         */
+        titleGap?: number
+
+        /**
          * Fill color for the modal panel. Defaults to `1`.
          */
         panelColor?: number
@@ -148,9 +153,11 @@ namespace ui {
         private outlineColor_: number
         private titleColor_: number
         private contentMargin_: number
+        private titleGap_: number
         private grid_: UiActionGrid<T>
         private onActivate_: UiActionActivateHandler<T>
         private onCancel_: UiModalGridCancelHandler
+        private scratch_: Rect
 
         constructor(options: UiModalGridOptions<T>) {
             this.parentScopeId_ = options.parentScopeId
@@ -169,8 +176,10 @@ namespace ui {
                 options.contentMargin,
                 4,
             )
+            this.titleGap_ = _uiWidgets.sanitizeDimension(options.titleGap, 0)
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
+            this.scratch_ = new Rect()
             this.grid_ = new UiActionGrid<T>({
                 scopeId: options.modalScopeId,
                 items: options.items,
@@ -215,11 +224,12 @@ namespace ui {
             output: UiMeasuredSize,
         ): void {
             this.grid_.measure(constraints, output)
+            const titleHeight = this.titleHeight()
             output.set(
                 output.minWidth + this.contentMargin_ * 2,
-                output.minHeight + 16 + this.contentMargin_,
+                output.minHeight + titleHeight + this.contentMargin_,
                 output.preferredWidth + this.contentMargin_ * 2,
-                output.preferredHeight + 16 + this.contentMargin_,
+                output.preferredHeight + titleHeight + this.contentMargin_,
             )
             this.clearLayoutInvalidation()
         }
@@ -229,12 +239,16 @@ namespace ui {
          */
         public arrange(rect: Rect): void {
             copyArrangedLayoutRect(this.finalRect, rect)
+            const titleHeight = this.titleHeight()
             this.grid_.arrange(
                 new Rect(
                     rect.x + this.contentMargin_,
-                    rect.y + 16,
+                    rect.y + titleHeight,
                     Math.max(0, rect.width - this.contentMargin_ * 2),
-                    Math.max(0, rect.height - 16 - this.contentMargin_),
+                    Math.max(
+                        0,
+                        rect.height - titleHeight - this.contentMargin_,
+                    ),
                 ),
             )
             this.clearLayoutInvalidation()
@@ -370,37 +384,41 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
-            surface.fillRect(this.finalRect, this.panelColor_)
+            // Fill panel in three strips, leaving the four corner pixels untouched.
+            const r = this.finalRect
+            surface.fillRect(this.scratch_.set(r.x + 1, r.y, r.width - 2, 1), this.panelColor_)
+            surface.fillRect(this.scratch_.set(r.x, r.y + 1, r.width, r.height - 2), this.panelColor_)
+            surface.fillRect(this.scratch_.set(r.x + 1, r.y + r.height - 1, r.width - 2, 1), this.panelColor_)
             /// Left edge
             surface.drawLine(
-                this.finalRect.x - 1,
+                this.finalRect.x,
                 this.finalRect.y + 1,
-                this.finalRect.x - 1,
-                this.finalRect.y + this.finalRect.height - 1,
+                this.finalRect.x,
+                this.finalRect.y + this.finalRect.height - 2,
                 this.outlineColor_,
             )
             /// Right edge
             surface.drawLine(
-                this.finalRect.x + this.finalRect.width,
+                this.finalRect.x + this.finalRect.width - 1,
                 this.finalRect.y + 1,
-                this.finalRect.x + this.finalRect.width,
-                this.finalRect.y + this.finalRect.height - 1,
+                this.finalRect.x + this.finalRect.width - 1,
+                this.finalRect.y + this.finalRect.height - 2,
                 this.outlineColor_,
             )
             // Top edge
             surface.drawLine(
                 this.finalRect.x + 1,
-                this.finalRect.y - 1,
-                this.finalRect.x + this.finalRect.width - 1,
-                this.finalRect.y - 1,
+                this.finalRect.y,
+                this.finalRect.x + this.finalRect.width - 2,
+                this.finalRect.y,
                 this.outlineColor_,
             )
             // Bottom edge
             surface.drawLine(
                 this.finalRect.x + 1,
-                this.finalRect.y + this.finalRect.height,
-                this.finalRect.x + this.finalRect.width - 1,
-                this.finalRect.y + this.finalRect.height,
+                this.finalRect.y + this.finalRect.height - 1,
+                this.finalRect.x + this.finalRect.width - 2,
+                this.finalRect.y + this.finalRect.height - 1,
                 this.outlineColor_,
             )
             const title = this.resolveTitleText(assets)
@@ -432,6 +450,10 @@ namespace ui {
             if (!this.onCancel_ || !result || result.kind != "cancelled")
                 return
             this.onCancel_(result.modalScopeId)
+        }
+
+        private titleHeight(): number {
+            return 16 + this.titleGap_
         }
     }
 }

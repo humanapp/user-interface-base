@@ -54,6 +54,11 @@ namespace ui {
         buttonStyle?: UiButtonStyle
 
         /**
+         * Bounds used to keep item focus labels visible.
+         */
+        labelBounds?: Rect
+
+        /**
          * Called when an enabled row item is activated.
          */
         onActivate?: UiActionActivateHandler<T>
@@ -92,6 +97,7 @@ namespace ui {
         private measured_: UiMeasuredSize
         private itemButtonView_: UiButtonView
         private buttonStyle_: UiButtonStyle
+        private labelBounds_: Rect
         private onActivate_: UiActionActivateHandler<T>
 
         constructor(options: UiActionRowOptions<T>) {
@@ -111,6 +117,7 @@ namespace ui {
             this.registeredTargetIds_ = []
             this.measured_ = new UiMeasuredSize()
             this.buttonStyle_ = options.buttonStyle
+            this.labelBounds_ = options.labelBounds
             this.itemButtonView_ = new UiButtonView({
                 style: options.buttonStyle,
             })
@@ -389,6 +396,7 @@ namespace ui {
                     focused && !!item.draw,
                     this.itemButtonView_,
                     this.buttonStyle_,
+                    this.labelBounds_,
                 )
             }
             if (focusedIndex >= 0) {
@@ -399,6 +407,7 @@ namespace ui {
                     this.itemRects_[focusedIndex],
                     this.itemButtonView_,
                     this.buttonStyle_,
+                    this.labelBounds_,
                 )
             }
         }

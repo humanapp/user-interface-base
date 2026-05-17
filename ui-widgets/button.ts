@@ -15,6 +15,11 @@ namespace ui {
     export type UiButtonFocusKind = "none" | "rect" | "contentRing"
 
     /**
+     * Placement for button text.
+     */
+    export type UiButtonTextPlacement = "content" | "focusLabel"
+
+    /**
      * Visual style used by `UiButtonView`.
      */
     export interface UiButtonStyle {
@@ -107,6 +112,36 @@ namespace ui {
          * Font used for text content.
          */
         font?: TextFont
+
+        /**
+         * Where text is rendered. Defaults to `"content"`.
+         */
+        textPlacement?: UiButtonTextPlacement
+
+        /**
+         * Fill color for focus-label text background.
+         */
+        focusLabelBackgroundColor?: number
+
+        /**
+         * Text color for focus-label text.
+         */
+        focusLabelColor?: number
+
+        /**
+         * Font used for focus-label text.
+         */
+        focusLabelFont?: TextFont
+
+        /**
+         * Distance between the focused content ring and focus label.
+         */
+        focusLabelGap?: number
+
+        /**
+         * Background padding around focus-label text.
+         */
+        focusLabelPadding?: number
     }
 
     /**
@@ -167,6 +202,30 @@ namespace ui {
          * Receives the content rectangle used for content focus rings.
          */
         contentRect?: Rect
+
+        /**
+         * Bounds used to keep a focus label visible.
+         */
+        labelBounds?: Rect
+    }
+
+    /**
+     * Creates a button style by copying defined fields from each style in order.
+     */
+    export function buttonStyle(
+        style0?: UiButtonStyle,
+        style1?: UiButtonStyle,
+        style2?: UiButtonStyle,
+        style3?: UiButtonStyle,
+        style4?: UiButtonStyle,
+    ): UiButtonStyle {
+        const result: UiButtonStyle = {}
+        copyButtonStyle(result, style0)
+        copyButtonStyle(result, style1)
+        copyButtonStyle(result, style2)
+        copyButtonStyle(result, style3)
+        copyButtonStyle(result, style4)
+        return result
     }
 
     /**
@@ -211,7 +270,7 @@ namespace ui {
         ): void {
             const resolved = style || this.style_
             const font = resolved.font || bitmaps.font5
-            const text = content.text || ""
+            const text = this.contentText(content, resolved)
             const gap =
                 content.bitmap && text.length > 0
                     ? this.contentGap(resolved)
@@ -273,6 +332,7 @@ namespace ui {
             } else {
                 surface.drawRect(rect, focusColor)
             }
+            this.renderFocusLabel(surface, rect, content, style, options)
         }
 
         private renderFrame(
@@ -313,7 +373,7 @@ namespace ui {
                     : this.scratch_
             this.contentRect(rect, content, style, contentRect)
             const bitmap = content.bitmap
-            const text = content.text || ""
+            const text = this.contentText(content, style)
             const font = style.font || bitmaps.font5
             const foreground = this.foregroundColor(style, options)
 
@@ -343,7 +403,7 @@ namespace ui {
             output: Rect,
         ): void {
             const font = style.font || bitmaps.font5
-            const text = content.text || ""
+            const text = this.contentText(content, style)
             const textWidth = text.length > 0 ? font.charWidth * text.length : 0
             const textHeight = text.length > 0 ? font.charHeight : 0
             const bitmapWidth = content.bitmap ? content.bitmap.width : 0
@@ -360,6 +420,78 @@ namespace ui {
                     : rect.x + padding
             const y = rect.y + Math.max(0, Math.idiv(rect.height - height, 2))
             output.set(x, y, width, height)
+        }
+
+        private renderFocusLabel(
+            surface: DrawSurface,
+            rect: Rect,
+            content: UiButtonContent,
+            style: UiButtonStyle,
+            options?: UiButtonViewRenderOptions,
+        ): void {
+            if (style.textPlacement != "focusLabel") return
+            const text = content.text || ""
+            if (text.length == 0) return
+            const font = style.focusLabelFont || style.font || bitmaps.font5
+            const textWidth = font.charWidth * text.length
+            const textHeight = font.charHeight
+            const padding =
+                style.focusLabelPadding !== undefined
+                    ? style.focusLabelPadding
+                    : 1
+            const contentRect =
+                options && options.contentRect
+                    ? options.contentRect
+                    : this.scratch_
+            if (!options || !options.contentRect)
+                this.contentRect(rect, content, style, contentRect)
+            const centerX =
+                contentRect.width > 0
+                    ? contentRect.x + Math.idiv(contentRect.width, 2)
+                    : rect.x + Math.idiv(rect.width, 2)
+            const contentBottom =
+                contentRect.height > 0
+                    ? contentRect.y + contentRect.height - 1
+                    : rect.y + rect.height - 1
+            const labelGap =
+                style.focusLabelGap !== undefined ? style.focusLabelGap : 1
+            const labelTop =
+                contentBottom +
+                (style.focusThickness !== undefined
+                    ? style.focusThickness
+                    : 0) +
+                labelGap
+            const bounds = options ? options.labelBounds : undefined
+            const minX = bounds ? bounds.x + padding : padding
+            const maxX = bounds
+                ? bounds.x + bounds.width - padding - textWidth
+                : rect.x + rect.width - padding - textWidth
+            const minY = bounds ? bounds.y + padding : padding
+            const maxY = bounds
+                ? bounds.y + bounds.height - padding - textHeight
+                : labelTop
+            const x = Math.max(minX, Math.min(maxX, centerX - (textWidth >> 1)))
+            const y = Math.max(minY, Math.min(maxY, labelTop))
+            const background =
+                style.focusLabelBackgroundColor !== undefined
+                    ? style.focusLabelBackgroundColor
+                    : 15
+            const color =
+                style.focusLabelColor !== undefined
+                    ? style.focusLabelColor
+                    : this.foregroundColor(style, options)
+
+            this.scratch_.set(
+                x - padding,
+                y - padding,
+                textWidth + padding * 2,
+                textHeight + padding * 2,
+            )
+            surface.fillRect(this.scratch_, background)
+            surface.drawText(text, x, y, {
+                color,
+                font,
+            })
         }
 
         private styleFor(options?: UiButtonViewRenderOptions): UiButtonStyle {
@@ -433,6 +565,14 @@ namespace ui {
         private contentGap(style: UiButtonStyle): number {
             return style.contentGap !== undefined ? style.contentGap : 3
         }
+
+        private contentText(
+            content: UiButtonContent,
+            style: UiButtonStyle,
+        ): string {
+            if (style.textPlacement == "focusLabel") return ""
+            return content.text || ""
+        }
     }
 
     /**
@@ -465,6 +605,17 @@ namespace ui {
             focusColor: 9,
             focusThickness: 3,
             focusPadding: 0,
+        }
+
+        /**
+         * Draws text as a label while the button is focused.
+         */
+        export const FocusLabel: UiButtonStyle = {
+            textPlacement: "focusLabel",
+            focusLabelBackgroundColor: 15,
+            focusLabelColor: 1,
+            focusLabelGap: 1,
+            focusLabelPadding: 1,
         }
 
         /**
@@ -535,6 +686,56 @@ namespace ui {
             focusColor: 9,
             focusThickness: 3,
         }
+    }
+
+    function copyButtonStyle(
+        target: UiButtonStyle,
+        source?: UiButtonStyle,
+    ): void {
+        if (!source) return
+        if (source.backgroundColor !== undefined)
+            target.backgroundColor = source.backgroundColor
+        if (source.foregroundColor !== undefined)
+            target.foregroundColor = source.foregroundColor
+        if (source.disabledForegroundColor !== undefined)
+            target.disabledForegroundColor = source.disabledForegroundColor
+        if (source.selectedColor !== undefined)
+            target.selectedColor = source.selectedColor
+        if (source.toggledColor !== undefined)
+            target.toggledColor = source.toggledColor
+        if (source.disabledColor !== undefined)
+            target.disabledColor = source.disabledColor
+        if (source.frame !== undefined) target.frame = source.frame
+        if (source.borderColor !== undefined)
+            target.borderColor = source.borderColor
+        if (source.edgeColor !== undefined) target.edgeColor = source.edgeColor
+        if (source.shadowColor !== undefined)
+            target.shadowColor = source.shadowColor
+        if (source.contentAlignment !== undefined)
+            target.contentAlignment = source.contentAlignment
+        if (source.padding !== undefined) target.padding = source.padding
+        if (source.contentGap !== undefined)
+            target.contentGap = source.contentGap
+        if (source.focusKind !== undefined) target.focusKind = source.focusKind
+        if (source.focusColor !== undefined)
+            target.focusColor = source.focusColor
+        if (source.focusThickness !== undefined)
+            target.focusThickness = source.focusThickness
+        if (source.focusPadding !== undefined)
+            target.focusPadding = source.focusPadding
+        if (source.font !== undefined) target.font = source.font
+        if (source.textPlacement !== undefined)
+            target.textPlacement = source.textPlacement
+        if (source.focusLabelBackgroundColor !== undefined)
+            target.focusLabelBackgroundColor = source.focusLabelBackgroundColor
+        if (source.focusLabelColor !== undefined)
+            target.focusLabelColor = source.focusLabelColor
+        if (source.focusLabelFont !== undefined)
+            target.focusLabelFont = source.focusLabelFont
+        if (source.focusLabelGap !== undefined)
+            target.focusLabelGap = source.focusLabelGap
+        if (source.focusLabelPadding !== undefined)
+            target.focusLabelPadding = source.focusLabelPadding
     }
 
     function drawShadowedButtonFrame(

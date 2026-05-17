@@ -69,6 +69,11 @@ namespace ui {
         buttonStyle?: UiButtonStyle
 
         /**
+         * Bounds used to keep item focus labels visible.
+         */
+        labelBounds?: Rect
+
+        /**
          * Called when an enabled grid item is activated.
          */
         onActivate?: UiActionActivateHandler<T>
@@ -109,6 +114,7 @@ namespace ui {
         private registeredTargetIds_: string[]
         private itemButtonView_: UiButtonView
         private buttonStyle_: UiButtonStyle
+        private labelBounds_: Rect
         private onActivate_: UiActionActivateHandler<T>
 
         constructor(options: UiActionGridOptions<T>) {
@@ -133,6 +139,7 @@ namespace ui {
             this.itemRects_ = []
             this.registeredTargetIds_ = []
             this.buttonStyle_ = options.buttonStyle
+            this.labelBounds_ = options.labelBounds
             this.itemButtonView_ = new UiButtonView({
                 style: options.buttonStyle,
             })
@@ -394,6 +401,7 @@ namespace ui {
                     focused && !!item.draw,
                     this.itemButtonView_,
                     this.buttonStyle_,
+                    this.labelBounds_,
                 )
             }
             if (focusedIndex >= 0) {
@@ -404,6 +412,7 @@ namespace ui {
                     this.itemRects_[focusedIndex],
                     this.itemButtonView_,
                     this.buttonStyle_,
+                    this.labelBounds_,
                 )
             }
         }

@@ -303,6 +303,7 @@ namespace _uiWidgets {
         focused: boolean,
         buttonView: ui.UiButtonView,
         buttonStyle?: ui.UiButtonStyle,
+        labelBounds?: ui.Rect,
     ): void {
         const selected = isSelected(item)
         const toggled = isToggled(item)
@@ -326,6 +327,7 @@ namespace _uiWidgets {
                 disabled,
                 style: item.buttonStyle || buttonStyle,
                 palette: item.palette,
+                labelBounds,
             },
         )
     }
@@ -337,6 +339,7 @@ namespace _uiWidgets {
         rect: ui.Rect,
         buttonView: ui.UiButtonView,
         buttonStyle?: ui.UiButtonStyle,
+        labelBounds?: ui.Rect,
     ): void {
         if (item.draw) return
         buttonView.renderFocus(
@@ -353,6 +356,7 @@ namespace _uiWidgets {
                 disabled: isDisabled(item),
                 style: item.buttonStyle || buttonStyle,
                 palette: item.palette,
+                labelBounds,
             },
         )
     }

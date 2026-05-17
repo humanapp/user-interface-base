@@ -5444,6 +5444,41 @@ namespace ui {
         control.assert(surface.log.indexOf("line:11;") >= 0, "button shadow")
         control.assert(surface.log.indexOf("bitmap:2x2;") >= 0, "button bitmap")
         control.assert(surface.log.indexOf("line:9;") >= 0, "button focus")
+
+        const focusLabelStyle = buttonStyle(
+            UiButtonStyles.Transparent,
+            UiButtonStyles.FocusLabel,
+            {
+                focusColor: 4,
+                focusLabelBackgroundColor: 7,
+                focusLabelColor: 3,
+                focusLabelFont: bitmaps.font5,
+                focusLabelGap: 2,
+            },
+        )
+        control.assert(focusLabelStyle.focusColor == 4, "button style override")
+        surface.log = ""
+        button.render(surface, rect, { bitmap, text: "go" }, {
+            style: focusLabelStyle,
+        })
+        control.assert(
+            surface.log.indexOf("text:go;") < 0,
+            "button focus label hidden",
+        )
+        surface.log = ""
+        button.render(surface, rect, { bitmap, text: "go" }, {
+            focused: true,
+            style: focusLabelStyle,
+            labelBounds: new Rect(0, 0, 40, 40),
+        })
+        control.assert(
+            surface.log.indexOf("fill:7;") >= 0,
+            "button focus label fill",
+        )
+        control.assert(
+            surface.log.indexOf("text:go;") >= 0,
+            "button focus label text",
+        )
     }
 
     /**
@@ -5660,6 +5695,33 @@ namespace ui {
         )
         row.arrange(new Rect(0, 0, 400, 20))
         row.render(surface, assets)
+
+        const labelFocus = new UiFocusState()
+        const labelSurface = new WidgetSmokeSurface()
+        const labelRow = new UiActionRow<string>({
+            scopeId: "item-labels",
+            items: [{ id: "label", value: "label", textId: "knownText" }],
+            itemWidth: 24,
+            itemHeight: 20,
+            buttonStyle: buttonStyle(
+                UiButtonStyles.Transparent,
+                UiButtonStyles.FocusLabel,
+                { focusLabelBackgroundColor: 7 },
+            ),
+            labelBounds: new Rect(0, 0, 40, 40),
+        })
+        labelRow.arrange(new Rect(0, 0, 24, 20))
+        labelRow.registerFocusTargets(labelFocus)
+        labelRow.focusDefault(labelFocus)
+        labelRow.render(labelSurface, assets, labelFocus)
+        control.assert(
+            labelSurface.log.indexOf("text:resolved;") >= 0,
+            "action item focus label text",
+        )
+        control.assert(
+            labelSurface.log.indexOf("fill:7;") >= 0,
+            "action item focus label fill",
+        )
 
         control.assert(
             items[0].visible === undefined,
@@ -6125,6 +6187,31 @@ namespace ui {
         control.assert(
             roomyMeasured.preferredHeight == 42,
             "modal custom margin height",
+        )
+        const gappedModal = new UiModalGrid<string>({
+            parentScopeId: "parent",
+            modalScopeId: "gapped",
+            titleGap: 3,
+            items: [{ id: "a", value: "A" }],
+        })
+        const gappedMeasured = new UiMeasuredSize()
+        gappedModal.measure({ maxWidth: 100, maxHeight: 100 }, gappedMeasured)
+        control.assert(
+            gappedMeasured.preferredHeight == 43,
+            "modal title gap height",
+        )
+        gappedModal.arrange(new Rect(0, 0, 40, 50))
+        control.assert(
+            gappedModal.getItemRect("a", modalItemRect),
+            "modal title gap item rect exists",
+        )
+        assertLayoutRect(
+            modalItemRect,
+            4,
+            19,
+            24,
+            20,
+            "modal title gap item rect",
         )
         modal.open(focus, controller)
         control.assert(
