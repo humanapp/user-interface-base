@@ -87,6 +87,26 @@ namespace ui {
          * Text color for the modal title. Defaults to `15`.
          */
         titleColor?: number
+
+        /**
+         * Called when an enabled modal item is activated.
+         */
+        onActivate?: UiActionActivateHandler<T>
+
+        /**
+         * Called when the modal reports cancellation.
+         */
+        onCancel?: UiModalGridCancelHandler
+    }
+
+    /**
+     * Handles modal cancellation.
+     */
+    export interface UiModalGridCancelHandler {
+        /**
+         * Receives the cancelled modal focus scope id.
+         */
+        (modalScopeId: UiFocusScopeId): void
     }
 
     /**
@@ -129,6 +149,8 @@ namespace ui {
         private titleColor_: number
         private contentMargin_: number
         private grid_: UiActionGrid<T>
+        private onActivate_: UiActionActivateHandler<T>
+        private onCancel_: UiModalGridCancelHandler
 
         constructor(options: UiModalGridOptions<T>) {
             this.parentScopeId_ = options.parentScopeId
@@ -147,6 +169,8 @@ namespace ui {
                 options.contentMargin,
                 4,
             )
+            this.onActivate_ = options.onActivate
+            this.onCancel_ = options.onCancel
             this.grid_ = new UiActionGrid<T>({
                 scopeId: options.modalScopeId,
                 items: options.items,
@@ -302,11 +326,17 @@ namespace ui {
                 result.detail &&
                 result.detail.activationResult
             ) {
-                return this.createResultForActivation(
+                const activation = this.createResultForActivation(
                     result.detail.activationResult,
                 )
+                this.emitActivate(activation)
+                return activation
             }
-            if (result.kind == "cancelled") return this.createCancelResult()
+            if (result.kind == "cancelled") {
+                const cancelled = this.createCancelResult()
+                this.emitCancel(cancelled)
+                return cancelled
+            }
             return undefined
         }
 
@@ -351,6 +381,22 @@ namespace ui {
                     { color: this.titleColor_ },
                 )
             this.grid_.render(surface, assets, focus)
+        }
+
+        private emitActivate(result: UiModalGridResult<T>): void {
+            if (
+                !this.onActivate_ ||
+                !result ||
+                (result.kind != "activated" && result.kind != "keepOpen")
+            )
+                return
+            this.onActivate_(result.value, result.item, result.itemId)
+        }
+
+        private emitCancel(result: UiModalGridResult<T>): void {
+            if (!this.onCancel_ || !result || result.kind != "cancelled")
+                return
+            this.onCancel_(result.modalScopeId)
         }
     }
 }

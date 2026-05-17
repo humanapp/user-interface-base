@@ -52,6 +52,11 @@ namespace ui {
          * Button style used by items without a custom draw callback.
          */
         buttonStyle?: UiButtonStyle
+
+        /**
+         * Called when an enabled row item is activated.
+         */
+        onActivate?: UiActionActivateHandler<T>
     }
 
     /**
@@ -86,6 +91,7 @@ namespace ui {
         private measured_: UiMeasuredSize
         private itemButtonView_: UiButtonView
         private buttonStyle_: UiButtonStyle
+        private onActivate_: UiActionActivateHandler<T>
 
         constructor(options: UiActionRowOptions<T>) {
             this.scopeId_ = options.scopeId
@@ -107,6 +113,7 @@ namespace ui {
             this.itemButtonView_ = new UiButtonView({
                 style: options.buttonStyle,
             })
+            this.onActivate_ = options.onActivate
         }
 
         /**
@@ -296,9 +303,11 @@ namespace ui {
                 result.detail &&
                 result.detail.activationResult
             ) {
-                return this.createResultForActivation(
+                const activation = this.createResultForActivation(
                     result.detail.activationResult,
                 )
+                this.emitActivate(activation)
+                return activation
             }
             if (
                 result.kind == "exited" &&
@@ -416,6 +425,12 @@ namespace ui {
                 })
             }
             return targets
+        }
+
+        private emitActivate(result: UiActionRowResult<T>): void {
+            if (!this.onActivate_ || !result || result.kind != "activated")
+                return
+            this.onActivate_(result.value, result.item, result.itemId)
         }
     }
 }

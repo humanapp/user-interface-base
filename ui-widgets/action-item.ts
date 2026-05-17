@@ -53,6 +53,16 @@ namespace ui {
     }
 
     /**
+     * Handles activation of one action item.
+     */
+    export interface UiActionActivateHandler<T> {
+        /**
+         * Receives the typed item value, source item, and item id.
+         */
+        (value: T, item: UiActionItem<T>, itemId: string): void
+    }
+
+    /**
      * Caller-owned item record consumed by action, modal, and toggle widgets.
      */
     export interface UiActionItem<T> {

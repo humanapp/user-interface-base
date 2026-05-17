@@ -5636,6 +5636,7 @@ namespace ui {
     export function runWidgetActionRowSmokeTest(): void {
         const focus = new UiFocusState()
         const controller = new UiFocusInputController({ focus })
+        let activationLog = ""
         const row = new UiActionRow<number>({
             scopeId: "row",
             defaultItemId: "disabled",
@@ -5648,6 +5649,13 @@ namespace ui {
             itemWidth: 10,
             itemHeight: 10,
             gap: 0,
+            onActivate: (
+                value: number,
+                item: UiActionItem<number>,
+                itemId: string,
+            ) => {
+                activationLog += itemId + ":" + value + ":" + item.id + ";"
+            },
         })
 
         row.arrange(new Rect(0, 0, 60, 10))
@@ -5668,6 +5676,10 @@ namespace ui {
         inputResult = controller.handleInput({ action: "activate" })
         const activated = row.handleFocusInput(inputResult)
         assertWidgetActivation(activated, "activated", "a", 1, "row activated")
+        control.assert(
+            activationLog == "a:1:a;",
+            "row activation callback",
+        )
         inputResult = controller.handleInput({ action: "left" })
         const exited = row.handleFocusInput(inputResult)
         control.assert(exited.kind == "exited", "row boundary exit")
@@ -5705,6 +5717,10 @@ namespace ui {
             9,
             "row replacement activation",
         )
+        control.assert(
+            activationLog == "a:1:a;replacement:9:replacement;",
+            "row replacement callback",
+        )
     }
 
     /**
@@ -5717,6 +5733,7 @@ namespace ui {
             focus,
             scroll: request => scrollRequests.push(request),
         })
+        let activationLog = ""
         const grid = new UiActionGrid<number>({
             scopeId: "grid",
             items: [
@@ -5732,6 +5749,13 @@ namespace ui {
             rowGap: 1,
             columnGap: 2,
             scrollOwnerId: "grid-scroll",
+            onActivate: (
+                value: number,
+                item: UiActionItem<number>,
+                itemId: string,
+            ) => {
+                activationLog += itemId + ":" + value + ":" + item.id + ";"
+            },
         })
 
         grid.arrange(new Rect(10, 20, 100, 60))
@@ -5792,6 +5816,10 @@ namespace ui {
             3,
             "grid activated",
         )
+        control.assert(
+            activationLog == "c:3:c;",
+            "grid activation callback",
+        )
         inputResult = controller.handleInput({ action: "right" })
         const exit = grid.handleFocusInput(inputResult)
         control.assert(exit.kind == "exited", "grid boundary exit")
@@ -5823,6 +5851,10 @@ namespace ui {
             "replacement",
             99,
             "grid replacement activation",
+        )
+        control.assert(
+            activationLog == "c:3:c;replacement:99:replacement;",
+            "grid replacement callback",
         )
 
         const raggedFocus = new UiFocusState()
@@ -5873,6 +5905,8 @@ namespace ui {
         const focus = new UiFocusState()
         const controller = new UiFocusInputController({ focus })
         const assets = new WidgetSmokeAssets()
+        let activationLog = ""
+        let cancelLog = ""
         focus.setScope({ id: "parent" })
         focus.setTarget({
             id: "parent/item",
@@ -5897,6 +5931,16 @@ namespace ui {
                 { id: "hidden", value: "H", visible: false },
                 { id: "selected", value: "S", selected: true },
             ],
+            onActivate: (
+                value: string,
+                item: UiActionItem<string>,
+                itemId: string,
+            ) => {
+                activationLog += itemId + ":" + value + ":" + item.id + ";"
+            },
+            onCancel: (modalScopeId: UiFocusScopeId) => {
+                cancelLog += modalScopeId + ";"
+            },
         })
         modal.arrange(new Rect(20, 20, 80, 60))
         const modalItemRect = new Rect()
@@ -5976,6 +6020,7 @@ namespace ui {
             cancelResult.kind == "cancelled",
             "modal cancel result before close",
         )
+        control.assert(cancelLog == "modal;", "modal cancel callback")
         control.assert(
             focus.getActiveScopeId() == "modal",
             "modal remains active for cancel processing",
@@ -6000,6 +6045,10 @@ namespace ui {
             "S",
             "modal activate",
         )
+        control.assert(
+            activationLog == "selected:S:selected;",
+            "modal activation callback",
+        )
         control.assert((<any>activated).close, "modal activate close flag")
         const deleted = modal.createDeleteResult()
         control.assert(deleted.kind == "deleted", "modal delete result")
@@ -6016,6 +6065,13 @@ namespace ui {
             modalScopeId: "keep",
             closeOnActivate: false,
             items: [{ id: "edit", value: "E" }],
+            onActivate: (
+                value: string,
+                item: UiActionItem<string>,
+                itemId: string,
+            ) => {
+                activationLog += itemId + ":" + value + ":" + item.id + ";"
+            },
         })
         keepOpen.arrange(new Rect(0, 0, 60, 40))
         keepOpen.open(focus, controller)
@@ -6027,6 +6083,10 @@ namespace ui {
             "edit",
             "E",
             "modal keep open",
+        )
+        control.assert(
+            activationLog == "selected:S:selected;edit:E:edit;",
+            "modal keep-open callback",
         )
         control.assert(
             focus.getActiveScopeId() == "keep",
