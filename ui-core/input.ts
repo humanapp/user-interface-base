@@ -1,97 +1,94 @@
 namespace ui {
-  /**
-   * Discrete input actions that screens can handle.
-   */
-  export type UiInputAction =
-    "up" |
-    "down" |
-    "left" |
-    "right" |
-    "activate" |
-    "cancel" |
-    "menu" |
-    "pointerMove" |
-    "pointerClick" |
-    "wheel"
-
-  /**
-   * Physical or synthetic source that produced a semantic input action.
-   */
-  export type UiInputSource =
-    "displayShieldController" |
-    "microbitButton" |
-    "keyboard" |
-    "pointer" |
-    "wheel" |
-    "synthetic"
-
-  /**
-   * Phase for pressable input actions. Missing phase is treated as `pressed`.
-   */
-  export type UiInputPhase =
-    "pressed" |
-    "released" |
-    "repeated"
-
-  /**
-   * Queued input payload delivered during `runFrame()`.
-   */
-  export interface UiInputEvent {
     /**
-     * Kind of input that occurred.
+     * Discrete input actions that screens can handle.
      */
-    action: UiInputAction
+    export type UiInputAction =
+        | "up"
+        | "down"
+        | "left"
+        | "right"
+        | "activate"
+        | "cancel"
+        | "menu"
+        | "pointerMove"
+        | "pointerClick"
+        | "wheel"
 
     /**
-     * Physical or synthetic source for the semantic action.
+     * Physical or synthetic source that produced a semantic input action.
      */
-    source?: UiInputSource
+    export type UiInputSource =
+        | "displayShieldController"
+        | "microbitButton"
+        | "keyboard"
+        | "pointer"
+        | "wheel"
+        | "synthetic"
 
     /**
-     * Press lifecycle phase for button-like input.
+     * Phase for pressable input actions. Missing phase is treated as `pressed`.
      */
-    phase?: UiInputPhase
+    export type UiInputPhase = "pressed" | "released" | "repeated"
 
     /**
-     * Pointer x coordinate in UI units.
+     * Queued input payload delivered during `runFrame()`.
      */
-    x?: number
+    export interface UiInputEvent {
+        /**
+         * Kind of input that occurred.
+         */
+        action: UiInputAction
+
+        /**
+         * Physical or synthetic source for the semantic action.
+         */
+        source?: UiInputSource
+
+        /**
+         * Press lifecycle phase for button-like input.
+         */
+        phase?: UiInputPhase
+
+        /**
+         * Pointer x coordinate in UI units.
+         */
+        x?: number
+
+        /**
+         * Pointer y coordinate in UI units.
+         */
+        y?: number
+
+        /**
+         * Wheel x delta in UI units.
+         */
+        dx?: number
+
+        /**
+         * Wheel y delta in UI units.
+         */
+        dy?: number
+    }
 
     /**
-     * Pointer y coordinate in UI units.
+     * Handles an input event and returns `true` when delivery should stop.
      */
-    y?: number
+    export interface UiInputHandler {
+        (event: UiInputEvent): boolean
+    }
 
     /**
-     * Wheel x delta in UI units.
+     * Input registrations for one screen while it is on the stack.
      */
-    dx?: number
+    export interface UiInputScope {
+        /**
+         * Registers a handler for one action. Handlers run in registration order.
+         */
+        onAction(action: UiInputAction, handler: UiInputHandler): void
 
-    /**
-     * Wheel y delta in UI units.
-     */
-    dy?: number
-  }
-
-  /**
-   * Handles an input event and returns `true` when delivery should stop.
-   */
-  export interface UiInputHandler {
-    (event: UiInputEvent): boolean
-  }
-
-  /**
-   * Input registrations for one screen while it is on the stack.
-   */
-  export interface UiInputScope {
-    /**
-     * Registers a handler for one action. Handlers run in registration order.
-     */
-    onAction(action: UiInputAction, handler: UiInputHandler): void
-
-    /**
-     * Prevents future handler registration and delivery for this screen.
-     */
-    dispose(): void
-  }
+        /**
+         * Prevents future handler registration and delivery for this screen.
+         */
+        dispose(): void
+    }
 }

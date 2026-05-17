@@ -1,74 +1,74 @@
 namespace ui {
-  /**
-   * Registration handle returned by observer APIs.
-   */
-  export interface UiObserverHandle {
     /**
-     * Unregisters the observer. Calling this more than once has no effect.
+     * Registration handle returned by observer APIs.
      */
-    dispose(): void
-  }
-
-  /**
-   * Focus transition record delivered after active focus changes.
-   */
-  export interface UiFocusEvent {
-    /**
-     * Active scope before the transition, when one existed.
-     */
-    previousScopeId?: UiFocusScopeId
+    export interface UiObserverHandle {
+        /**
+         * Unregisters the observer. Calling this more than once has no effect.
+         */
+        dispose(): void
+    }
 
     /**
-     * Active target before the transition, when one existed.
+     * Focus transition record delivered after active focus changes.
      */
-    previousTargetId?: UiFocusId
+    export interface UiFocusEvent {
+        /**
+         * Active scope before the transition, when one existed.
+         */
+        previousScopeId?: UiFocusScopeId
+
+        /**
+         * Active target before the transition, when one existed.
+         */
+        previousTargetId?: UiFocusId
+
+        /**
+         * Active scope after the transition, when one exists.
+         */
+        currentScopeId?: UiFocusScopeId
+
+        /**
+         * Active target after the transition, when one exists.
+         */
+        currentTargetId?: UiFocusId
+    }
 
     /**
-     * Active scope after the transition, when one exists.
+     * Observer called after active focus changes.
      */
-    currentScopeId?: UiFocusScopeId
+    export interface UiFocusObserver {
+        /**
+         * Receives the completed focus transition.
+         */
+        (event: UiFocusEvent): void
+    }
 
     /**
-     * Active target after the transition, when one exists.
+     * Observer called after a retained layout owner completes a layout pass.
      */
-    currentTargetId?: UiFocusId
-  }
+    export interface UiLayoutObserver {
+        /**
+         * Receives the completed layout notification.
+         */
+        (): void
+    }
 
-  /**
-   * Observer called after active focus changes.
-   */
-  export interface UiFocusObserver {
     /**
-     * Receives the completed focus transition.
+     * Scroll state category delivered after retained scroll state changes.
      */
-    (event: UiFocusEvent): void
-  }
+    export type UiScrollEvent =
+        | { kind: "configuration" }
+        | { kind: "geometry" }
+        | { kind: "offset" }
 
-  /**
-   * Observer called after a retained layout owner completes a layout pass.
-   */
-  export interface UiLayoutObserver {
     /**
-     * Receives the completed layout notification.
+     * Observer called after retained scroll viewport state changes.
      */
-    (): void
-  }
-
-  /**
-   * Scroll state category delivered after retained scroll state changes.
-   */
-  export type UiScrollEvent =
-    | { kind: "configuration" }
-    | { kind: "geometry" }
-    | { kind: "offset" }
-
-  /**
-   * Observer called after retained scroll viewport state changes.
-   */
-  export interface UiScrollObserver {
-    /**
-     * Receives the completed scroll-state category.
-     */
-    (event: UiScrollEvent): void
-  }
+    export interface UiScrollObserver {
+        /**
+         * Receives the completed scroll-state category.
+         */
+        (event: UiScrollEvent): void
+    }
 }
