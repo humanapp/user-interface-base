@@ -5531,7 +5531,7 @@ namespace ui {
             display: new RuntimeSmokeDisplayAdapter(() => {}),
             assets: new WidgetSmokeAssets(),
         })
-        const screenRow = new UiControlRow<string>({
+        const screenRow = new UiRow<string>({
             scopeId: "screen-row",
             controls: [
                 { id: "a", value: "A" },
@@ -5592,7 +5592,7 @@ namespace ui {
             "screen controller renders roots",
         )
 
-        const screenModal = new UiModalGrid<string>({
+        const screenModal = new UiPicker<string>({
             parentScopeId: "screen-row",
             modalScopeId: "screen-modal",
             controls: [{ id: "modal", value: "M" }],
@@ -5681,7 +5681,7 @@ namespace ui {
             { id: "toggle", value: "toggle", text: "toggle", toggled: true },
             drawControl,
         ]
-        const row = new UiControlRow<string>({
+        const row = new UiRow<string>({
             scopeId: "controls",
             controls,
             controlWidth: 30,
@@ -5699,7 +5699,7 @@ namespace ui {
 
         const labelFocus = new UiFocusState()
         const labelSurface = new WidgetSmokeSurface()
-        const labelRow = new UiControlRow<string>({
+        const labelRow = new UiRow<string>({
             scopeId: "control-labels",
             controls: [{ id: "label", value: "label", textId: "knownText" }],
             controlWidth: 24,
@@ -5796,7 +5796,7 @@ namespace ui {
         const focus = new UiFocusState()
         const controller = new UiFocusInputController({ focus })
         let activationLog = ""
-        const row = new UiControlRow<number>({
+        const row = new UiRow<number>({
             scopeId: "row",
             defaultControlId: "disabled",
             controls: [
@@ -5911,7 +5911,7 @@ namespace ui {
             scroll: request => scrollRequests.push(request),
         })
         let activationLog = ""
-        const grid = new UiControlGrid<number>({
+        const grid = new UiGrid<number>({
             scopeId: "grid",
             controls: [
                 { id: "a", value: 1 },
@@ -6056,7 +6056,7 @@ namespace ui {
         const raggedController = new UiFocusInputController({
             focus: raggedFocus,
         })
-        const ragged = new UiControlGrid<string>({
+        const ragged = new UiGrid<string>({
             scopeId: "ragged",
             controls: [
                 { id: "r0a", value: "r0a" },
@@ -6111,7 +6111,7 @@ namespace ui {
         })
         focus.setActiveTarget("parent", "parent/control")
 
-        const modal = new UiModalGrid<string>({
+        const modal = new UiPicker<string>({
             parentScopeId: "parent",
             modalScopeId: "modal",
             title: "Caller title",
@@ -6169,7 +6169,7 @@ namespace ui {
             20,
             "modal selected control rect",
         )
-        const roomyModal = new UiModalGrid<string>({
+        const roomyModal = new UiPicker<string>({
             parentScopeId: "parent",
             modalScopeId: "roomy",
             contentMargin: 6,
@@ -6189,7 +6189,7 @@ namespace ui {
             roomyMeasured.preferredHeight == 42,
             "modal custom margin height",
         )
-        const gappedModal = new UiModalGrid<string>({
+        const gappedModal = new UiPicker<string>({
             parentScopeId: "parent",
             modalScopeId: "gapped",
             titleGap: 3,
@@ -6231,7 +6231,7 @@ namespace ui {
             modal.resolveTitleText(assets) == "Caller title",
             "modal title precedence",
         )
-        const resolverTitle = new UiModalGrid<string>({
+        const resolverTitle = new UiPicker<string>({
             parentScopeId: "parent",
             modalScopeId: "title",
             titleId: "knownText",
@@ -6298,7 +6298,7 @@ namespace ui {
             "modal activate caller close restores parent",
         )
 
-        const keepOpen = new UiModalGrid<string>({
+        const keepOpen = new UiPicker<string>({
             parentScopeId: "parent",
             modalScopeId: "keep",
             closeOnActivate: false,
@@ -6602,7 +6602,7 @@ namespace ui {
         focus.addFocusObserver((event: UiFocusEvent) => {
             focusRequests++
         })
-        const row = new UiControlRow<number>({
+        const row = new UiRow<number>({
             scopeId: "observe-row",
             controls: [
                 { id: "a", value: 1 },

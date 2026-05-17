@@ -188,9 +188,9 @@ namespace ui {
          * Adds a root widget rendered and routed by this screen.
          */
         public add<TResult>(
-            widget: UiFocusableWidget<TResult>,
+            widget: UiFocusableView<TResult>,
             placement?: UiPlacement,
-        ): UiFocusableWidget<TResult> {
+        ): UiFocusableView<TResult> {
             const root = new UiScreenRoot<TResult>(widget, placement)
             this.roots_.push(root)
             if (placement) this.arrangeRoot(root)
@@ -490,14 +490,14 @@ namespace ui {
     }
 
     class UiScreenRoot<TResult> {
-        public widget: UiFocusableWidget<TResult>
+        public widget: UiFocusableView<TResult>
         public placement: UiPlacement
         public rect: Rect
         public childRect: Rect
         public constraints: UiLayoutConstraints
         public measured: UiMeasuredSize
 
-        constructor(widget: UiFocusableWidget<TResult>, placement?: UiPlacement) {
+        constructor(widget: UiFocusableView<TResult>, placement?: UiPlacement) {
             this.widget = widget
             this.placement = placement
             this.rect = new Rect()

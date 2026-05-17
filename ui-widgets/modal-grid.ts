@@ -2,7 +2,7 @@ namespace ui {
     /**
      * Options for a modal picker or control grid.
      */
-    export interface UiModalGridOptions<T> {
+    export interface UiPickerOptions<T> {
         /**
          * Parent focus scope restored after the modal closes. Defaults to the
          * active scope when the modal opens.
@@ -102,13 +102,13 @@ namespace ui {
         /**
          * Called when the modal reports cancellation.
          */
-        onCancel?: UiModalGridCancelHandler
+        onCancel?: UiPickerCancelHandler
     }
 
     /**
      * Handles modal cancellation.
      */
-    export interface UiModalGridCancelHandler {
+    export interface UiPickerCancelHandler {
         /**
          * Receives the cancelled modal focus scope id.
          */
@@ -118,7 +118,7 @@ namespace ui {
     /**
      * Result emitted by a modal grid.
      */
-    export type UiModalGridResult<T> =
+    export type UiPickerResult<T> =
         | {
               kind: "activated"
               controlId: string
@@ -140,7 +140,7 @@ namespace ui {
     /**
      * Modal picker or control grid backed by a `ui-core` modal focus scope.
      */
-    export class UiModalGrid<T> implements UiModal<UiModalGridResult<T>> {
+    export class UiPicker<T> implements UiModal<UiPickerResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -155,12 +155,12 @@ namespace ui {
         private titleColor_: number
         private contentMargin_: number
         private titleGap_: number
-        private grid_: UiControlGrid<T>
+        private grid_: UiGrid<T>
         private onActivate_: UiControlActivateHandler<T>
-        private onCancel_: UiModalGridCancelHandler
+        private onCancel_: UiPickerCancelHandler
         private scratch_: Rect
 
-        constructor(options: UiModalGridOptions<T>) {
+        constructor(options: UiPickerOptions<T>) {
             this.parentScopeId_ = options.parentScopeId
             this.modalScopeId_ = options.modalScopeId
             this.title_ = options.title
@@ -181,7 +181,7 @@ namespace ui {
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.scratch_ = new Rect()
-            this.grid_ = new UiControlGrid<T>({
+            this.grid_ = new UiGrid<T>({
                 scopeId: options.modalScopeId,
                 controls: options.controls,
                 defaultControlId: options.defaultControlId,
@@ -310,7 +310,7 @@ namespace ui {
          */
         public createResultForActivation(
             result: UiFocusActivationResult,
-        ): UiModalGridResult<T> {
+        ): UiPickerResult<T> {
             const gridResult = this.grid_.createResultForActivation(result)
             if (!gridResult || gridResult.kind != "activated") return undefined
             if (this.closeOnActivate_) {
@@ -335,7 +335,7 @@ namespace ui {
          */
         public handleFocusInput(
             result: UiFocusInputResult,
-        ): UiModalGridResult<T> {
+        ): UiPickerResult<T> {
             if (
                 result.kind == "activated" &&
                 result.detail &&
@@ -358,21 +358,21 @@ namespace ui {
         /**
          * Creates a cancellation result without closing the focus scope.
          */
-        public createCancelResult(): UiModalGridResult<T> {
+        public createCancelResult(): UiPickerResult<T> {
             return { kind: "cancelled", modalScopeId: this.modalScopeId_ }
         }
 
         /**
          * Creates a close result without closing the focus scope.
          */
-        public createCloseResult(): UiModalGridResult<T> {
+        public createCloseResult(): UiPickerResult<T> {
             return { kind: "closed", modalScopeId: this.modalScopeId_ }
         }
 
         /**
          * Creates a delete result when delete is enabled.
          */
-        public createDeleteResult(): UiModalGridResult<T> {
+        public createDeleteResult(): UiPickerResult<T> {
             if (!this.deleteEnabled_) return undefined
             return { kind: "deleted", modalScopeId: this.modalScopeId_ }
         }
@@ -433,7 +433,7 @@ namespace ui {
             this.grid_.render(surface, assets, focus)
         }
 
-        private emitActivate(result: UiModalGridResult<T>): void {
+        private emitActivate(result: UiPickerResult<T>): void {
             if (
                 !result ||
                 (result.kind != "activated" && result.kind != "keepOpen")
@@ -447,7 +447,7 @@ namespace ui {
             )
         }
 
-        private emitCancel(result: UiModalGridResult<T>): void {
+        private emitCancel(result: UiPickerResult<T>): void {
             if (!this.onCancel_ || !result || result.kind != "cancelled")
                 return
             this.onCancel_(result.modalScopeId)

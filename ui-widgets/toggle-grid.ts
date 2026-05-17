@@ -90,11 +90,11 @@ namespace ui {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
-        private modal_: UiModalGrid<T>
+        private modal_: UiPicker<T>
         private toggle_: UiToggleGridPolicy<T>
 
         constructor(options: UiToggleGridOptions<T>) {
-            this.modal_ = new UiModalGrid<T>({
+            this.modal_ = new UiPicker<T>({
                 parentScopeId: options.parentScopeId,
                 modalScopeId: options.modalScopeId,
                 controls: options.controls,

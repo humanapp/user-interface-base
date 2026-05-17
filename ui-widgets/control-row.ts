@@ -2,7 +2,7 @@ namespace ui {
     /**
      * Options for a one-dimensional control collection.
      */
-    export interface UiControlRowOptions<T> {
+    export interface UiRowOptions<T> {
         /**
          * Focus scope id for this row.
          */
@@ -67,7 +67,7 @@ namespace ui {
     /**
      * Result emitted by a control row.
      */
-    export type UiControlRowResult<T> =
+    export type UiRowResult<T> =
         | { kind: "activated"; controlId: string; value: T; control: UiControl<T> }
         | {
               kind: "exited"
@@ -79,8 +79,8 @@ namespace ui {
     /**
      * Renders and navigates one horizontal control row.
      */
-    export class UiControlRow<T>
-        implements UiFocusableWidget<UiControlRowResult<T>> {
+    export class UiRow<T>
+        implements UiFocusableView<UiRowResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -100,7 +100,7 @@ namespace ui {
         private labelBounds_: Rect
         private onActivate_: UiControlActivateHandler<T>
 
-        constructor(options: UiControlRowOptions<T>) {
+        constructor(options: UiRowOptions<T>) {
             this.scopeId_ = options.scopeId
             this.controls_ = options.controls
             this.defaultControlId_ = options.defaultControlId
@@ -305,7 +305,7 @@ namespace ui {
          */
         public handleFocusInput(
             result: UiFocusInputResult,
-        ): UiControlRowResult<T> {
+        ): UiRowResult<T> {
             if (
                 result.kind == "activated" &&
                 result.detail &&
@@ -332,7 +332,7 @@ namespace ui {
          */
         public createResultForActivation(
             result: UiFocusActivationResult,
-        ): UiControlRowResult<T> {
+        ): UiRowResult<T> {
             if (result.kind != "activated" || result.scopeId != this.scopeId_)
                 return undefined
             const control = _uiWidgets.findControlByTargetId(
@@ -354,7 +354,7 @@ namespace ui {
          */
         public createResultForMove(
             result: UiFocusMoveResult,
-        ): UiControlRowResult<T> {
+        ): UiRowResult<T> {
             if (result.kind != "exited" || result.scopeId != this.scopeId_)
                 return undefined
             return {
@@ -437,7 +437,7 @@ namespace ui {
             return targets
         }
 
-        private emitActivate(result: UiControlRowResult<T>): void {
+        private emitActivate(result: UiRowResult<T>): void {
             if (!result || result.kind != "activated") return
             _uiWidgets.emitControlActivate(
                 result.value,

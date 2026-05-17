@@ -1,10 +1,10 @@
 namespace ui {
     /**
-     * Widget lifecycle shared by controller-managed controls.
+     * View lifecycle shared by screen-managed controls.
      */
-    export interface UiWidget<TResult> extends UiLayoutNode {
+    export interface UiView<TResult> extends UiLayoutNode {
         /**
-         * Renders the widget through the supplied draw surface.
+         * Renders the view through the supplied draw surface.
          */
         render(
             surface: DrawSurface,
@@ -13,15 +13,15 @@ namespace ui {
         ): void
 
         /**
-         * Converts focus input into the widget's typed result.
+         * Converts focus input into the view's typed result.
          */
         handleFocusInput(result: UiFocusInputResult): TResult
     }
 
     /**
-     * Widget lifecycle for controls that own a normal focus scope.
+     * View lifecycle for controls that own a normal focus scope.
      */
-    export interface UiFocusableWidget<TResult> extends UiWidget<TResult> {
+    export interface UiFocusableView<TResult> extends UiView<TResult> {
         /**
          * Registers focus targets after layout has arranged this widget.
          */
@@ -101,7 +101,7 @@ namespace ui {
     /**
      * Modal widget lifecycle used by screen controllers.
      */
-    export interface UiModal<TResult> extends UiWidget<TResult> {
+    export interface UiModal<TResult> extends UiView<TResult> {
         /**
          * Modal focus scope owned while the modal is open.
          */

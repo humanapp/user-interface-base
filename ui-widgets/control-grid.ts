@@ -2,7 +2,7 @@ namespace ui {
     /**
      * Options for a rectangular or ragged control grid.
      */
-    export interface UiControlGridOptions<T> {
+    export interface UiGridOptions<T> {
         /**
          * Focus scope id for this grid.
          */
@@ -82,7 +82,7 @@ namespace ui {
     /**
      * Result emitted by a non-modal control grid.
      */
-    export type UiControlGridResult<T> =
+    export type UiGridResult<T> =
         | { kind: "activated"; controlId: string; value: T; control: UiControl<T> }
         | {
               kind: "exited"
@@ -94,8 +94,8 @@ namespace ui {
     /**
      * Renders and navigates a rectangular or ragged control grid.
      */
-    export class UiControlGrid<T>
-        implements UiFocusableWidget<UiControlGridResult<T>> {
+    export class UiGrid<T>
+        implements UiFocusableView<UiGridResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -117,7 +117,7 @@ namespace ui {
         private labelBounds_: Rect
         private onActivate_: UiControlActivateHandler<T>
 
-        constructor(options: UiControlGridOptions<T>) {
+        constructor(options: UiGridOptions<T>) {
             this.scopeId_ = options.scopeId
             this.controls_ = options.controls
             this.defaultControlId_ = options.defaultControlId
@@ -310,7 +310,7 @@ namespace ui {
          */
         public handleFocusInput(
             result: UiFocusInputResult,
-        ): UiControlGridResult<T> {
+        ): UiGridResult<T> {
             if (
                 result.kind == "activated" &&
                 result.detail &&
@@ -337,7 +337,7 @@ namespace ui {
          */
         public createResultForActivation(
             result: UiFocusActivationResult,
-        ): UiControlGridResult<T> {
+        ): UiGridResult<T> {
             if (result.kind != "activated" || result.scopeId != this.scopeId_)
                 return undefined
             const control = _uiWidgets.findControlByTargetId(
@@ -359,7 +359,7 @@ namespace ui {
          */
         public createResultForMove(
             result: UiFocusMoveResult,
-        ): UiControlGridResult<T> {
+        ): UiGridResult<T> {
             if (result.kind != "exited" || result.scopeId != this.scopeId_)
                 return undefined
             return {
@@ -553,7 +553,7 @@ namespace ui {
             return max
         }
 
-        private emitActivate(result: UiControlGridResult<T>): void {
+        private emitActivate(result: UiGridResult<T>): void {
             if (!result || result.kind != "activated") return
             _uiWidgets.emitControlActivate(
                 result.value,
