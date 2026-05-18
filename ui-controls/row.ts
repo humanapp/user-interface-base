@@ -384,19 +384,16 @@ namespace ui {
                 surface,
                 this.labelBounds_,
             )
-            const activeTargetId =
-                focus && focus.getActiveScopeId() == this.scopeId_
-                ? focus.getActiveTargetId(this.scopeId_)
-                : undefined
-            let focusedIndex = -1
+            const activeTargetId = _uiControls.activeTargetIdForScope(
+                focus,
+                this.scopeId_,
+            )
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!_uiControls.isVisible(control)) continue
                 const focused =
                     activeTargetId ==
                     _uiControls.targetId(this.scopeId_, control.id)
-                if (focused && !control.draw && _uiControls.isFocusable(control))
-                    focusedIndex = i
                 _uiControls.renderControl(
                     surface,
                     assets,
@@ -408,17 +405,17 @@ namespace ui {
                     labelBounds,
                 )
             }
-            if (focusedIndex >= 0) {
-                _uiControls.renderControlFocus(
-                    surface,
-                    assets,
-                    this.controls_[focusedIndex],
-                    this.controlRects_[focusedIndex],
-                    this.controlView_,
-                    this.controlStyle_,
-                    labelBounds,
-                )
-            }
+            _uiControls.renderFocusedControlOverlay(
+                surface,
+                assets,
+                this.scopeId_,
+                this.controls_,
+                this.controlRects_,
+                activeTargetId,
+                this.controlView_,
+                this.controlStyle_,
+                labelBounds,
+            )
         }
 
         private ensureControlRects(): void {
@@ -804,19 +801,16 @@ namespace ui {
                 surface,
                 this.labelBounds_,
             )
-            const activeTargetId =
-                focus && focus.getActiveScopeId() == this.scopeId_
-                ? focus.getActiveTargetId(this.scopeId_)
-                : undefined
-            let focusedIndex = -1
+            const activeTargetId = _uiControls.activeTargetIdForScope(
+                focus,
+                this.scopeId_,
+            )
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!_uiControls.isVisible(control)) continue
                 const focused =
                     activeTargetId ==
                     _uiControls.targetId(this.scopeId_, control.id)
-                if (focused && !control.draw && _uiControls.isFocusable(control))
-                    focusedIndex = i
                 _uiControls.renderControl(
                     surface,
                     assets,
@@ -828,17 +822,43 @@ namespace ui {
                     labelBounds,
                 )
             }
-            if (focusedIndex >= 0) {
-                _uiControls.renderControlFocus(
-                    surface,
-                    assets,
-                    this.controls_[focusedIndex],
-                    this.controlRects_[focusedIndex],
-                    this.controlView_,
-                    this.controlStyle_,
-                    labelBounds,
-                )
-            }
+            _uiControls.renderFocusedControlOverlay(
+                surface,
+                assets,
+                this.scopeId_,
+                this.controls_,
+                this.controlRects_,
+                activeTargetId,
+                this.controlView_,
+                this.controlStyle_,
+                labelBounds,
+            )
+        }
+
+        /**
+         * Renders only the focused strip control's focus treatment.
+         */
+        public renderFocusOverlay(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            this.ensureControlRects()
+            const labelBounds = _uiControls.resolveLabelBounds(
+                surface,
+                this.labelBounds_,
+            )
+            _uiControls.renderFocusedControlOverlay(
+                surface,
+                assets,
+                this.scopeId_,
+                this.controls_,
+                this.controlRects_,
+                _uiControls.activeTargetIdForScope(focus, this.scopeId_),
+                this.controlView_,
+                this.controlStyle_,
+                labelBounds,
+            )
         }
 
         private registerTargets(focus: UiFocusState): void {
@@ -955,5 +975,62 @@ namespace ui {
                 this.onActivate_,
             )
         }
+    }
+}
+
+namespace _uiControls {
+    export function activeTargetIdForScope(
+        focus: ui.UiFocusState,
+        scopeId: ui.UiFocusScopeId,
+    ): ui.UiFocusId {
+        if (!focus || focus.getActiveScopeId() != scopeId) return undefined
+        return focus.getActiveTargetId(scopeId)
+    }
+
+    export function renderFocusedControlOverlay<T>(
+        surface: ui.DrawSurface,
+        assets: ui.UiAssetResolver,
+        scopeId: ui.UiFocusScopeId,
+        controls: ui.UiControl<T>[],
+        controlRects: ui.Rect[],
+        activeTargetId: ui.UiFocusId,
+        buttonView: ui.UiButtonView,
+        controlStyle?: ui.UiButtonStyle,
+        labelBounds?: ui.Rect,
+    ): void {
+        const index = focusedControlOverlayIndex(
+            scopeId,
+            controls,
+            activeTargetId,
+        )
+        if (index < 0) return
+        renderControlFocus(
+            surface,
+            assets,
+            controls[index],
+            controlRects[index],
+            buttonView,
+            controlStyle,
+            labelBounds,
+        )
+    }
+
+    function focusedControlOverlayIndex<T>(
+        scopeId: ui.UiFocusScopeId,
+        controls: ui.UiControl<T>[],
+        activeTargetId: ui.UiFocusId,
+    ): number {
+        if (activeTargetId === undefined) return -1
+        for (let i = 0; i < controls.length; i++) {
+            const control = controls[i]
+            if (
+                isVisible(control) &&
+                isFocusable(control) &&
+                !control.draw &&
+                activeTargetId == targetId(scopeId, control.id)
+            )
+                return i
+        }
+        return -1
     }
 }
