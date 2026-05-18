@@ -2,7 +2,7 @@ namespace ui {
     /**
      * Border or frame treatment drawn behind button content.
      */
-    export type UiButtonFrame = "none" | "rect" | "roundedShadow"
+    export type UiButtonFrame = "none" | "rect" | "roundedRect" | "roundedShadow"
 
     /**
      * Horizontal content placement inside a button rectangle.
@@ -59,7 +59,7 @@ namespace ui {
         frame?: UiButtonFrame
 
         /**
-         * Color used for rectangular frames.
+         * Color used for rectangle and rounded-rectangle frames.
          */
         borderColor?: number
 
@@ -352,6 +352,14 @@ namespace ui {
                     style.edgeColor,
                     style.shadowColor,
                 )
+            } else if (frame == "roundedRect") {
+                drawRoundedButtonFrame(
+                    surface,
+                    rect,
+                    this.scratch_,
+                    background,
+                    style.borderColor,
+                )
             } else {
                 if (background !== undefined) surface.fillRect(rect, background)
                 if (frame == "rect" && style.borderColor !== undefined) {
@@ -619,6 +627,13 @@ namespace ui {
         }
 
         /**
+         * One-pixel rounded frame. Corner pixels are not drawn.
+         */
+        export const RoundedFrame: UiButtonStyle = {
+            frame: "roundedRect",
+        }
+
+        /**
          * White button with a one-pixel rounded shadow frame.
          */
         export const LightShadowedWhite: UiButtonStyle = {
@@ -793,6 +808,49 @@ namespace ui {
             rect.x + rect.width - 1,
             rect.y + rect.height - 2,
             shadow,
+        )
+    }
+
+    function drawRoundedButtonFrame(
+        surface: DrawSurface,
+        rect: Rect,
+        scratch: Rect,
+        backgroundColor?: number,
+        borderColor?: number,
+    ): void {
+        if (backgroundColor !== undefined && rect.width > 2 && rect.height > 2) {
+            scratch.set(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
+            surface.fillRect(scratch, backgroundColor)
+        }
+        if (borderColor === undefined || rect.width <= 1 || rect.height <= 1)
+            return
+        surface.drawLine(
+            rect.x + 1,
+            rect.y,
+            rect.x + rect.width - 2,
+            rect.y,
+            borderColor,
+        )
+        surface.drawLine(
+            rect.x + 1,
+            rect.y + rect.height - 1,
+            rect.x + rect.width - 2,
+            rect.y + rect.height - 1,
+            borderColor,
+        )
+        surface.drawLine(
+            rect.x,
+            rect.y + 1,
+            rect.x,
+            rect.y + rect.height - 2,
+            borderColor,
+        )
+        surface.drawLine(
+            rect.x + rect.width - 1,
+            rect.y + 1,
+            rect.x + rect.width - 1,
+            rect.y + rect.height - 2,
+            borderColor,
         )
     }
 

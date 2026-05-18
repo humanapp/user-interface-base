@@ -377,7 +377,12 @@ namespace ui {
             focus?: UiFocusState,
         ): void {
             this.ensureControlRects()
-            const activeTargetId = focus
+            const labelBounds = _uiControls.resolveLabelBounds(
+                surface,
+                this.labelBounds_,
+            )
+            const activeTargetId =
+                focus && focus.getActiveScopeId() == this.scopeId_
                 ? focus.getActiveTargetId(this.scopeId_)
                 : undefined
             let focusedIndex = -1
@@ -396,7 +401,7 @@ namespace ui {
                     focused && !!control.draw,
                     this.controlView_,
                     this.controlStyle_,
-                    this.labelBounds_,
+                    labelBounds,
                 )
             }
             if (focusedIndex >= 0) {
@@ -407,7 +412,7 @@ namespace ui {
                     this.controlRects_[focusedIndex],
                     this.controlView_,
                     this.controlStyle_,
-                    this.labelBounds_,
+                    labelBounds,
                 )
             }
         }

@@ -377,7 +377,8 @@ namespace ui {
                 surface,
                 this.labelBounds_,
             )
-            const activeTargetId = focus
+            const activeTargetId =
+                focus && focus.getActiveScopeId() == this.scopeId_
                 ? focus.getActiveTargetId(this.scopeId_)
                 : undefined
             let focusedIndex = -1
