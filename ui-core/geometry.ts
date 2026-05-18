@@ -160,6 +160,28 @@ namespace ui {
         }
 
         /**
+         * Expands each edge by `amount` UI units and returns this rectangle.
+         */
+        public inflate(amount: number): Rect {
+            this.x -= amount
+            this.y -= amount
+            this.width += amount * 2
+            this.height += amount * 2
+            return this
+        }
+
+        /**
+         * Expands this rectangle to include `rect` and returns this rectangle.
+         */
+        public union(rect: Rect): Rect {
+            const left = Math.min(this.x, rect.x)
+            const top = Math.min(this.y, rect.y)
+            const right = Math.max(this.right, rect.right)
+            const bottom = Math.max(this.bottom, rect.bottom)
+            return this.set(left, top, right - left, bottom - top)
+        }
+
+        /**
          * Creates a rectangle with the same bounds.
          */
         public clone(): Rect {

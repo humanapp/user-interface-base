@@ -16,6 +16,27 @@ namespace ui {
     }
 
     /**
+     * Smoke harness for primitive geometry helpers.
+     */
+    export function runGeometrySmokeTest(): void {
+        const rect = new Rect(10, 20, 5, 7)
+        control.assert(rect.inflate(2) == rect, "rect inflate returns self")
+        control.assert(rect.x == 8, "rect inflate x")
+        control.assert(rect.y == 18, "rect inflate y")
+        control.assert(rect.width == 9, "rect inflate width")
+        control.assert(rect.height == 11, "rect inflate height")
+
+        control.assert(
+            rect.union(new Rect(20, 10, 4, 5)) == rect,
+            "rect union returns self",
+        )
+        control.assert(rect.x == 8, "rect union x")
+        control.assert(rect.y == 10, "rect union y")
+        control.assert(rect.width == 16, "rect union width")
+        control.assert(rect.height == 19, "rect union height")
+    }
+
+    /**
      * Smoke harness for display-profile drawing and scale-mode rendering.
      */
     export function renderLogicalViewportSmokeTest(fillColor: number): void {
@@ -6767,6 +6788,7 @@ namespace ui {
     }
 }
 
+ui.runGeometrySmokeTest()
 ui.renderLogicalViewportSmokeTest(2)
 ui.runAssetResolverSmokeTest()
 ui.runRuntimeSmokeTest()
