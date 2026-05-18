@@ -108,6 +108,32 @@ namespace ui {
         palette?: UiControlPalette
 
         /**
+         * Width requested by variable-size control collections.
+         */
+        width?: number
+
+        /**
+         * Height requested by variable-size control collections.
+         */
+        height?: number
+
+        /**
+         * Extra space before this control in variable-size control collections.
+         */
+        gapBefore?: number
+
+        /**
+         * Extra space after this control in variable-size control collections.
+         */
+        gapAfter?: number
+
+        /**
+         * Whether this visible control can receive focus. Omitted values are
+         * treated as `true`.
+         */
+        focusable?: boolean
+
+        /**
          * Optional control style used when `draw` is omitted.
          */
         style?: UiButtonStyle
@@ -212,6 +238,10 @@ namespace _uiControls {
         return control.toggled || false
     }
 
+    export function isFocusable<T>(control: ui.UiControl<T>): boolean {
+        return control.focusable !== false
+    }
+
     export function emitControlActivate<T>(
         value: T,
         control: ui.UiControl<T>,
@@ -314,18 +344,28 @@ namespace _uiControls {
         defaultControlId: string | undefined,
     ): string | undefined {
         const explicit = findControlById(controls, defaultControlId)
-        if (explicit && isVisible(explicit) && !isDisabled(explicit))
+        if (
+            explicit &&
+            isVisible(explicit) &&
+            isFocusable(explicit) &&
+            !isDisabled(explicit)
+        )
             return targetId(scopeId, explicit.id)
 
         for (let i = 0; i < controls.length; i++) {
             const control = controls[i]
-            if (isVisible(control) && !isDisabled(control) && isSelected(control))
+            if (
+                isVisible(control) &&
+                isFocusable(control) &&
+                !isDisabled(control) &&
+                isSelected(control)
+            )
                 return targetId(scopeId, control.id)
         }
 
         for (let i = 0; i < controls.length; i++) {
             const control = controls[i]
-            if (isVisible(control) && !isDisabled(control))
+            if (isVisible(control) && isFocusable(control) && !isDisabled(control))
                 return targetId(scopeId, control.id)
         }
 

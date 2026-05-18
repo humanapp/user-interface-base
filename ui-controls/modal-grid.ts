@@ -80,6 +80,11 @@ namespace ui {
         titleGap?: number
 
         /**
+         * Whether an empty modal reserves title-band space. Defaults to `true`.
+         */
+        showTitleBar?: boolean
+
+        /**
          * Fill color for the modal panel. Defaults to `1`.
          */
         panelColor?: number
@@ -155,6 +160,7 @@ namespace ui {
         private titleColor_: number
         private contentMargin_: number
         private titleGap_: number
+        private showTitleBar_: boolean
         private grid_: UiGrid<T>
         private onActivate_: UiControlActivateHandler<T>
         private onCancel_: UiPickerCancelHandler
@@ -178,6 +184,7 @@ namespace ui {
                 4,
             )
             this.titleGap_ = _uiControls.sanitizeDimension(options.titleGap, 0)
+            this.showTitleBar_ = options.showTitleBar !== false
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.scratch_ = new Rect()
@@ -454,6 +461,12 @@ namespace ui {
         }
 
         private titleHeight(): number {
+            if (
+                !this.showTitleBar_ &&
+                this.title_ === undefined &&
+                this.titleId_ === undefined
+            )
+                return this.contentMargin_
             return 16 + this.titleGap_
         }
     }

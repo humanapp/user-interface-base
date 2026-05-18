@@ -5997,6 +5997,75 @@ namespace ui {
     }
 
     /**
+     * Smoke harness for variable-size control strip layout and focus behavior.
+     */
+    export function runControlStripSmokeTest(): void {
+        const focus = new UiFocusState()
+        const controller = new UiFocusInputController({ focus })
+        const strip = new UiControlStrip<number>({
+            scopeId: "strip",
+            controls: [
+                { id: "a", value: 1, width: 4, height: 4 },
+                {
+                    id: "static",
+                    value: 2,
+                    width: 3,
+                    height: 2,
+                    gapBefore: 2,
+                    gapAfter: 3,
+                    focusable: false,
+                },
+                { id: "c", value: 3, width: 5, height: 6, selected: true },
+            ],
+            controlWidth: 10,
+            controlHeight: 10,
+            gap: 1,
+        })
+        const measured = new UiMeasuredSize()
+        strip.measure({ maxWidth: 100, maxHeight: 20 }, measured)
+        control.assert(
+            measured.preferredWidth == 18,
+            "control strip measured width",
+        )
+        control.assert(
+            measured.preferredHeight == 6,
+            "control strip measured height",
+        )
+        strip.arrange(new Rect(10, 20, 50, 12))
+
+        const rect = new Rect()
+        control.assert(strip.getControlRect("a", rect), "strip a rect exists")
+        assertLayoutRect(rect, 10, 21, 4, 4, "strip a rect")
+        control.assert(
+            strip.getControlRect("static", rect),
+            "strip static rect exists",
+        )
+        assertLayoutRect(rect, 16, 22, 3, 2, "strip static rect")
+        control.assert(strip.getControlRect("c", rect), "strip c rect exists")
+        assertLayoutRect(rect, 23, 20, 5, 6, "strip c rect")
+
+        const targets: UiFocusNavigationTarget[] = []
+        strip.copyNavigationTargets(targets)
+        control.assert(targets.length == 2, "strip skips static target")
+        control.assert(targets[0].id == "strip/a", "strip first target")
+        control.assert(targets[1].id == "strip/c", "strip second target")
+
+        strip.registerFocusTargets(focus)
+        strip.registerNavigation(controller)
+        strip.focusDefault(focus)
+        control.assert(
+            focus.getActiveTargetId("strip") == "strip/c",
+            "strip selected default focus",
+        )
+        const inputResult = controller.handleInput({ action: "left" })
+        control.assert(inputResult.kind == "moved", "strip moves left")
+        control.assert(
+            focus.getActiveTargetId("strip") == "strip/a",
+            "strip skips static on move",
+        )
+    }
+
+    /**
      * Smoke harness for control grid rectangular, ragged, scroll, and exit behavior.
      */
     export function runControlGridSmokeTest(): void {
@@ -6343,6 +6412,34 @@ namespace ui {
             24,
             20,
             "modal title gap control rect",
+        )
+        const titlelessModal = new UiPicker<string>({
+            parentScopeId: "parent",
+            modalScopeId: "titleless",
+            showTitleBar: false,
+            controls: [{ id: "a", value: "A" }],
+        })
+        const titlelessMeasured = new UiMeasuredSize()
+        titlelessModal.measure(
+            { maxWidth: 100, maxHeight: 100 },
+            titlelessMeasured,
+        )
+        control.assert(
+            titlelessMeasured.preferredHeight == 28,
+            "modal hidden title bar height",
+        )
+        titlelessModal.arrange(new Rect(0, 0, 40, 40))
+        control.assert(
+            titlelessModal.getControlRect("a", modalControlRect),
+            "modal hidden title bar control rect exists",
+        )
+        assertLayoutRect(
+            modalControlRect,
+            4,
+            4,
+            24,
+            20,
+            "modal hidden title bar control rect",
         )
         modal.open(focus, controller)
         control.assert(
@@ -6807,6 +6904,7 @@ ui.runControlButtonSmokeTest()
 ui.runScreenControllerSmokeTest()
 ui.runControlRecordSmokeTest()
 ui.runControlRowSmokeTest()
+ui.runControlStripSmokeTest()
 ui.runControlGridSmokeTest()
 ui.runPickerSmokeTest()
 ui.runToggleGridSmokeTest()

@@ -388,7 +388,8 @@ namespace ui {
                 const focused =
                     activeTargetId ==
                     _uiControls.targetId(this.scopeId_, control.id)
-                if (focused && !control.draw) focusedIndex = i
+                if (focused && !control.draw && _uiControls.isFocusable(control))
+                    focusedIndex = i
                 _uiControls.renderControl(
                     surface,
                     assets,
@@ -417,8 +418,10 @@ namespace ui {
             this.ensureControlRects()
             const currentTargetIds: string[] = []
             for (let i = 0; i < this.controls_.length; i++) {
+                const control = this.controls_[i]
+                if (!this.isNavigationControl(control)) continue
                 currentTargetIds.push(
-                    _uiControls.targetId(this.scopeId_, this.controls_[i].id),
+                    _uiControls.targetId(this.scopeId_, control.id),
                 )
             }
             for (let i = 0; i < this.registeredTargetIds_.length; i++) {
@@ -428,6 +431,7 @@ namespace ui {
             }
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
+                if (!this.isNavigationControl(control)) continue
                 const rect = this.controlRects_[i] || new Rect()
                 focus.setTarget({
                     id: _uiControls.targetId(this.scopeId_, control.id),
@@ -455,6 +459,7 @@ namespace ui {
             const cells: UiFocusGridNavigationCell[] = []
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
+                if (!this.isNavigationControl(control)) continue
                 const rect = this.controlRects_[i]
                 cells.push({
                     row: this.rowForIndex(i),
@@ -477,13 +482,13 @@ namespace ui {
                     column < count && index < this.controls_.length;
                     column++
                 ) {
-                    rowTargets.push(
-                        this.navigationTarget(
-                            this.controls_[index],
-                            this.controlRects_[index],
-                        ),
-                    )
+                    const control = this.controls_[index]
+                    const rect = this.controlRects_[index]
                     index++
+                    if (!this.isNavigationControl(control)) continue
+                    rowTargets.push(
+                        this.navigationTarget(control, rect),
+                    )
                 }
                 rows.push(rowTargets)
             }
@@ -502,6 +507,13 @@ namespace ui {
                 disabled: _uiControls.isDisabled(control),
                 hidden: !_uiControls.isVisible(control),
             }
+        }
+
+        private isNavigationControl(control: UiControl<T>): boolean {
+            return (
+                _uiControls.isVisible(control) &&
+                _uiControls.isFocusable(control)
+            )
         }
 
         private rowForIndex(index: number): number {
