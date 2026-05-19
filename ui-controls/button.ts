@@ -1,4 +1,7 @@
 namespace ui {
+    const BUTTON_FOCUS_THICKNESS = 3
+    const BUTTON_FOCUS_LABEL_OFFSET = 1
+
     /**
      * Border or frame treatment drawn behind button content.
      */
@@ -12,7 +15,7 @@ namespace ui {
     /**
      * Focus treatment drawn for a focused button.
      */
-    export type UiButtonFocusKind = "none" | "rect" | "contentRing"
+    export type UiButtonFocusKind = "none" | "rect"
 
     /**
      * Placement for button text.
@@ -99,16 +102,6 @@ namespace ui {
         focusColor?: number
 
         /**
-         * Focus ring thickness in UI units.
-         */
-        focusThickness?: number
-
-        /**
-         * Extra space between content and a content focus ring.
-         */
-        focusPadding?: number
-
-        /**
          * Font used for text content.
          */
         font?: TextFont
@@ -134,7 +127,7 @@ namespace ui {
         focusLabelFont?: TextFont
 
         /**
-         * Distance between the focused content ring and focus label.
+         * Extra distance between the focus ring and focus label.
          */
         focusLabelGap?: number
 
@@ -145,9 +138,36 @@ namespace ui {
     }
 
     /**
-     * Bitmap and text content rendered by `UiButtonView`.
+     * Draws caller-owned button content inside the content rectangle selected by
+     * `UiButtonView`.
+     */
+    export interface UiButtonCustomContent {
+        /**
+         * Requested content width in UI units.
+         */
+        width: number
+
+        /**
+         * Requested content height in UI units.
+         */
+        height: number
+
+        /**
+         * Draws the content inside the arranged content rectangle.
+         */
+        draw(surface: DrawSurface, rect: Rect): void
+    }
+
+    /**
+     * Content rendered by `UiButtonView`.
      */
     export interface UiButtonContent {
+        /**
+         * Caller-owned content drawn before the text or centered by itself. Takes
+         * precedence over `bitmap`.
+         */
+        customContent?: UiButtonCustomContent
+
         /**
          * Bitmap drawn before the text or centered by itself.
          */
@@ -199,14 +219,15 @@ namespace ui {
         palette?: UiButtonStyle
 
         /**
-         * Receives the content rectangle used for content focus rings.
-         */
-        contentRect?: Rect
-
-        /**
          * Bounds used to keep a focus label visible.
          */
         labelBounds?: Rect
+
+        /**
+         * Text rendered in the focus label. When omitted, focus-label styles use
+         * button content text.
+         */
+        focusLabelText?: string
     }
 
     /**
@@ -271,17 +292,16 @@ namespace ui {
             const resolved = style || this.style_
             const font = resolved.font || bitmaps.font5
             const text = this.contentText(content, resolved)
-            const gap =
-                content.bitmap && text.length > 0
-                    ? this.contentGap(resolved)
-                    : 0
+            const contentWidth = this.contentWidth(content)
+            const contentHeight = this.contentHeight(content)
+            const gap = contentWidth > 0 && text.length > 0
+                ? this.contentGap(resolved)
+                : 0
             const textWidth = text.length > 0 ? font.charWidth * text.length : 0
             const textHeight = text.length > 0 ? font.charHeight : 0
-            const bitmapWidth = content.bitmap ? content.bitmap.width : 0
-            const bitmapHeight = content.bitmap ? content.bitmap.height : 0
             const padding = this.padding(resolved)
-            const width = bitmapWidth + gap + textWidth + padding * 2
-            const height = Math.max(bitmapHeight, textHeight) + padding * 2
+            const width = contentWidth + gap + textWidth + padding * 2
+            const height = Math.max(contentHeight, textHeight) + padding * 2
             output.set(width, height, width, height)
         }
 
@@ -315,23 +335,7 @@ namespace ui {
             const focusKind = style.focusKind || "rect"
             if (focusKind == "none") return
             const focusColor = this.focusColor(style, options)
-            if (focusKind == "contentRing") {
-                const contentRect =
-                    options && options.contentRect
-                        ? options.contentRect
-                        : this.scratch_
-                if (!options || !options.contentRect)
-                    this.contentRect(rect, content, style, contentRect)
-                drawButtonContentFocusRing(
-                    surface,
-                    contentRect,
-                    focusColor,
-                    style.focusThickness,
-                    style.focusPadding,
-                )
-            } else {
-                surface.drawRect(rect, focusColor)
-            }
+            drawButtonFocusRing(surface, rect, focusColor)
             this.renderFocusLabel(surface, rect, content, style, options)
         }
 
@@ -369,22 +373,23 @@ namespace ui {
             style: UiButtonStyle,
             options?: UiButtonViewRenderOptions,
         ): void {
-            const contentRect =
-                options && options.contentRect
-                    ? options.contentRect
-                    : this.scratch_
+            const contentRect = this.scratch_
             this.contentRect(rect, content, style, contentRect)
-            const bitmap = content.bitmap
+            const customContent = content.customContent
+            const bitmap = customContent ? undefined : content.bitmap
             const text = this.contentText(content, style)
             const font = style.font || bitmaps.font5
             const foreground = this.foregroundColor(style, options)
+            const graphicWidth = this.contentWidth(content)
 
-            if (bitmap) {
+            if (customContent) {
+                customContent.draw(surface, contentRect)
+            } else if (bitmap) {
                 surface.drawBitmap(bitmap, contentRect.x, contentRect.y)
             }
             if (text.length > 0) {
-                const textX = bitmap
-                    ? contentRect.x + bitmap.width + this.contentGap(style)
+                const textX = graphicWidth > 0
+                    ? contentRect.x + graphicWidth + this.contentGap(style)
                     : contentRect.x
                 const textY =
                     rect.y +
@@ -408,12 +413,13 @@ namespace ui {
             const text = this.contentText(content, style)
             const textWidth = text.length > 0 ? font.charWidth * text.length : 0
             const textHeight = text.length > 0 ? font.charHeight : 0
-            const bitmapWidth = content.bitmap ? content.bitmap.width : 0
-            const bitmapHeight = content.bitmap ? content.bitmap.height : 0
-            const gap =
-                content.bitmap && text.length > 0 ? this.contentGap(style) : 0
-            const width = bitmapWidth + gap + textWidth
-            const height = Math.max(bitmapHeight, textHeight)
+            const contentWidth = this.contentWidth(content)
+            const contentHeight = this.contentHeight(content)
+            const gap = contentWidth > 0 && text.length > 0
+                ? this.contentGap(style)
+                : 0
+            const width = contentWidth + gap + textWidth
+            const height = Math.max(contentHeight, textHeight)
             const alignment = style.contentAlignment || "start"
             const padding = this.padding(style)
             const x =
@@ -431,8 +437,7 @@ namespace ui {
             style: UiButtonStyle,
             options?: UiButtonViewRenderOptions,
         ): void {
-            if (style.textPlacement != "focusLabel") return
-            const text = content.text || ""
+            const text = this.focusLabelText(content, style, options)
             if (text.length == 0) return
             const font = style.focusLabelFont || style.font || bitmaps.font5
             const textWidth = font.charWidth * text.length
@@ -441,27 +446,14 @@ namespace ui {
                 style.focusLabelPadding !== undefined
                     ? style.focusLabelPadding
                     : 1
-            const contentRect =
-                options && options.contentRect
-                    ? options.contentRect
-                    : this.scratch_
-            if (!options || !options.contentRect)
-                this.contentRect(rect, content, style, contentRect)
-            const centerX =
-                contentRect.width > 0
-                    ? contentRect.x + Math.idiv(contentRect.width, 2)
-                    : rect.x + Math.idiv(rect.width, 2)
-            const contentBottom =
-                contentRect.height > 0
-                    ? contentRect.y + contentRect.height - 1
-                    : rect.y + rect.height - 1
+            const centerX = rect.x + Math.idiv(rect.width, 2)
             const labelGap =
-                style.focusLabelGap !== undefined ? style.focusLabelGap : 1
+                style.focusLabelGap !== undefined ? style.focusLabelGap : 0
             const labelTop =
-                contentBottom +
-                (style.focusThickness !== undefined
-                    ? style.focusThickness
-                    : 0) +
+                rect.y +
+                rect.height +
+                BUTTON_FOCUS_THICKNESS +
+                BUTTON_FOCUS_LABEL_OFFSET +
                 labelGap
             const bounds = options ? options.labelBounds : undefined
             const minX = bounds ? bounds.x + padding : padding
@@ -575,6 +567,27 @@ namespace ui {
             if (style.textPlacement == "focusLabel") return ""
             return content.text || ""
         }
+
+        private focusLabelText(
+            content: UiButtonContent,
+            style: UiButtonStyle,
+            options?: UiButtonViewRenderOptions,
+        ): string {
+            if (options && options.focusLabelText !== undefined)
+                return options.focusLabelText
+            if (style.textPlacement == "focusLabel") return content.text || ""
+            return ""
+        }
+
+        private contentWidth(content: UiButtonContent): number {
+            if (content.customContent) return content.customContent.width
+            return content.bitmap ? content.bitmap.width : 0
+        }
+
+        private contentHeight(content: UiButtonContent): number {
+            if (content.customContent) return content.customContent.height
+            return content.bitmap ? content.bitmap.height : 0
+        }
     }
 
     /**
@@ -598,15 +611,13 @@ namespace ui {
         }
 
         /**
-         * Transparent icon style with a content focus ring.
+         * Transparent icon style.
          */
         export const Transparent: UiButtonStyle = {
             frame: "none",
             contentAlignment: "center",
-            focusKind: "contentRing",
+            focusKind: "rect",
             focusColor: 9,
-            focusThickness: 3,
-            focusPadding: 0,
         }
 
         /**
@@ -616,7 +627,6 @@ namespace ui {
             textPlacement: "focusLabel",
             focusLabelBackgroundColor: 15,
             focusLabelColor: 1,
-            focusLabelGap: 1,
             focusLabelPadding: 1,
         }
 
@@ -636,10 +646,8 @@ namespace ui {
             shadowColor: 11,
             frame: "roundedShadow",
             contentAlignment: "center",
-            focusKind: "contentRing",
+            focusKind: "rect",
             focusColor: 9,
-            focusThickness: 3,
-            focusPadding: 1,
         }
 
         /**
@@ -651,10 +659,8 @@ namespace ui {
             shadowColor: 12,
             frame: "roundedShadow",
             contentAlignment: "center",
-            focusKind: "contentRing",
+            focusKind: "rect",
             focusColor: 9,
-            focusThickness: 3,
-            focusPadding: 1,
         }
 
         /**
@@ -665,9 +671,8 @@ namespace ui {
             borderColor: 1,
             frame: "rect",
             contentAlignment: "center",
-            focusKind: "contentRing",
+            focusKind: "rect",
             focusColor: 9,
-            focusThickness: 3,
         }
 
         /**
@@ -678,9 +683,8 @@ namespace ui {
             borderColor: 12,
             frame: "rect",
             contentAlignment: "center",
-            focusKind: "contentRing",
+            focusKind: "rect",
             focusColor: 9,
-            focusThickness: 3,
         }
 
         /**
@@ -691,9 +695,20 @@ namespace ui {
             borderColor: 2,
             frame: "rect",
             contentAlignment: "center",
-            focusKind: "contentRing",
+            focusKind: "rect",
             focusColor: 9,
-            focusThickness: 3,
+        }
+
+        /**
+         * White button with a green border.
+         */
+        export const GreenBorderedWhite: UiButtonStyle = {
+            backgroundColor: 1,
+            borderColor: 7,
+            frame: "rect",
+            contentAlignment: "center",
+            focusKind: "rect",
+            focusColor: 9,
         }
     }
 
@@ -728,10 +743,6 @@ namespace ui {
         if (source.focusKind !== undefined) target.focusKind = source.focusKind
         if (source.focusColor !== undefined)
             target.focusColor = source.focusColor
-        if (source.focusThickness !== undefined)
-            target.focusThickness = source.focusThickness
-        if (source.focusPadding !== undefined)
-            target.focusPadding = source.focusPadding
         if (source.font !== undefined) target.font = source.font
         if (source.textPlacement !== undefined)
             target.textPlacement = source.textPlacement
@@ -805,38 +816,22 @@ namespace ui {
         )
     }
 
-    function drawButtonContentFocusRing(
+    function drawButtonFocusRing(
         surface: DrawSurface,
         rect: Rect,
         color?: number,
-        thickness?: number,
-        padding?: number,
     ): void {
         const focusColor = color !== undefined ? color : 9
-        const focusThickness = thickness !== undefined ? thickness : 3
-        const focusPadding = padding !== undefined ? padding : 0
-        const left = rect.x - focusPadding
-        const top = rect.y - focusPadding
-        const right = rect.x + rect.width - 1 + focusPadding
-        const bottom = rect.y + rect.height - 1 + focusPadding
+        const left = rect.x
+        const top = rect.y
+        const right = rect.x + rect.width - 1
+        const bottom = rect.y + rect.height - 1
 
-        for (let dist = 1; dist <= focusThickness; dist++) {
+        for (let dist = 1; dist <= BUTTON_FOCUS_THICKNESS; dist++) {
             surface.drawLine(left - dist, top, left - dist, bottom, focusColor)
-            surface.drawLine(
-                right + dist,
-                top,
-                right + dist,
-                bottom,
-                focusColor,
-            )
+            surface.drawLine(right + dist, top, right + dist, bottom, focusColor)
             surface.drawLine(left, top - dist, right, top - dist, focusColor)
-            surface.drawLine(
-                left,
-                bottom + dist,
-                right,
-                bottom + dist,
-                focusColor,
-            )
+            surface.drawLine(left, bottom + dist, right, bottom + dist, focusColor)
             if (dist > 1) {
                 surface.drawLine(left - dist, top, left, top - dist, focusColor)
                 surface.drawLine(
@@ -863,4 +858,5 @@ namespace ui {
             }
         }
     }
+
 }

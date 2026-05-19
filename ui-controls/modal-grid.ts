@@ -121,9 +121,19 @@ namespace ui {
         titleId?: string
 
         /**
+         * Static bitmap or resolver-backed bitmap id drawn in the title bar.
+         */
+        titleBitmap?: Bitmap | string
+
+        /**
          * Control id to focus first when available.
          */
         defaultControlId?: string
+
+        /**
+         * Caller-owned controls rendered at the right edge of the title bar.
+         */
+        titleControls?: UiControl<T>[]
 
         /**
          * Whether delete may emit a `deleted` result.
@@ -134,6 +144,11 @@ namespace ui {
          * Whether activation emits `activated` with `close: true`. Defaults to `true`.
          */
         closeOnActivate?: boolean
+
+        /**
+         * Whether left/right movement may wrap inside content rows.
+         */
+        horizontalWrap?: boolean
 
         /**
          * Number of columns for rectangular modal grids.
@@ -156,9 +171,39 @@ namespace ui {
         controlHeight?: number
 
         /**
+         * Space between adjacent content rows.
+         */
+        rowGap?: number
+
+        /**
+         * Space between adjacent content columns.
+         */
+        columnGap?: number
+
+        /**
          * Control style used by controls without a custom draw callback.
          */
         controlStyle?: UiButtonStyle
+
+        /**
+         * Width assigned to each title-bar control.
+         */
+        titleControlWidth?: number
+
+        /**
+         * Height assigned to each title-bar control.
+         */
+        titleControlHeight?: number
+
+        /**
+         * Space between adjacent title-bar controls.
+         */
+        titleControlGap?: number
+
+        /**
+         * Control style used by title-bar controls without a custom draw callback.
+         */
+        titleControlStyle?: UiButtonStyle
 
         /**
          * Panel, title, and spacing style for this modal.
@@ -270,33 +315,61 @@ namespace ui {
         private modalScopeId_: UiFocusScopeId
         private title_: string
         private titleId_: string
+        private titleBitmap_: Bitmap | string
         private deleteEnabled_: boolean
         private closeOnActivate_: boolean
         private style_: UiModalStyle
+        private titleRow_: UiRow<T>
         private grid_: UiGrid<T>
         private onActivate_: UiControlActivateHandler<T>
         private onCancel_: UiPickerCancelHandler
         private scratch_: Rect
+        private titleRowSize_: UiMeasuredSize
+        private gridRows_: number[]
+        private columnCount_: number
+        private horizontalWrap_: boolean
 
         constructor(options: UiPickerOptions<T>) {
             this.parentScopeId_ = options.parentScopeId
             this.modalScopeId_ = options.modalScopeId
             this.title_ = options.title
             this.titleId_ = options.titleId
+            this.titleBitmap_ = options.titleBitmap
             this.deleteEnabled_ = options.deleteEnabled || false
             this.closeOnActivate_ = options.closeOnActivate !== false
             this.style_ = this.resolveModalStyle(options)
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.scratch_ = new Rect()
+            this.titleRowSize_ = new UiMeasuredSize()
+            this.gridRows_ = options.rows
+            this.horizontalWrap_ = options.horizontalWrap || false
+            this.columnCount_ = _uiControls.sanitizeDimension(
+                options.columnCount,
+                Math.max(1, options.controls.length),
+            )
+            if (options.titleControls && options.titleControls.length)
+                this.titleRow_ = new UiRow<T>({
+                    scopeId: options.modalScopeId,
+                    controls: options.titleControls,
+                    controlWidth: options.titleControlWidth || options.controlWidth,
+                    controlHeight:
+                        options.titleControlHeight || options.controlHeight,
+                    gap: options.titleControlGap,
+                    controlStyle:
+                        options.titleControlStyle || options.controlStyle,
+                })
             this.grid_ = new UiGrid<T>({
                 scopeId: options.modalScopeId,
                 controls: options.controls,
                 defaultControlId: options.defaultControlId,
-                columnCount: options.columnCount,
+                columnCount: this.columnCount_,
                 rows: options.rows,
                 controlWidth: options.controlWidth,
                 controlHeight: options.controlHeight,
+                rowGap: options.rowGap,
+                columnGap: options.columnGap,
+                horizontalWrap: options.horizontalWrap,
                 controlStyle: options.controlStyle,
             })
             this.layoutSpec = _uiControls.defaultLayoutSpec()
@@ -322,7 +395,12 @@ namespace ui {
          * Copies one arranged modal control rectangle into `output`.
          */
         public getControlRect(controlId: string, output: Rect): boolean {
-            return this.grid_.getControlRect(controlId, output)
+            return (
+                this.grid_.getControlRect(controlId, output) ||
+                (this.titleRow_
+                    ? this.titleRow_.getControlRect(controlId, output)
+                    : false)
+            )
         }
 
         /**
@@ -332,13 +410,19 @@ namespace ui {
             constraints: UiLayoutConstraints,
             output: UiMeasuredSize,
         ): void {
+            this.measureTitleRow(constraints)
             this.grid_.measure(constraints, output)
             const titleHeight = this.titleHeight()
             const contentMargin = this.contentMargin()
+            const minWidth = Math.max(output.minWidth, this.titleRowSize_.minWidth)
+            const preferredWidth = Math.max(
+                output.preferredWidth,
+                this.titleRowSize_.preferredWidth,
+            )
             output.set(
-                output.minWidth + contentMargin * 2,
+                minWidth + contentMargin * 2,
                 output.minHeight + titleHeight + contentMargin,
-                output.preferredWidth + contentMargin * 2,
+                preferredWidth + contentMargin * 2,
                 output.preferredHeight + titleHeight + contentMargin,
             )
             this.clearLayoutInvalidation()
@@ -351,6 +435,7 @@ namespace ui {
             copyArrangedLayoutRect(this.finalRect, rect)
             const titleHeight = this.titleHeight()
             const contentMargin = this.contentMargin()
+            this.arrangeTitleRow(rect, contentMargin)
             this.grid_.arrange(
                 new Rect(
                     rect.x + contentMargin,
@@ -370,6 +455,7 @@ namespace ui {
          */
         public invalidateLayout(): void {
             this.layoutDirty = true
+            if (this.titleRow_) this.titleRow_.invalidateLayout()
             this.grid_.invalidateLayout()
         }
 
@@ -387,14 +473,17 @@ namespace ui {
             focus: UiFocusState,
             controller?: UiFocusInputController,
         ): UiFocusSetResult {
-            this.grid_.registerFocusTargets(focus, {
+            const scopeOptions: UiFocusScopeOptions = {
                 id: this.modalScopeId_,
                 parentScopeId: this.parentScopeId_ || focus.getActiveScopeId(),
-                preferredTargetId: this.grid_.resolvePreferredTargetId(),
+                preferredTargetId: this.resolvePreferredTargetId(),
                 handlesCancel: true,
                 modal: true,
-            })
-            if (controller) this.grid_.registerNavigation(controller)
+            }
+            if (this.titleRow_)
+                this.titleRow_.registerFocusTargets(focus, scopeOptions)
+            this.grid_.registerFocusTargets(focus, scopeOptions)
+            if (controller) this.registerNavigation(controller)
             return focus.setActiveScope(this.modalScopeId_)
         }
 
@@ -421,7 +510,7 @@ namespace ui {
         public createResultForActivation(
             result: UiFocusActivationResult,
         ): UiPickerResult<T> {
-            const gridResult = this.grid_.createResultForActivation(result)
+            const gridResult = this.createGridResultForActivation(result)
             if (!gridResult || gridResult.kind != "activated") return undefined
             if (this.closeOnActivate_) {
                 return {
@@ -502,14 +591,31 @@ namespace ui {
                 this.scratch_,
             )
             const title = this.resolveTitleText(assets)
+            const titleBitmap = this.resolveTitleBitmap(assets)
+            let titleX = this.finalRect.x + 4
+            if (titleBitmap) {
+                surface.drawBitmap(
+                    titleBitmap,
+                    titleX,
+                    this.finalRect.y + 4,
+                )
+                titleX += titleBitmap.width + 2
+            }
             if (title.length > 0)
                 surface.drawText(
                     title,
-                    this.finalRect.x + 4,
+                    titleX,
                     this.finalRect.y + 4,
                     { color: this.titleColor(), font: this.style_.titleFont },
                 )
-            this.grid_.render(surface, assets, focus)
+            if (this.titleRow_) {
+                this.grid_.renderControls(surface, assets, focus)
+                this.titleRow_.renderControls(surface, assets, focus)
+                this.grid_.renderFocus(surface, assets, focus)
+                this.titleRow_.renderFocus(surface, assets, focus)
+            } else {
+                this.grid_.render(surface, assets, focus)
+            }
         }
 
         private emitActivate(result: UiPickerResult<T>): void {
@@ -533,10 +639,18 @@ namespace ui {
         }
 
         private titleHeight(): number {
+            if (this.titleRow_) {
+                return (
+                    this.contentMargin() +
+                    this.titleRowSize_.preferredHeight +
+                    this.titleGap()
+                )
+            }
             if (
                 !this.showTitleBar() &&
                 this.title_ === undefined &&
-                this.titleId_ === undefined
+                this.titleId_ === undefined &&
+                this.titleBitmap_ === undefined
             )
                 return this.contentMargin()
             return 16 + this.titleGap()
@@ -556,8 +670,153 @@ namespace ui {
                 : 15
         }
 
+        private resolveTitleBitmap(assets: UiAssetResolver): Bitmap | undefined {
+            if (this.titleBitmap_ === undefined) return undefined
+            if (typeof this.titleBitmap_ == "string")
+                return assets.getBitmap(this.titleBitmap_)
+            return this.titleBitmap_
+        }
+
         private showTitleBar(): boolean {
             return this.style_.showTitleBar !== false
+        }
+
+        private measureTitleRow(constraints: UiLayoutConstraints): void {
+            if (!this.titleRow_) {
+                this.titleRowSize_.set(0, 0, 0, 0)
+                return
+            }
+            this.titleRow_.measure(constraints, this.titleRowSize_)
+        }
+
+        private arrangeTitleRow(rect: Rect, contentMargin: number): void {
+            if (!this.titleRow_) return
+            this.titleRow_.arrange(
+                new Rect(
+                    rect.x +
+                        rect.width -
+                        contentMargin -
+                        this.titleRowSize_.preferredWidth,
+                    rect.y + contentMargin,
+                    this.titleRowSize_.preferredWidth,
+                    this.titleRowSize_.preferredHeight,
+                ),
+            )
+        }
+
+        private resolvePreferredTargetId(): UiFocusId | undefined {
+            return (
+                this.grid_.resolvePreferredTargetId() ||
+                (this.titleRow_
+                    ? this.titleRow_.resolvePreferredTargetId()
+                    : undefined)
+            )
+        }
+
+        private registerNavigation(controller: UiFocusInputController): void {
+            if (!this.titleRow_) {
+                this.grid_.registerNavigation(controller)
+                return
+            }
+            controller.setNavigation(this.modalScopeId_, {
+                kind: "raggedGrid",
+                rows: this.navigationRows(),
+                horizontalWrap: this.horizontalWrap_,
+                verticalStrategy: "nearest",
+            })
+        }
+
+        private createGridResultForActivation(
+            result: UiFocusActivationResult,
+        ): UiGridResult<T> {
+            if (this.titleRow_) {
+                const rowResult = this.titleRow_.createResultForActivation(result)
+                if (rowResult) return rowResult
+            }
+            return this.grid_.createResultForActivation(result)
+        }
+
+        private navigationRows(): UiFocusNavigationTarget[][] {
+            const rows: UiFocusNavigationTarget[][] = []
+            if (this.titleRow_) {
+                const titleTargets = this.titleNavigationTargets()
+                if (titleTargets.length) rows.push(titleTargets)
+            }
+            const contentRows = this.contentNavigationRows()
+            for (let i = 0; i < contentRows.length; i++)
+                if (contentRows[i].length) rows.push(contentRows[i])
+            return rows
+        }
+
+        private titleNavigationTargets(): UiFocusNavigationTarget[] {
+            const targets: UiFocusNavigationTarget[] = []
+            if (!this.titleRow_) return targets
+            const controls = this.titleRow_.controls
+            for (let i = 0; i < controls.length; i++) {
+                const control = controls[i]
+                if (!this.isNavigationControl(control)) continue
+                const rect = new Rect()
+                this.titleRow_.getControlRect(control.id, rect)
+                targets.push(this.navigationTarget(control, rect))
+            }
+            return targets
+        }
+
+        private contentNavigationRows(): UiFocusNavigationTarget[][] {
+            const rows: UiFocusNavigationTarget[][] = []
+            const controls = this.grid_.controls
+            let index = 0
+            for (let row = 0; row < this.rowCount(); row++) {
+                const rowTargets: UiFocusNavigationTarget[] = []
+                const count = this.rowLength(row)
+                for (
+                    let column = 0;
+                    column < count && index < controls.length;
+                    column++
+                ) {
+                    const control = controls[index]
+                    index++
+                    if (!this.isNavigationControl(control)) continue
+                    const rect = new Rect()
+                    this.grid_.getControlRect(control.id, rect)
+                    rowTargets.push(this.navigationTarget(control, rect))
+                }
+                rows.push(rowTargets)
+            }
+            return rows
+        }
+
+        private rowCount(): number {
+            if (this.gridRows_) return this.gridRows_.length
+            return Math.idiv(
+                this.grid_.controls.length + this.columnCount_ - 1,
+                this.columnCount_,
+            )
+        }
+
+        private rowLength(row: number): number {
+            if (!this.gridRows_) return this.columnCount_
+            if (row < 0 || row >= this.gridRows_.length) return 0
+            return _uiControls.sanitizeDimension(this.gridRows_[row], 0)
+        }
+
+        private navigationTarget(
+            control: UiControl<T>,
+            rect: Rect,
+        ): UiFocusNavigationTarget {
+            return {
+                id: _uiControls.targetId(this.modalScopeId_, control.id),
+                rect,
+                disabled: _uiControls.isDisabled(control),
+                hidden: !_uiControls.isVisible(control),
+            }
+        }
+
+        private isNavigationControl(control: UiControl<T>): boolean {
+            return (
+                _uiControls.isVisible(control) &&
+                _uiControls.isFocusable(control)
+            )
         }
 
         private resolveModalStyle(options: UiPickerOptions<T>): UiModalStyle {

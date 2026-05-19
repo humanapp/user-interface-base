@@ -87,6 +87,22 @@ namespace ui {
         textId?: string
 
         /**
+         * Focus label text. Takes precedence over `focusLabelId`.
+         */
+        focusLabel?: string
+
+        /**
+         * Resolver-backed focus label id used when `focusLabel` is omitted.
+         */
+        focusLabelId?: string
+
+        /**
+         * Caller-owned content drawn by the built-in button view. Takes precedence
+         * over `bitmap` and `bitmapId`.
+         */
+        customContent?: UiButtonCustomContent
+
+        /**
          * Bitmap drawn for this control when `draw` is omitted. Takes precedence over
          * `bitmapId`.
          */
@@ -306,10 +322,21 @@ namespace _uiControls {
         return ""
     }
 
+    export function controlFocusLabelText<T>(
+        control: ui.UiControl<T>,
+        assets: ui.UiAssetResolver,
+    ): string | undefined {
+        if (control.focusLabel !== undefined) return control.focusLabel
+        if (control.focusLabelId !== undefined)
+            return assets.getText(control.focusLabelId)
+        return undefined
+    }
+
     export function controlBitmap<T>(
         control: ui.UiControl<T>,
         assets: ui.UiAssetResolver,
     ): Bitmap | undefined {
+        if (control.customContent) return undefined
         if (control.bitmap) return control.bitmap
         if (control.bitmapId !== undefined)
             return assets.getBitmap(
@@ -402,6 +429,7 @@ namespace _uiControls {
             surface,
             rect,
             {
+                customContent: control.customContent,
                 bitmap: controlBitmap(control, assets),
                 text: controlText(control, assets),
             },
@@ -413,6 +441,7 @@ namespace _uiControls {
                 style: control.style || controlStyle,
                 palette: control.palette,
                 labelBounds,
+                focusLabelText: controlFocusLabelText(control, assets),
             },
         )
     }
@@ -431,6 +460,7 @@ namespace _uiControls {
             surface,
             rect,
             {
+                customContent: control.customContent,
                 bitmap: controlBitmap(control, assets),
                 text: controlText(control, assets),
             },
@@ -442,6 +472,7 @@ namespace _uiControls {
                 style: control.style || controlStyle,
                 palette: control.palette,
                 labelBounds,
+                focusLabelText: controlFocusLabelText(control, assets),
             },
         )
     }

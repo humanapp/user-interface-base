@@ -29,6 +29,11 @@ namespace ui {
         wrap?: boolean
 
         /**
+         * Whether left/right movement may wrap inside the current row.
+         */
+        horizontalWrap?: boolean
+
+        /**
          * Number of columns for rectangular grids. Defaults to the control count.
          */
         columnCount?: number
@@ -105,6 +110,7 @@ namespace ui {
         private defaultControlId_: string
         private scrollOwnerId_: UiFocusScrollOwnerId
         private wrap_: boolean
+        private horizontalWrap_: boolean
         private columnCount_: number
         private rows_: number[]
         private controlWidth_: number
@@ -124,6 +130,7 @@ namespace ui {
             this.defaultControlId_ = options.defaultControlId
             this.scrollOwnerId_ = options.scrollOwnerId
             this.wrap_ = options.wrap || false
+            this.horizontalWrap_ = options.horizontalWrap || false
             this.columnCount_ = _uiControls.sanitizeDimension(
                 options.columnCount,
                 Math.max(1, options.controls.length),
@@ -268,12 +275,14 @@ namespace ui {
                     kind: "raggedGrid",
                     rows: this.raggedNavigationRows(),
                     wrap: this.wrap_,
+                    horizontalWrap: this.horizontalWrap_,
                 })
             } else {
                 controller.setNavigation(this.scopeId_, {
                     kind: "grid",
                     cells: this.gridNavigationCells(),
                     wrap: this.wrap_,
+                    horizontalWrap: this.horizontalWrap_,
                 })
             }
         }
@@ -372,6 +381,18 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
+            this.renderControls(surface, assets, focus)
+            this.renderFocus(surface, assets, focus)
+        }
+
+        /**
+         * Renders visible grid controls without the built-in focused overlay.
+         */
+        public renderControls(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
             this.ensureControlRects()
             const labelBounds = _uiControls.resolveLabelBounds(
                 surface,
@@ -381,15 +402,12 @@ namespace ui {
                 focus && focus.getActiveScopeId() == this.scopeId_
                 ? focus.getActiveTargetId(this.scopeId_)
                 : undefined
-            let focusedIndex = -1
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!_uiControls.isVisible(control)) continue
                 const focused =
                     activeTargetId ==
                     _uiControls.targetId(this.scopeId_, control.id)
-                if (focused && !control.draw && _uiControls.isFocusable(control))
-                    focusedIndex = i
                 _uiControls.renderControl(
                     surface,
                     assets,
@@ -401,17 +419,36 @@ namespace ui {
                     labelBounds,
                 )
             }
-            if (focusedIndex >= 0) {
-                _uiControls.renderControlFocus(
-                    surface,
-                    assets,
-                    this.controls_[focusedIndex],
-                    this.controlRects_[focusedIndex],
-                    this.controlView_,
-                    this.controlStyle_,
-                    labelBounds,
-                )
-            }
+        }
+
+        /**
+         * Renders only the focused grid control's built-in focus treatment.
+         */
+        public renderFocus(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            this.ensureControlRects()
+            const labelBounds = _uiControls.resolveLabelBounds(
+                surface,
+                this.labelBounds_,
+            )
+            const activeTargetId =
+                focus && focus.getActiveScopeId() == this.scopeId_
+                ? focus.getActiveTargetId(this.scopeId_)
+                : undefined
+            _uiControls.renderFocusedControlOverlay(
+                surface,
+                assets,
+                this.scopeId_,
+                this.controls_,
+                this.controlRects_,
+                activeTargetId,
+                this.controlView_,
+                this.controlStyle_,
+                labelBounds,
+            )
         }
 
         private registerTargets(focus: UiFocusState): void {

@@ -67,6 +67,11 @@ namespace ui {
          * Whether movement wraps inside the current row or column.
          */
         wrap?: boolean
+
+        /**
+         * Whether left/right movement wraps inside the current row.
+         */
+        horizontalWrap?: boolean
     }
 
     /**
@@ -89,9 +94,19 @@ namespace ui {
         wrap?: boolean
 
         /**
+         * Whether left/right movement wraps inside the current row.
+         */
+        horizontalWrap?: boolean
+
+        /**
          * Preferred column for vertical movement.
          */
         columnIntent?: number
+
+        /**
+         * Strategy for vertical movement. Defaults to `"column"`.
+         */
+        verticalStrategy?: UiFocusVerticalStrategy
     }
 
     /**
@@ -627,6 +642,7 @@ namespace ui {
                         direction: request.direction,
                         cells: grid.cells,
                         wrap: grid.wrap,
+                        horizontalWrap: grid.horizontalWrap,
                     })
                 }
             }
@@ -638,7 +654,9 @@ namespace ui {
                 direction: request.direction,
                 rows: raggedGrid.rows,
                 wrap: raggedGrid.wrap,
+                horizontalWrap: raggedGrid.horizontalWrap,
                 columnIntent: raggedGrid.columnIntent,
+                verticalStrategy: raggedGrid.verticalStrategy,
             })
         }
 

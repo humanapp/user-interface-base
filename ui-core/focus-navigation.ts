@@ -1,5 +1,10 @@
 namespace ui {
     /**
+     * Strategy used to choose vertical focus destinations.
+     */
+    export type UiFocusVerticalStrategy = "column" | "nearest"
+
+    /**
      * Focus target entry used by directional navigation.
      */
     export interface UiFocusNavigationTarget {
@@ -121,6 +126,11 @@ namespace ui {
         wrap?: boolean
 
         /**
+         * Whether left/right movement may wrap within the current row.
+         */
+        horizontalWrap?: boolean
+
+        /**
          * Target cells in caller-defined coordinate order.
          */
         cells: UiFocusGridNavigationCell[]
@@ -155,6 +165,11 @@ namespace ui {
         wrap?: boolean
 
         /**
+         * Whether left/right movement may wrap within the current row.
+         */
+        horizontalWrap?: boolean
+
+        /**
          * Rows in caller-defined movement order.
          */
         rows: UiFocusNavigationTarget[][]
@@ -164,6 +179,11 @@ namespace ui {
          * uses the current target's column index.
          */
         columnIntent?: number
+
+        /**
+         * Strategy for vertical movement. Defaults to `"column"`.
+         */
+        verticalStrategy?: UiFocusVerticalStrategy
     }
 
     interface UiResolvedGridCell {
@@ -240,7 +260,7 @@ namespace ui {
                 current.target,
                 destination.target,
             )
-        if (input.wrap)
+        if (input.wrap || (isHorizontalDirection(input.direction) && input.horizontalWrap))
             return boundaryMoveResult(input.scopeId, input.currentTargetId)
         return exitedMoveResult(
             input.scopeId,
@@ -279,7 +299,7 @@ namespace ui {
                 current.target,
                 destination.target,
             )
-        if (input.wrap)
+        if (input.wrap || (isHorizontalDirection(input.direction) && input.horizontalWrap))
             return boundaryMoveResult(input.scopeId, input.currentTargetId)
         return exitedMoveResult(
             input.scopeId,
@@ -375,7 +395,7 @@ namespace ui {
             step,
         )
 
-        if (!found && input.wrap) {
+        if (!found && (input.wrap || input.horizontalWrap)) {
             const start = step < 0 ? max : min
             const end = current.column
             found = scanGridRowRange(input.cells, current.row, start, end, step)
@@ -571,7 +591,7 @@ namespace ui {
             step,
         )
 
-        if (!found && input.wrap) {
+        if (!found && (input.wrap || input.horizontalWrap)) {
             const start = step < 0 ? row.length - 1 : 0
             const end = current.column
             found = scanRaggedRowRange(row, current.row, start, end, step)
@@ -634,15 +654,17 @@ namespace ui {
         for (let rowIndex = start; rowIndex != end; rowIndex += step) {
             const row = input.rows[rowIndex]
             if (!row) continue
-            if (
-                columnIntent >= 0 &&
-                columnIntent < row.length &&
-                isEligibleNavigationTarget(row[columnIntent])
-            ) {
-                return {
-                    row: rowIndex,
-                    column: columnIntent,
-                    target: row[columnIntent],
+            if (input.verticalStrategy != "nearest") {
+                if (
+                    columnIntent >= 0 &&
+                    columnIntent < row.length &&
+                    isEligibleNavigationTarget(row[columnIntent])
+                ) {
+                    return {
+                        row: rowIndex,
+                        column: columnIntent,
+                        target: row[columnIntent],
+                    }
                 }
             }
 
@@ -749,6 +771,10 @@ namespace ui {
         target: UiFocusNavigationTarget,
     ): boolean {
         return !!target && !target.disabled && !target.hidden
+    }
+
+    function isHorizontalDirection(direction: UiFocusDirection): boolean {
+        return direction == "left" || direction == "right"
     }
 
     function isValidGridCoordinate(value: number): boolean {

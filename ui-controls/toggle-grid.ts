@@ -43,6 +43,11 @@ namespace ui {
         columnCount: number
 
         /**
+         * Whether left/right movement may wrap inside the current row.
+         */
+        horizontalWrap?: boolean
+
+        /**
          * Control id to focus first when available.
          */
         defaultControlId?: string
@@ -107,6 +112,7 @@ namespace ui {
                 deleteEnabled: options.deleteEnabled,
                 closeOnActivate: false,
                 columnCount: options.columnCount,
+                horizontalWrap: options.horizontalWrap,
                 controlWidth: options.controlWidth,
                 controlHeight: options.controlHeight,
                 modalStyle: options.modalStyle,

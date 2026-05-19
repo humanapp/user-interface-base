@@ -55,6 +55,11 @@ namespace user_interface_base {
       new Borders(2, 2, 2, 2),
       false
     )
+    export const GreenBorderedWhite = new ButtonStyle(
+      1,
+      new Borders(7, 7, 7, 7),
+      false
+    )
     export const Transparent = new ButtonStyle(
       0,
       new Borders(0, 0, 0, 0),

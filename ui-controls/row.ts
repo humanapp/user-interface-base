@@ -379,6 +379,18 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
+            this.renderControls(surface, assets, focus)
+            this.renderFocus(surface, assets, focus)
+        }
+
+        /**
+         * Renders visible row controls without the built-in focused overlay.
+         */
+        public renderControls(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
             this.ensureControlRects()
             const labelBounds = _uiControls.resolveLabelBounds(
                 surface,
@@ -405,6 +417,25 @@ namespace ui {
                     labelBounds,
                 )
             }
+        }
+
+        /**
+         * Renders only the focused row control's built-in focus treatment.
+         */
+        public renderFocus(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            this.ensureControlRects()
+            const labelBounds = _uiControls.resolveLabelBounds(
+                surface,
+                this.labelBounds_,
+            )
+            const activeTargetId = _uiControls.activeTargetIdForScope(
+                focus,
+                this.scopeId_,
+            )
             _uiControls.renderFocusedControlOverlay(
                 surface,
                 assets,

@@ -196,8 +196,8 @@ namespace ui {
       const textSize = surface.measureText(this.text_, font)
       const textX = Math.max(rect.x + padding, rect.x + rect.width - padding - textSize.width)
       const textY = rect.y + Math.max(0, Math.idiv(rect.height - textSize.height, 2))
-      surface.fillRect(rect, background)
-      surface.drawRect(rect, palette && palette.focusColor !== undefined ? palette.focusColor : 15)
+      const border = palette && palette.focusColor !== undefined ? palette.focusColor : 15
+      surface.drawRoundedRect(rect, border, background)
       surface.drawText(this.text_, textX, textY, { color: foreground, font, transparent: true })
     }
 
@@ -277,12 +277,18 @@ namespace ui {
     "toggleSign" |
     "backspace" |
     "spacer" |
+    "delete" |
     "enter"
 
   interface UiNumericEntryModalKeyValue {
     kind: UiNumericEntryModalKey
     digit?: number
   }
+
+  /**
+   * Bitmap or resolver-backed icon for a numeric entry key.
+   */
+  export type UiNumericEntryKeyIcon = Bitmap | string | number
 
   const UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT = 18
   const UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP = 5
@@ -314,6 +320,11 @@ namespace ui {
     displayPalette?: UiControlPalette
 
     /**
+     * Optional icon for the delete key shown when `deleteEnabled` is true.
+     */
+    deleteIcon?: UiNumericEntryKeyIcon
+
+    /**
      * Receives completed or cancelled numeric entry results.
      */
     onResult?: (result: UiNumericEntryResult) => void
@@ -338,6 +349,8 @@ namespace ui {
     private displayHeight_: number
     private displayGap_: number
     private keySize_: number
+    private deleteEnabled_: boolean
+    private deleteIcon_: UiNumericEntryKeyIcon
     private onResult_: (result: UiNumericEntryResult) => void
 
     constructor(options: UiNumericEntryModalOptions) {
@@ -349,6 +362,8 @@ namespace ui {
       this.displayHeight_ = UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT
       this.displayGap_ = UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP
       this.keySize_ = UI_NUMERIC_ENTRY_MODAL_KEY_SIZE
+      this.deleteEnabled_ = options.deleteEnabled || false
+      this.deleteIcon_ = options.deleteIcon
       const keyGap = UI_NUMERIC_ENTRY_MODAL_KEY_GAP
       this.grid_ = new UiGrid<UiNumericEntryModalKeyValue>({
         scopeId: options.modalScopeId,
@@ -517,6 +532,8 @@ namespace ui {
           return this.entry_.toggleSign()
         case "backspace":
           return this.entry_.backspace()
+        case "delete":
+          return this.entry_.createDeleteResult()
         case "enter":
           return this.entry_.enter()
         case "spacer":
@@ -539,6 +556,8 @@ namespace ui {
       this.pushDigitControl(controls, 7)
       this.pushDigitControl(controls, 8)
       this.pushDigitControl(controls, 9)
+      if (this.deleteEnabled_)
+        controls.push(this.deleteControl())
       if (mode == "decimal")
         controls.push(this.keyControl("decimalPoint", "."))
       else controls.push(this.spacerControl("spacer-zero-left"))
@@ -562,7 +581,7 @@ namespace ui {
     }
 
     private rows(): number[] {
-      return [4, 3, 3, 4]
+      return this.deleteEnabled_ ? [4, 3, 4, 4] : [4, 3, 3, 4]
     }
 
     private pushDigitControl(
@@ -585,7 +604,38 @@ namespace ui {
         id: id || kind,
         value: { kind },
         bitmap: this.keyLabelBitmap(text),
+        style: this.keyStyle(kind),
       }
+    }
+
+    private deleteControl(): UiControl<UiNumericEntryModalKeyValue> {
+      const control = this.keyControl("delete", "DEL")
+      if (this.deleteIcon_ !== undefined) {
+        control.bitmap = undefined
+        if (
+          typeof this.deleteIcon_ == "string" ||
+          typeof this.deleteIcon_ == "number"
+        ) {
+          control.bitmapId = this.deleteIcon_
+        } else {
+          control.bitmap = this.deleteIcon_
+        }
+      }
+      return control
+    }
+
+    private keyStyle(kind: UiNumericEntryModalKey): UiButtonStyle {
+      if (kind == "enter")
+        return buttonStyle(
+          UiButtonStyles.GreenBorderedWhite,
+          UiButtonStyles.RoundedFrame,
+        )
+      if (kind == "delete")
+        return buttonStyle(
+          UiButtonStyles.RedBorderedWhite,
+          UiButtonStyles.RoundedFrame,
+        )
+      return undefined
     }
 
     private keyLabelBitmap(text: string): Bitmap {

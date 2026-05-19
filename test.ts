@@ -2728,6 +2728,39 @@ namespace ui {
                 },
             },
             {
+                name: "grid horizontal wrap only",
+                result: moveFocusInGrid({
+                    scopeId: "grid",
+                    currentTargetId: "grid-c",
+                    direction: "right",
+                    horizontalWrap: true,
+                    cells: gridCells,
+                }),
+                expectedResult: {
+                    kind: "moved",
+                    fromScopeId: "grid",
+                    fromTargetId: "grid-c",
+                    toScopeId: "grid",
+                    toTargetId: "grid-a",
+                },
+            },
+            {
+                name: "grid horizontal wrap does not wrap column",
+                result: moveFocusInGrid({
+                    scopeId: "grid",
+                    currentTargetId: "grid-d",
+                    direction: "down",
+                    horizontalWrap: true,
+                    cells: gridCells,
+                }),
+                expectedResult: {
+                    kind: "exited",
+                    scopeId: "grid",
+                    targetId: "grid-d",
+                    direction: "down",
+                },
+            },
+            {
                 name: "grid column local wrap",
                 result: moveFocusInGrid({
                     scopeId: "grid",
@@ -2912,6 +2945,30 @@ namespace ui {
                 },
             },
             {
+                name: "ragged nearest vertical overrides column",
+                result: moveFocusInRaggedGrid({
+                    scopeId: "keys",
+                    currentTargetId: "key-d",
+                    direction: "down",
+                    verticalStrategy: "nearest",
+                    rows: raggedRows,
+                }),
+                expectedResult: {
+                    kind: "moved",
+                    fromScopeId: "keys",
+                    fromTargetId: "key-d",
+                    toScopeId: "keys",
+                    toTargetId: "key-f",
+                    scrollRequest: {
+                        scopeId: "keys",
+                        targetId: "key-f",
+                        scrollOwnerId: "key-scroll",
+                        targetRect: new Rect(30, 20, 10, 10),
+                        reason: "focus",
+                    },
+                },
+            },
+            {
                 name: "ragged nearest center tie uses earliest",
                 result: moveFocusInRaggedGrid({
                     scopeId: "keys",
@@ -2943,6 +3000,39 @@ namespace ui {
                     fromTargetId: "key-g",
                     toScopeId: "keys",
                     toTargetId: "key-a",
+                },
+            },
+            {
+                name: "ragged horizontal wrap only",
+                result: moveFocusInRaggedGrid({
+                    scopeId: "keys",
+                    currentTargetId: "key-f",
+                    direction: "right",
+                    horizontalWrap: true,
+                    rows: raggedRows,
+                }),
+                expectedResult: {
+                    kind: "moved",
+                    fromScopeId: "keys",
+                    fromTargetId: "key-f",
+                    toScopeId: "keys",
+                    toTargetId: "key-e",
+                },
+            },
+            {
+                name: "ragged horizontal wrap does not wrap vertical",
+                result: moveFocusInRaggedGrid({
+                    scopeId: "keys",
+                    currentTargetId: "key-g",
+                    direction: "down",
+                    horizontalWrap: true,
+                    rows: raggedRows,
+                }),
+                expectedResult: {
+                    kind: "exited",
+                    scopeId: "keys",
+                    targetId: "key-g",
+                    direction: "down",
                 },
             },
             {
@@ -5522,7 +5612,6 @@ namespace ui {
             style: UiButtonStyles.LightShadowedWhite,
         })
         const rect = new Rect(10, 20, 18, 18)
-        const contentRect = new Rect()
         const measured = new UiMeasuredSize()
         const bitmap = bmp`
       2 2
@@ -5532,9 +5621,8 @@ namespace ui {
         buttonView.measure({ bitmap }, measured)
         control.assert(measured.preferredWidth == 6, "control measured width")
         control.assert(measured.preferredHeight == 6, "control measured height")
-        buttonView.render(surface, rect, { bitmap }, { focused: true, contentRect })
+        buttonView.render(surface, rect, { bitmap }, { focused: true })
 
-        assertLayoutRect(contentRect, 18, 28, 2, 2, "control content rect")
         control.assert(surface.log.indexOf("fill:1;") >= 0, "control fill")
         control.assert(surface.log.indexOf("line:11;") >= 0, "control shadow")
         control.assert(surface.log.indexOf("bitmap:2x2;") >= 0, "control bitmap")
@@ -5552,6 +5640,10 @@ namespace ui {
             },
         )
         control.assert(focusLabelStyle.focusColor == 4, "control style override")
+        control.assert(
+            UiButtonStyles.GreenBorderedWhite.borderColor == 7,
+            "control green border style",
+        )
         surface.log = ""
         buttonView.render(surface, rect, { bitmap, text: "go" }, {
             style: focusLabelStyle,
@@ -5573,6 +5665,43 @@ namespace ui {
         control.assert(
             surface.log.indexOf("text:go;") >= 0,
             "control focus label text",
+        )
+
+        let customDrawn = false
+        const customContent: UiButtonCustomContent = {
+            width: 5,
+            height: 7,
+            draw: (target: DrawSurface, contentRect: Rect) => {
+                customDrawn = contentRect.width == 5 && contentRect.height == 7
+                target.fillRect(contentRect, 6)
+            },
+        }
+        surface.log = ""
+        buttonView.measure({ customContent }, measured, {
+            padding: 0,
+        })
+        control.assert(measured.preferredWidth == 5, "custom content width")
+        control.assert(measured.preferredHeight == 7, "custom content height")
+        buttonView.render(
+            surface,
+            rect,
+            { customContent, text: "in" },
+            {
+                focused: true,
+                focusLabelText: "tip",
+                style: buttonStyle(UiButtonStyles.Transparent, {
+                    contentAlignment: "center",
+                }),
+            },
+        )
+        control.assert(customDrawn, "custom content drawn")
+        control.assert(
+            surface.log.indexOf("text:in;") >= 0,
+            "custom content visible text",
+        )
+        control.assert(
+            surface.log.indexOf("text:tip;") >= 0,
+            "custom content focus label",
         )
     }
 
@@ -5820,6 +5949,36 @@ namespace ui {
                 assets,
             ) == "caller",
             "caller text precedence",
+        )
+        control.assert(
+            _uiControls.controlBitmap(
+                {
+                    id: "precedence",
+                    value: "value",
+                    customContent: {
+                        width: 1,
+                        height: 1,
+                        draw: () => {},
+                    },
+                    bitmap: bmp`4`,
+                    bitmapId: "known",
+                },
+                assets,
+            ) === undefined,
+            "custom content suppresses bitmap",
+        )
+        control.assert(
+            _uiControls.controlFocusLabelText(
+                {
+                    id: "focus-label",
+                    value: "value",
+                    text: "visible",
+                    focusLabel: "focus",
+                    focusLabelId: "knownText",
+                },
+                assets,
+            ) == "focus",
+            "caller focus label precedence",
         )
         control.assert(
             _uiControls.controlBitmap(
@@ -6475,6 +6634,132 @@ namespace ui {
             20,
             "modal hidden title bar control rect",
         )
+        const titleIconModal = new UiPicker<string>({
+            parentScopeId: "parent",
+            modalScopeId: "title-icon",
+            showTitleBar: false,
+            titleBitmap: "known",
+            controls: [{ id: "a", value: "A" }],
+        })
+        const titleIconMeasured = new UiMeasuredSize()
+        titleIconModal.measure(
+            { maxWidth: 100, maxHeight: 100 },
+            titleIconMeasured,
+        )
+        control.assert(
+            titleIconMeasured.preferredHeight == 40,
+            "modal title icon reserves title bar height",
+        )
+        titleIconModal.arrange(new Rect(0, 0, 40, 40))
+        const titleIconSurface = new ControlSmokeSurface()
+        titleIconModal.render(titleIconSurface, assets)
+        control.assert(
+            titleIconSurface.log.indexOf("bitmap:1x1;") >= 0,
+            "modal title icon renders bitmap",
+        )
+        const titleControlModal = new UiPicker<string>({
+            parentScopeId: "parent",
+            modalScopeId: "title-controls",
+            titleControls: [{ id: "ok", value: "OK" }],
+            controls: [{ id: "a", value: "A" }],
+            controlWidth: 10,
+            controlHeight: 10,
+            titleControlWidth: 12,
+            titleControlHeight: 8,
+        })
+        const titleControlMeasured = new UiMeasuredSize()
+        titleControlModal.measure(
+            { maxWidth: 100, maxHeight: 100 },
+            titleControlMeasured,
+        )
+        control.assert(
+            titleControlMeasured.preferredWidth == 20,
+            "modal title control measured width",
+        )
+        titleControlModal.arrange(new Rect(0, 0, 30, 40))
+        control.assert(
+            titleControlModal.getControlRect("ok", modalControlRect),
+            "modal title control rect exists",
+        )
+        assertLayoutRect(
+            modalControlRect,
+            14,
+            4,
+            12,
+            8,
+            "modal title control rect",
+        )
+        titleControlModal.open(focus, controller)
+        control.assert(
+            focus.getActiveTargetId("title-controls") == "title-controls/a",
+            "modal title controls do not steal default focus",
+        )
+        titleControlModal.close(focus)
+        const horizontalWrapModal = new UiPicker<string>({
+            parentScopeId: "parent",
+            modalScopeId: "horizontal-wrap",
+            controls: [
+                { id: "w0", value: "0" },
+                { id: "w1", value: "1" },
+                { id: "w2", value: "2" },
+            ],
+            columnCount: 3,
+            controlWidth: 10,
+            controlHeight: 10,
+            horizontalWrap: true,
+        })
+        horizontalWrapModal.arrange(new Rect(0, 0, 40, 40))
+        horizontalWrapModal.open(focus, controller)
+        focus.setActiveTarget("horizontal-wrap", "horizontal-wrap/w2")
+        controller.handleInput({ action: "right" })
+        control.assert(
+            focus.getActiveTargetId("horizontal-wrap") == "horizontal-wrap/w0",
+            "modal horizontal wrap without title controls",
+        )
+        horizontalWrapModal.close(focus)
+        const titleNearestModal = new UiPicker<string>({
+            parentScopeId: "parent",
+            modalScopeId: "title-nearest",
+            titleControls: [{ id: "delete", value: "delete", bitmapId: "known" }],
+            controls: [
+                { id: "c0", value: "0" },
+                { id: "c1", value: "1" },
+                { id: "c2", value: "2" },
+                { id: "c3", value: "3" },
+                { id: "c4", value: "4" },
+            ],
+            columnCount: 5,
+            controlWidth: 10,
+            controlHeight: 10,
+            titleControlWidth: 10,
+            titleControlHeight: 10,
+            horizontalWrap: true,
+        })
+        titleNearestModal.arrange(new Rect(0, 0, 58, 40))
+        titleNearestModal.open(focus, controller)
+        focus.setActiveTarget("title-nearest", "title-nearest/delete")
+        controller.handleInput({ action: "down" })
+        control.assert(
+            focus.getActiveTargetId("title-nearest") == "title-nearest/c4",
+            "modal title down uses nearest grid target",
+        )
+        controller.handleInput({ action: "right" })
+        control.assert(
+            focus.getActiveTargetId("title-nearest") == "title-nearest/c0",
+            "modal horizontal wrap with title controls",
+        )
+        const titleNearestSurface = new ControlSmokeSurface()
+        titleNearestModal.render(
+            titleNearestSurface,
+            new ControlSmokeAssets(),
+            focus,
+        )
+        control.assert(
+            titleNearestSurface.log.indexOf("line:15;") >
+                titleNearestSurface.log.indexOf("bitmap:1x1;"),
+            "modal focused grid overlay renders above title controls",
+        )
+        titleNearestModal.close(focus)
         modal.open(focus, controller)
         control.assert(
             focus.getActiveScopeId() == "modal",
@@ -6652,6 +6937,7 @@ namespace ui {
             columnCount: 5,
             defaultControlId: "led12",
             deleteEnabled: true,
+            horizontalWrap: true,
             toggle: control => ({ kind: "keepOpen", value: control.value + 100 }),
         })
         led.arrange(new Rect(0, 0, 100, 100))
@@ -6660,6 +6946,13 @@ namespace ui {
             focus.getActiveTargetId("led") == "led/led12",
             "led default focus",
         )
+        focus.setActiveTarget("led", "led/led14")
+        controller.handleInput({ action: "right" })
+        control.assert(
+            focus.getActiveTargetId("led") == "led/led10",
+            "led horizontal wrap",
+        )
+        focus.setActiveTarget("led", "led/led12")
         const ledSurface = new ControlSmokeSurface()
         led.render(ledSurface, new ControlSmokeAssets(), focus)
         control.assert(
@@ -6916,6 +7209,21 @@ namespace ui {
             "validator receives candidate",
         )
 
+        const displaySurface = new ControlSmokeSurface()
+        const displayEntry = new UiNumericEntry({
+            mode: "decimal",
+            initialText: "42",
+        })
+        displayEntry.render(displaySurface, new Rect(0, 0, 24, 12), {
+            backgroundColor: 1,
+            foregroundColor: 15,
+            focusColor: 6,
+        })
+        control.assert(
+            displaySurface.log.indexOf("rounded:6:1;") >= 0,
+            "numeric display rounded border",
+        )
+
         let modalResult: UiNumericEntryResult = undefined
         const modal = new UiNumericEntryModal({
             modalScopeId: "numeric-modal",
@@ -6967,6 +7275,62 @@ namespace ui {
         control.assert(
             modalSurface.log.indexOf("rounded:15:1;") >= 0,
             "numeric modal rounded panel",
+        )
+        control.assert(
+            modalSurface.log.indexOf("rounded:7:1;") >= 0,
+            "numeric modal enter green outline",
+        )
+
+        let deleteModalResult: UiNumericEntryResult = undefined
+        const deleteModal = new UiNumericEntryModal({
+            modalScopeId: "numeric-delete",
+            mode: "decimal",
+            initialText: "7",
+            deleteEnabled: true,
+            deleteIcon: "known",
+            onResult: result => {
+                deleteModalResult = result
+            },
+        })
+        const deleteModalMeasured = new UiMeasuredSize()
+        deleteModal.measure({ maxWidth: 160, maxHeight: 120 }, deleteModalMeasured)
+        control.assert(
+            deleteModalMeasured.preferredWidth == 86,
+            "numeric delete modal measured width",
+        )
+        control.assert(
+            deleteModalMeasured.preferredHeight == 109,
+            "numeric delete modal measured height",
+        )
+        deleteModal.arrange(new Rect(0, 0, 86, 109))
+        const deleteFocus = new UiFocusState()
+        const deleteController = new UiFocusInputController({
+            focus: deleteFocus,
+        })
+        deleteFocus.setScope({ id: "parent-delete" })
+        deleteFocus.setActiveScope("parent-delete")
+        deleteModal.open(deleteFocus, deleteController)
+        const deleteModalSurface = new ControlSmokeSurface()
+        deleteModal.render(
+            deleteModalSurface,
+            new ControlSmokeAssets(),
+            deleteFocus,
+        )
+        control.assert(
+            deleteModalSurface.log.indexOf("bitmap:2x1;") >= 0,
+            "numeric modal delete icon",
+        )
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/delete")
+        const deleteResult = deleteModal.handleFocusInput(
+            deleteController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            deleteResult.kind == "deleted",
+            "numeric modal delete result",
+        )
+        control.assert(
+            deleteModalResult && deleteModalResult.kind == "deleted",
+            "numeric modal delete callback",
         )
     }
 
