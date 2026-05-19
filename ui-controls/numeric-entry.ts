@@ -122,7 +122,9 @@ namespace ui {
     public inputDigit(digit: number): UiNumericEntryResult {
       digit = Math.idiv(Math.max(0, Math.min(9, digit)), 1)
       let candidate = this.text_ + digit
-      if (this.mode_ == "positiveInteger" && this.text_ == "0") candidate = "" + digit
+      if (this.text_ == "0" && digit > 0) candidate = "" + digit
+      else if (this.text_ == "-0" && digit > 0) candidate = "-" + digit
+      else if (this.mode_ == "positiveInteger" && this.text_ == "0") candidate = "" + digit
       return this.applyText(candidate, "digit")
     }
 
@@ -132,6 +134,7 @@ namespace ui {
     public inputDecimalPoint(): UiNumericEntryResult {
       if (this.mode_ != "decimal") return undefined
       if (this.text_.indexOf(".") >= 0) return undefined
+      if (this.text_ == "" || this.text_ == "-") return undefined
       return this.applyText(this.text_ + ".", "decimalPoint")
     }
 
@@ -188,9 +191,14 @@ namespace ui {
     public render(surface: DrawSurface, rect: Rect, palette?: UiControlPalette): void {
       const background = palette && palette.backgroundColor !== undefined ? palette.backgroundColor : 0
       const foreground = palette && palette.foregroundColor !== undefined ? palette.foregroundColor : 15
+      const padding = 4
+      const font = bitmaps.font5
+      const textSize = surface.measureText(this.text_, font)
+      const textX = Math.max(rect.x + padding, rect.x + rect.width - padding - textSize.width)
+      const textY = rect.y + Math.max(0, Math.idiv(rect.height - textSize.height, 2))
       surface.fillRect(rect, background)
       surface.drawRect(rect, palette && palette.focusColor !== undefined ? palette.focusColor : 15)
-      surface.drawText(this.text_, rect.x + 4, rect.y + 4, { color: foreground, transparent: true })
+      surface.drawText(this.text_, textX, textY, { color: foreground, font, transparent: true })
     }
 
     private applyText(candidate: string, action: UiNumericEntryEditAction): UiNumericEntryResult {
@@ -215,6 +223,7 @@ namespace ui {
       let text = this.text_
       if (text == "" || text == "-" || text == "." || text == "-.") text = "0"
       if (this.mode_ == "decimal") {
+        text = "" + parseFloat(text)
         if (parseFloat(text) == 0) text = "0"
       } else {
         if (parseFloat(text) == 0) text = "1"
@@ -240,11 +249,390 @@ namespace ui {
         } else if (ch == ".") {
           pointCount++
           if (pointCount > 1) return false
+          if (i == 0 || (i == 1 && candidate.charAt(0) == "-")) return false
         } else if (ch < "0" || ch > "9") {
           return false
         }
       }
+      if (
+        candidate.length > 1 &&
+        candidate.charAt(0) == "0" &&
+        candidate.charAt(1) != "."
+      )
+        return false
+      if (
+        candidate.length > 2 &&
+        candidate.charAt(0) == "-" &&
+        candidate.charAt(1) == "0" &&
+        candidate.charAt(2) != "."
+      )
+        return false
       return true
+    }
+  }
+
+  type UiNumericEntryModalKey =
+    "digit" |
+    "decimalPoint" |
+    "toggleSign" |
+    "backspace" |
+    "spacer" |
+    "enter"
+
+  interface UiNumericEntryModalKeyValue {
+    kind: UiNumericEntryModalKey
+    digit?: number
+  }
+
+  const UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT = 18
+  const UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP = 5
+  const UI_NUMERIC_ENTRY_MODAL_KEY_SIZE = 18
+  const UI_NUMERIC_ENTRY_MODAL_KEY_GAP = 2
+
+  /**
+   * Options for a modal numeric keypad backed by `UiNumericEntry`.
+   */
+  export interface UiNumericEntryModalOptions extends UiNumericEntryOptions {
+    /**
+     * Modal focus scope owned while the keypad is open.
+     */
+    modalScopeId: UiFocusScopeId
+
+    /**
+     * Panel, frame, and spacing style for the modal.
+     */
+    modalStyle?: UiModalStyle
+
+    /**
+     * Style applied to keypad buttons.
+     */
+    keyStyle?: UiButtonStyle
+
+    /**
+     * Palette used by the numeric display.
+     */
+    displayPalette?: UiControlPalette
+
+    /**
+     * Receives completed or cancelled numeric entry results.
+     */
+    onResult?: (result: UiNumericEntryResult) => void
+  }
+
+  /**
+   * Modal numeric keypad for decimal and positive-integer entry.
+   */
+  export class UiNumericEntryModal implements UiModal<UiNumericEntryResult> {
+    public readonly layoutSpec: UiLayoutSpec
+    public readonly finalRect: Rect
+    public layoutDirty: boolean
+    private modalScopeId_: UiFocusScopeId
+    private entry_: UiNumericEntry
+    private grid_: UiGrid<UiNumericEntryModalKeyValue>
+    private displayRect_: Rect
+    private gridRect_: Rect
+    private measuredGrid_: UiMeasuredSize
+    private modalStyle_: UiModalStyle
+    private displayPalette_: UiControlPalette
+    private contentMargin_: number
+    private displayHeight_: number
+    private displayGap_: number
+    private keySize_: number
+    private onResult_: (result: UiNumericEntryResult) => void
+
+    constructor(options: UiNumericEntryModalOptions) {
+      this.modalScopeId_ = options.modalScopeId
+      this.entry_ = this.createEntry(options)
+      this.modalStyle_ = options.modalStyle
+      this.displayPalette_ = options.displayPalette || {}
+      this.contentMargin_ = this.contentMargin(options.modalStyle)
+      this.displayHeight_ = UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT
+      this.displayGap_ = UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP
+      this.keySize_ = UI_NUMERIC_ENTRY_MODAL_KEY_SIZE
+      const keyGap = UI_NUMERIC_ENTRY_MODAL_KEY_GAP
+      this.grid_ = new UiGrid<UiNumericEntryModalKeyValue>({
+        scopeId: options.modalScopeId,
+        controls: this.createControls(options.mode),
+        rows: this.rows(),
+        defaultControlId: "digit-1",
+        controlWidth: this.keySize_,
+        controlHeight: this.keySize_,
+        rowGap: keyGap,
+        columnGap: keyGap,
+        controlStyle: options.keyStyle || UiButtonStyles.LightShadowedWhite,
+      })
+      this.layoutSpec = {
+        width: { mode: "content" },
+        height: { mode: "content" },
+      }
+      this.finalRect = new Rect()
+      this.layoutDirty = true
+      this.displayRect_ = new Rect()
+      this.gridRect_ = new Rect()
+      this.measuredGrid_ = new UiMeasuredSize()
+      this.onResult_ = options.onResult
+    }
+
+    /**
+     * Modal focus scope id used by this keypad.
+     */
+    public get modalScopeId(): UiFocusScopeId {
+      return this.modalScopeId_
+    }
+
+    /**
+     * Measures the display and keypad under parent constraints.
+     */
+    public measure(
+      constraints: UiLayoutConstraints,
+      output: UiMeasuredSize,
+    ): void {
+      this.grid_.measure(constraints, this.measuredGrid_)
+      const width =
+        this.measuredGrid_.preferredWidth + this.contentMargin_ * 2
+      const height =
+        this.contentMargin_ * 2 +
+        this.displayHeight_ +
+        this.displayGap_ +
+        this.measuredGrid_.preferredHeight
+      output.set(width, height, width, height)
+      this.clearLayoutInvalidation()
+    }
+
+    /**
+     * Arranges the modal panel, display, and keypad grid.
+     */
+    public arrange(rect: Rect): void {
+      this.finalRect.copyFrom(rect)
+      this.displayRect_.set(
+        rect.x + this.contentMargin_,
+        rect.y + this.contentMargin_,
+        Math.max(0, rect.width - this.contentMargin_ * 2),
+        this.displayHeight_,
+      )
+      this.gridRect_.set(
+        rect.x + this.contentMargin_,
+        this.displayRect_.bottom + this.displayGap_,
+        Math.max(0, rect.width - this.contentMargin_ * 2),
+        Math.max(
+          0,
+          rect.height -
+            this.contentMargin_ * 2 -
+            this.displayHeight_ -
+            this.displayGap_,
+        ),
+      )
+      this.grid_.arrange(this.gridRect_)
+      this.clearLayoutInvalidation()
+    }
+
+    /**
+     * Marks the modal as needing layout.
+     */
+    public invalidateLayout(): void {
+      this.layoutDirty = true
+      this.grid_.invalidateLayout()
+    }
+
+    /**
+     * Clears pending layout invalidation.
+     */
+    public clearLayoutInvalidation(): void {
+      this.layoutDirty = false
+      this.grid_.clearLayoutInvalidation()
+    }
+
+    /**
+     * Registers modal focus targets and activates the modal scope.
+     */
+    public open(
+      focus: UiFocusState,
+      controller?: UiFocusInputController,
+    ): UiFocusSetResult {
+      this.grid_.registerFocusTargets(focus, {
+        id: this.modalScopeId_,
+        parentScopeId: focus.getActiveScopeId(),
+        preferredTargetId: this.grid_.resolvePreferredTargetId(),
+        handlesCancel: true,
+        modal: true,
+      })
+      if (controller) this.grid_.registerNavigation(controller)
+      return focus.setActiveScope(this.modalScopeId_)
+    }
+
+    /**
+     * Restores focus to the parent modal scope.
+     */
+    public close(focus: UiFocusState): UiFocusSetResult {
+      return focus.closeModalScope(this.modalScopeId_)
+    }
+
+    /**
+     * Converts focus input into a numeric entry result.
+     */
+    public handleFocusInput(
+      result: UiFocusInputResult,
+    ): UiNumericEntryResult {
+      let entryResult: UiNumericEntryResult = undefined
+      if (
+        result.kind == "activated" &&
+        result.detail &&
+        result.detail.activationResult
+      ) {
+        const gridResult = this.grid_.createResultForActivation(
+          result.detail.activationResult,
+        )
+        if (gridResult && gridResult.kind == "activated")
+          entryResult = this.applyKey(gridResult.value)
+      } else if (result.kind == "cancelled") {
+        entryResult = this.entry_.cancel()
+      }
+
+      if (entryResult && this.onResult_) this.onResult_(entryResult)
+      return entryResult
+    }
+
+    /**
+     * Renders the modal panel, display, and keypad.
+     */
+    public render(
+      surface: DrawSurface,
+      assets: UiAssetResolver,
+      focus?: UiFocusState,
+    ): void {
+      drawModalPanel(surface, this.finalRect, this.modalStyle_)
+      this.entry_.render(surface, this.displayRect_, this.displayPalette_)
+      this.grid_.render(surface, assets, focus)
+    }
+
+    private applyKey(
+      value: UiNumericEntryModalKeyValue,
+    ): UiNumericEntryResult {
+      switch (value.kind) {
+        case "digit":
+          return this.entry_.inputDigit(value.digit)
+        case "decimalPoint":
+          return this.entry_.inputDecimalPoint()
+        case "toggleSign":
+          return this.entry_.toggleSign()
+        case "backspace":
+          return this.entry_.backspace()
+        case "enter":
+          return this.entry_.enter()
+        case "spacer":
+          return undefined
+      }
+      return undefined
+    }
+
+    private createControls(
+      mode: UiNumericEntryMode,
+    ): UiControl<UiNumericEntryModalKeyValue>[] {
+      const controls: UiControl<UiNumericEntryModalKeyValue>[] = []
+      this.pushDigitControl(controls, 1)
+      this.pushDigitControl(controls, 2)
+      this.pushDigitControl(controls, 3)
+      controls.push(this.keyControl("backspace", "<-", "backspace"))
+      this.pushDigitControl(controls, 4)
+      this.pushDigitControl(controls, 5)
+      this.pushDigitControl(controls, 6)
+      this.pushDigitControl(controls, 7)
+      this.pushDigitControl(controls, 8)
+      this.pushDigitControl(controls, 9)
+      if (mode == "decimal")
+        controls.push(this.keyControl("decimalPoint", "."))
+      else controls.push(this.spacerControl("spacer-zero-left"))
+      this.pushDigitControl(controls, 0)
+      if (mode == "decimal")
+        controls.push(this.keyControl("toggleSign", "+/-"))
+      else controls.push(this.spacerControl("spacer-zero-right"))
+      controls.push(this.keyControl("enter", "OK", "enter"))
+      return controls
+    }
+
+    private createEntry(options: UiNumericEntryModalOptions): UiNumericEntry {
+      return new UiNumericEntry({
+        mode: options.mode,
+        initialText: options.initialText,
+        maxLength: options.maxLength,
+        deleteEnabled: options.deleteEnabled,
+        cancelEnabled: true,
+        validate: options.validate,
+      })
+    }
+
+    private rows(): number[] {
+      return [4, 3, 3, 4]
+    }
+
+    private pushDigitControl(
+      controls: UiControl<UiNumericEntryModalKeyValue>[],
+      digit: number,
+    ): void {
+      controls.push({
+        id: "digit-" + digit,
+        value: { kind: "digit", digit },
+        bitmap: this.keyLabelBitmap("" + digit),
+      })
+    }
+
+    private keyControl(
+      kind: UiNumericEntryModalKey,
+      text: string,
+      id?: string,
+    ): UiControl<UiNumericEntryModalKeyValue> {
+      return {
+        id: id || kind,
+        value: { kind },
+        bitmap: this.keyLabelBitmap(text),
+      }
+    }
+
+    private keyLabelBitmap(text: string): Bitmap {
+      const font = bitmaps.font5
+      const labelSize = Math.max(1, this.keySize_ - 2)
+      const bitmap = bitmaps.create(labelSize, labelSize)
+      const x = Math.max(
+        0,
+        Math.idiv(labelSize - font.charWidth * text.length, 2),
+      )
+      const y = Math.max(
+        0,
+        Math.idiv(labelSize - font.charHeight, 2),
+      )
+      bitmap.print(text, x, y, 15, font)
+      return bitmap
+    }
+
+    private spacerControl(
+      id: string,
+    ): UiControl<UiNumericEntryModalKeyValue> {
+      return {
+        id,
+        value: { kind: "spacer" },
+        focusable: false,
+        draw: () => {},
+      }
+    }
+
+    private positiveDimension(value: number, defaultValue: number): number {
+      const result = this.nonNegativeDimension(value, defaultValue)
+      return result == 0 ? defaultValue : result
+    }
+
+    private nonNegativeDimension(
+      value: number,
+      defaultValue: number,
+    ): number {
+      if (value === undefined || value != value) return defaultValue
+      const result = Math.round(value)
+      return result < 0 ? 0 : result
+    }
+
+    private contentMargin(style: UiModalStyle): number {
+      if (style && style.contentMargin !== undefined)
+        return Math.max(0, style.contentMargin)
+      return 4
     }
   }
 }

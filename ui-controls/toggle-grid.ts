@@ -1,20 +1,20 @@
 namespace ui {
     /**
-     * Result returned by a caller toggle policy.
+     * Result returned by a caller toggle action.
      */
-    export type UiToggleGridPolicyResult<T> =
+    export type UiToggleGridActionResult<T> =
         | { kind: "keepOpen"; value?: T }
         | { kind: "closed" }
         | { kind: "deleted" }
 
     /**
-     * Caller policy for applying a toggle activation.
+     * Callback for applying a toggle activation.
      */
-    export interface UiToggleGridPolicy<T> {
+    export interface UiToggleGridAction<T> {
         /**
          * Applies a toggle request and returns the result to emit.
          */
-        (control: UiControl<T>): UiToggleGridPolicyResult<T>
+        (control: UiControl<T>): UiToggleGridActionResult<T>
     }
 
     /**
@@ -53,9 +53,9 @@ namespace ui {
         deleteEnabled?: boolean
 
         /**
-         * Policy that applies a toggle and may update the returned value.
+         * Action that applies a toggle and may update the returned value.
          */
-        toggle?: UiToggleGridPolicy<T>
+        toggle?: UiToggleGridAction<T>
 
         /**
          * Width assigned to each control.
@@ -66,6 +66,11 @@ namespace ui {
          * Height assigned to each control.
          */
         controlHeight?: number
+
+        /**
+         * Panel, title, and spacing style for this modal.
+         */
+        modalStyle?: UiModalStyle
     }
 
     /**
@@ -91,7 +96,7 @@ namespace ui {
         public readonly finalRect: Rect
         public layoutDirty: boolean
         private modal_: UiPicker<T>
-        private toggle_: UiToggleGridPolicy<T>
+        private toggle_: UiToggleGridAction<T>
 
         constructor(options: UiToggleGridOptions<T>) {
             this.modal_ = new UiPicker<T>({
@@ -104,6 +109,7 @@ namespace ui {
                 columnCount: options.columnCount,
                 controlWidth: options.controlWidth,
                 controlHeight: options.controlHeight,
+                modalStyle: options.modalStyle,
             })
             this.toggle_ = options.toggle
             this.layoutSpec = this.modal_.layoutSpec
@@ -185,7 +191,7 @@ namespace ui {
             const modalResult = this.modal_.createResultForActivation(result)
             if (!modalResult || modalResult.kind != "keepOpen")
                 return undefined
-            const policyResult: UiToggleGridPolicyResult<T> = this.toggle_
+            const policyResult: UiToggleGridActionResult<T> = this.toggle_
                 ? this.toggle_(modalResult.control)
                 : { kind: "keepOpen" }
             if (policyResult.kind == "closed")

@@ -5380,6 +5380,19 @@ namespace ui {
             this.log += "rect:" + color + ";"
         }
 
+        public drawRoundedRect(
+            rect: Rect,
+            color?: number,
+            fillColor?: number,
+        ): void {
+            this.log +=
+                "rounded:" +
+                (color === undefined ? "" : color) +
+                ":" +
+                (fillColor === undefined ? "" : fillColor) +
+                ";"
+        }
+
         public drawLine(
             x0: number,
             y0: number,
@@ -5686,8 +5699,7 @@ namespace ui {
             screenLog == "B;root-cancel;modal-cancel;",
             "screen controller modal-first input",
         )
-        screen.closeModal()
-        control.assert(!screen.hasModal, "screen controller modal cleared")
+        control.assert(!screen.hasModal, "screen controller modal cancel closes")
         screen.exit()
     }
 
@@ -6388,6 +6400,28 @@ namespace ui {
             roomyMeasured.preferredHeight == 42,
             "modal custom margin height",
         )
+        const styledModal = new UiPicker<string>({
+            parentScopeId: "parent",
+            modalScopeId: "styled",
+            modalStyle: modalStyle(UiModalStyles.Default, {
+                contentMargin: 6,
+            }),
+            columnCount: 2,
+            controls: [
+                { id: "a", value: "A" },
+                { id: "b", value: "B" },
+            ],
+        })
+        const styledMeasured = new UiMeasuredSize()
+        styledModal.measure({ maxWidth: 100, maxHeight: 100 }, styledMeasured)
+        control.assert(
+            styledMeasured.preferredWidth == 62,
+            "modal style margin width",
+        )
+        control.assert(
+            styledMeasured.preferredHeight == 42,
+            "modal style margin height",
+        )
         const gappedModal = new UiPicker<string>({
             parentScopeId: "parent",
             modalScopeId: "gapped",
@@ -6581,10 +6615,9 @@ namespace ui {
 
         const surface = new ControlSmokeSurface()
         keepOpen.render(surface, assets, focus)
-        control.assert(surface.log.indexOf("fill:1;") >= 0, "modal panel fill")
         control.assert(
-            surface.log.indexOf("rect:15;") >= 0,
-            "modal panel outline",
+            surface.log.indexOf("rounded:15:1;") >= 0,
+            "modal panel rounded frame",
         )
     }
 
@@ -6734,6 +6767,70 @@ namespace ui {
         )
         control.assert((<any>zeroResult).value == 0, "decimal minus zero value")
 
+        const trailingPoint = new UiNumericEntry({
+            mode: "decimal",
+            initialText: "1",
+        })
+        trailingPoint.inputDecimalPoint()
+        const trailingPointResult = trailingPoint.enter()
+        control.assert(
+            (<any>trailingPointResult).text == "1",
+            "decimal trailing point normalized",
+        )
+
+        const decimalPointFirst = new UiNumericEntry({ mode: "decimal" })
+        decimalPointFirst.inputDecimalPoint()
+        control.assert(
+            decimalPointFirst.text == "",
+            "decimal rejects leading point",
+        )
+        decimalPointFirst.toggleSign()
+        decimalPointFirst.inputDecimalPoint()
+        control.assert(
+            decimalPointFirst.text == "-",
+            "decimal rejects point after sign",
+        )
+
+        const decimalLeadingZero = new UiNumericEntry({
+            mode: "decimal",
+            initialText: "0",
+        })
+        decimalLeadingZero.inputDigit(5)
+        control.assert(
+            decimalLeadingZero.text == "5",
+            "decimal replaces zero with digit",
+        )
+        const decimalZeroFraction = new UiNumericEntry({
+            mode: "decimal",
+            initialText: "0",
+        })
+        decimalZeroFraction.inputDecimalPoint()
+        decimalZeroFraction.inputDigit(5)
+        control.assert(
+            decimalZeroFraction.text == "0.5",
+            "decimal accepts digit after zero point",
+        )
+
+        const decimalNegativeLeadingZero = new UiNumericEntry({
+            mode: "decimal",
+            initialText: "-0",
+        })
+        decimalNegativeLeadingZero.inputDigit(5)
+        control.assert(
+            decimalNegativeLeadingZero.text == "-5",
+            "decimal replaces minus zero with digit",
+        )
+        const decimalNegativeZeroFraction = new UiNumericEntry({
+            mode: "decimal",
+            initialText: "-0",
+        })
+        decimalNegativeZeroFraction.inputDecimalPoint()
+        decimalNegativeZeroFraction.inputDigit(5)
+        control.assert(
+            decimalNegativeZeroFraction.text == "-0.5",
+            "decimal accepts digit after minus zero point",
+        )
+
         const positive = new UiNumericEntry({
             mode: "positiveInteger",
             initialText: "0",
@@ -6817,6 +6914,59 @@ namespace ui {
         control.assert(
             validateLog.indexOf("digit:9;") >= 0,
             "validator receives candidate",
+        )
+
+        let modalResult: UiNumericEntryResult = undefined
+        const modal = new UiNumericEntryModal({
+            modalScopeId: "numeric-modal",
+            mode: "positiveInteger",
+            initialText: "0",
+            modalStyle: modalStyle(UiModalStyles.Titleless, {
+                contentMargin: 5,
+            }),
+            displayPalette: { backgroundColor: 1, foregroundColor: 15 },
+            onResult: result => {
+                modalResult = result
+            },
+        })
+        const modalMeasured = new UiMeasuredSize()
+        modal.measure({ maxWidth: 160, maxHeight: 120 }, modalMeasured)
+        control.assert(
+            modalMeasured.preferredWidth == 88,
+            "numeric modal measured width",
+        )
+        control.assert(
+            modalMeasured.preferredHeight == 111,
+            "numeric modal measured height",
+        )
+        modal.arrange(new Rect(0, 0, 88, 111))
+
+        const modalFocus = new UiFocusState()
+        const modalController = new UiFocusInputController({ focus: modalFocus })
+        modalFocus.setScope({ id: "parent" })
+        modalFocus.setActiveScope("parent")
+        modal.open(modalFocus, modalController)
+        control.assert(
+            modalFocus.getActiveScopeId() == "numeric-modal",
+            "numeric modal active scope",
+        )
+        const modalCancel = modal.handleFocusInput(
+            modalController.handleInput({ action: "cancel" }),
+        )
+        control.assert(
+            modalCancel.kind == "cancelled",
+            "numeric modal cancel result",
+        )
+        control.assert(
+            modalResult && modalResult.kind == "cancelled",
+            "numeric modal cancel callback",
+        )
+
+        const modalSurface = new ControlSmokeSurface()
+        modal.render(modalSurface, new ControlSmokeAssets(), modalFocus)
+        control.assert(
+            modalSurface.log.indexOf("rounded:15:1;") >= 0,
+            "numeric modal rounded panel",
         )
     }
 

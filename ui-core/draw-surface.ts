@@ -152,6 +152,13 @@ namespace ui {
         drawRect(rect: Rect, color: number): void
 
         /**
+         * Draws a one-pixel rounded rectangle with corner pixels omitted.
+         * When `fillColor` is set, fills the rounded body before drawing the
+         * outline. When `color` is omitted, only the rounded body is filled.
+         */
+        drawRoundedRect(rect: Rect, color?: number, fillColor?: number): void
+
+        /**
          * Draws a clipped line with a palette color.
          */
         drawLine(

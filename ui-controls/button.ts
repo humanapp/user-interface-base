@@ -353,13 +353,7 @@ namespace ui {
                     style.shadowColor,
                 )
             } else if (frame == "roundedRect") {
-                drawRoundedButtonFrame(
-                    surface,
-                    rect,
-                    this.scratch_,
-                    background,
-                    style.borderColor,
-                )
+                surface.drawRoundedRect(rect, style.borderColor, background)
             } else {
                 if (background !== undefined) surface.fillRect(rect, background)
                 if (frame == "rect" && style.borderColor !== undefined) {
@@ -808,49 +802,6 @@ namespace ui {
             rect.x + rect.width - 1,
             rect.y + rect.height - 2,
             shadow,
-        )
-    }
-
-    function drawRoundedButtonFrame(
-        surface: DrawSurface,
-        rect: Rect,
-        scratch: Rect,
-        backgroundColor?: number,
-        borderColor?: number,
-    ): void {
-        if (backgroundColor !== undefined && rect.width > 2 && rect.height > 2) {
-            scratch.set(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
-            surface.fillRect(scratch, backgroundColor)
-        }
-        if (borderColor === undefined || rect.width <= 1 || rect.height <= 1)
-            return
-        surface.drawLine(
-            rect.x + 1,
-            rect.y,
-            rect.x + rect.width - 2,
-            rect.y,
-            borderColor,
-        )
-        surface.drawLine(
-            rect.x + 1,
-            rect.y + rect.height - 1,
-            rect.x + rect.width - 2,
-            rect.y + rect.height - 1,
-            borderColor,
-        )
-        surface.drawLine(
-            rect.x,
-            rect.y + 1,
-            rect.x,
-            rect.y + rect.height - 2,
-            borderColor,
-        )
-        surface.drawLine(
-            rect.x + rect.width - 1,
-            rect.y + 1,
-            rect.x + rect.width - 1,
-            rect.y + rect.height - 2,
-            borderColor,
         )
     }
 

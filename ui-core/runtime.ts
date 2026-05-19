@@ -445,8 +445,11 @@ namespace ui {
 
         private handleModalInput(event: UiInputEvent): boolean {
             const result = this.focusInput_.handleInput(event)
-            const modalResult = this.activeModal_.handleFocusInput(result)
+            const modal = this.activeModal_
+            const modalResult = modal.handleFocusInput(result)
             if (modalResult) {
+                if ((<any>modalResult).kind == "cancelled")
+                    this.closeModal(modal)
                 const handled = this.defaultHandled(modalResult)
                 return handled !== undefined ? handled : result.handled
             }

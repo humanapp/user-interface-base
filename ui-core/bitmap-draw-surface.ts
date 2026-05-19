@@ -174,6 +174,73 @@ namespace ui {
         }
 
         /**
+         * Draws a one-pixel rounded rectangle after clipping it to the drawable area.
+         */
+        public drawRoundedRect(
+            rect: Rect,
+            color?: number,
+            fillColor?: number,
+        ): void {
+            if (fillColor !== undefined) {
+                if (rect.width > 2 && rect.height > 2) {
+                    this.fillUiRect(
+                        rect.x + 1,
+                        rect.y,
+                        rect.width - 2,
+                        1,
+                        fillColor,
+                    )
+                    this.fillUiRect(
+                        rect.x,
+                        rect.y + 1,
+                        rect.width,
+                        rect.height - 2,
+                        fillColor,
+                    )
+                    this.fillUiRect(
+                        rect.x + 1,
+                        rect.y + rect.height - 1,
+                        rect.width - 2,
+                        1,
+                        fillColor,
+                    )
+                } else {
+                    this.fillRect(rect, fillColor)
+                }
+            }
+            if (color === undefined || rect.width <= 1 || rect.height <= 1)
+                return
+            this.drawLine(
+                rect.x + 1,
+                rect.y,
+                rect.x + rect.width - 2,
+                rect.y,
+                color,
+            )
+            this.drawLine(
+                rect.x + 1,
+                rect.y + rect.height - 1,
+                rect.x + rect.width - 2,
+                rect.y + rect.height - 1,
+                color,
+            )
+            this.drawLine(
+                rect.x,
+                rect.y + 1,
+                rect.x,
+                rect.y + rect.height - 2,
+                color,
+            )
+            this.drawLine(
+                rect.x + rect.width - 1,
+                rect.y + 1,
+                rect.x + rect.width - 1,
+                rect.y + rect.height - 2,
+                color,
+            )
+        }
+
+        /**
          * Draws a line after clipping it to the drawable area.
          */
         public drawLine(

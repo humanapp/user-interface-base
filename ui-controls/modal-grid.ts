@@ -1,5 +1,96 @@
 namespace ui {
     /**
+     * Border treatment drawn around modal panels.
+     */
+    export type UiModalFrame = "rect" | "roundedRect"
+
+    /**
+     * Visual style and spacing used by modal panels.
+     */
+    export interface UiModalStyle {
+        /**
+         * Fill color for the modal panel.
+         */
+        panelColor?: number
+
+        /**
+         * Outline color for the modal panel.
+         */
+        outlineColor?: number
+
+        /**
+         * Panel frame shape.
+         */
+        frame?: UiModalFrame
+
+        /**
+         * Text color for the modal title.
+         */
+        titleColor?: number
+
+        /**
+         * Font used for the modal title.
+         */
+        titleFont?: TextFont
+
+        /**
+         * Inset between the modal outline and modal content.
+         */
+        contentMargin?: number
+
+        /**
+         * Extra vertical space between the title band and modal content.
+         */
+        titleGap?: number
+
+        /**
+         * Whether an empty modal reserves title-band space.
+         */
+        showTitleBar?: boolean
+    }
+
+    /**
+     * Creates a modal style by copying defined fields from each style in order.
+     */
+    export function modalStyle(
+        style0?: UiModalStyle,
+        style1?: UiModalStyle,
+        style2?: UiModalStyle,
+        style3?: UiModalStyle,
+        style4?: UiModalStyle,
+    ): UiModalStyle {
+        const result: UiModalStyle = {}
+        copyModalStyle(result, style0)
+        copyModalStyle(result, style1)
+        copyModalStyle(result, style2)
+        copyModalStyle(result, style3)
+        copyModalStyle(result, style4)
+        return result
+    }
+
+    export namespace UiModalStyles {
+        /**
+         * Default rounded modal panel style.
+         */
+        export const Default: UiModalStyle = {
+            panelColor: 1,
+            outlineColor: 15,
+            frame: "roundedRect",
+            titleColor: 15,
+            contentMargin: 4,
+            titleGap: 0,
+            showTitleBar: true,
+        }
+
+        /**
+         * Omits title-band space when no title is present.
+         */
+        export const Titleless: UiModalStyle = {
+            showTitleBar: false,
+        }
+    }
+
+    /**
      * Options for a modal picker or control grid.
      */
     export interface UiPickerOptions<T> {
@@ -68,6 +159,11 @@ namespace ui {
          * Control style used by controls without a custom draw callback.
          */
         controlStyle?: UiButtonStyle
+
+        /**
+         * Panel, title, and spacing style for this modal.
+         */
+        modalStyle?: UiModalStyle
 
         /**
          * Inset between the modal outline and control grid. Defaults to `4`.
@@ -143,6 +239,27 @@ namespace ui {
         | { kind: "deleted"; modalScopeId: UiFocusScopeId }
 
     /**
+     * Draws a modal panel using the supplied style.
+     */
+    export function drawModalPanel(
+        surface: DrawSurface,
+        rect: Rect,
+        style?: UiModalStyle,
+        _scratch?: Rect,
+    ): void {
+        const resolved = modalStyle(UiModalStyles.Default, style)
+        const fill = resolved.panelColor
+        const outline = resolved.outlineColor
+        const frame = resolved.frame || "roundedRect"
+        if (frame == "rect") {
+            surface.fillRect(rect, fill)
+            surface.drawRect(rect, outline)
+        } else {
+            surface.drawRoundedRect(rect, outline, fill)
+        }
+    }
+
+    /**
      * Modal picker or control grid backed by a `ui-core` modal focus scope.
      */
     export class UiPicker<T> implements UiModal<UiPickerResult<T>> {
@@ -155,12 +272,7 @@ namespace ui {
         private titleId_: string
         private deleteEnabled_: boolean
         private closeOnActivate_: boolean
-        private panelColor_: number
-        private outlineColor_: number
-        private titleColor_: number
-        private contentMargin_: number
-        private titleGap_: number
-        private showTitleBar_: boolean
+        private style_: UiModalStyle
         private grid_: UiGrid<T>
         private onActivate_: UiControlActivateHandler<T>
         private onCancel_: UiPickerCancelHandler
@@ -173,18 +285,7 @@ namespace ui {
             this.titleId_ = options.titleId
             this.deleteEnabled_ = options.deleteEnabled || false
             this.closeOnActivate_ = options.closeOnActivate !== false
-            this.panelColor_ =
-                options.panelColor !== undefined ? options.panelColor : 1
-            this.outlineColor_ =
-                options.outlineColor !== undefined ? options.outlineColor : 15
-            this.titleColor_ =
-                options.titleColor !== undefined ? options.titleColor : 15
-            this.contentMargin_ = _uiControls.sanitizeDimension(
-                options.contentMargin,
-                4,
-            )
-            this.titleGap_ = _uiControls.sanitizeDimension(options.titleGap, 0)
-            this.showTitleBar_ = options.showTitleBar !== false
+            this.style_ = this.resolveModalStyle(options)
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.scratch_ = new Rect()
@@ -233,11 +334,12 @@ namespace ui {
         ): void {
             this.grid_.measure(constraints, output)
             const titleHeight = this.titleHeight()
+            const contentMargin = this.contentMargin()
             output.set(
-                output.minWidth + this.contentMargin_ * 2,
-                output.minHeight + titleHeight + this.contentMargin_,
-                output.preferredWidth + this.contentMargin_ * 2,
-                output.preferredHeight + titleHeight + this.contentMargin_,
+                output.minWidth + contentMargin * 2,
+                output.minHeight + titleHeight + contentMargin,
+                output.preferredWidth + contentMargin * 2,
+                output.preferredHeight + titleHeight + contentMargin,
             )
             this.clearLayoutInvalidation()
         }
@@ -248,14 +350,15 @@ namespace ui {
         public arrange(rect: Rect): void {
             copyArrangedLayoutRect(this.finalRect, rect)
             const titleHeight = this.titleHeight()
+            const contentMargin = this.contentMargin()
             this.grid_.arrange(
                 new Rect(
-                    rect.x + this.contentMargin_,
+                    rect.x + contentMargin,
                     rect.y + titleHeight,
-                    Math.max(0, rect.width - this.contentMargin_ * 2),
+                    Math.max(0, rect.width - contentMargin * 2),
                     Math.max(
                         0,
-                        rect.height - titleHeight - this.contentMargin_,
+                        rect.height - titleHeight - contentMargin,
                     ),
                 ),
             )
@@ -392,42 +495,11 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
-            // Fill panel in three strips, leaving the four corner pixels untouched.
-            const r = this.finalRect
-            surface.fillRect(this.scratch_.set(r.x + 1, r.y, r.width - 2, 1), this.panelColor_)
-            surface.fillRect(this.scratch_.set(r.x, r.y + 1, r.width, r.height - 2), this.panelColor_)
-            surface.fillRect(this.scratch_.set(r.x + 1, r.y + r.height - 1, r.width - 2, 1), this.panelColor_)
-            /// Left edge
-            surface.drawLine(
-                this.finalRect.x,
-                this.finalRect.y + 1,
-                this.finalRect.x,
-                this.finalRect.y + this.finalRect.height - 2,
-                this.outlineColor_,
-            )
-            /// Right edge
-            surface.drawLine(
-                this.finalRect.x + this.finalRect.width - 1,
-                this.finalRect.y + 1,
-                this.finalRect.x + this.finalRect.width - 1,
-                this.finalRect.y + this.finalRect.height - 2,
-                this.outlineColor_,
-            )
-            // Top edge
-            surface.drawLine(
-                this.finalRect.x + 1,
-                this.finalRect.y,
-                this.finalRect.x + this.finalRect.width - 2,
-                this.finalRect.y,
-                this.outlineColor_,
-            )
-            // Bottom edge
-            surface.drawLine(
-                this.finalRect.x + 1,
-                this.finalRect.y + this.finalRect.height - 1,
-                this.finalRect.x + this.finalRect.width - 2,
-                this.finalRect.y + this.finalRect.height - 1,
-                this.outlineColor_,
+            drawModalPanel(
+                surface,
+                this.finalRect,
+                this.style_,
+                this.scratch_,
             )
             const title = this.resolveTitleText(assets)
             if (title.length > 0)
@@ -435,7 +507,7 @@ namespace ui {
                     title,
                     this.finalRect.x + 4,
                     this.finalRect.y + 4,
-                    { color: this.titleColor_ },
+                    { color: this.titleColor(), font: this.style_.titleFont },
                 )
             this.grid_.render(surface, assets, focus)
         }
@@ -462,12 +534,70 @@ namespace ui {
 
         private titleHeight(): number {
             if (
-                !this.showTitleBar_ &&
+                !this.showTitleBar() &&
                 this.title_ === undefined &&
                 this.titleId_ === undefined
             )
-                return this.contentMargin_
-            return 16 + this.titleGap_
+                return this.contentMargin()
+            return 16 + this.titleGap()
         }
+
+        private contentMargin(): number {
+            return _uiControls.sanitizeDimension(this.style_.contentMargin, 4)
+        }
+
+        private titleGap(): number {
+            return _uiControls.sanitizeDimension(this.style_.titleGap, 0)
+        }
+
+        private titleColor(): number {
+            return this.style_.titleColor !== undefined
+                ? this.style_.titleColor
+                : 15
+        }
+
+        private showTitleBar(): boolean {
+            return this.style_.showTitleBar !== false
+        }
+
+        private resolveModalStyle(options: UiPickerOptions<T>): UiModalStyle {
+            return modalStyle(
+                UiModalStyles.Default,
+                options.modalStyle,
+                this.optionModalStyle(options),
+            )
+        }
+
+        private optionModalStyle(options: UiPickerOptions<T>): UiModalStyle {
+            const style: UiModalStyle = {}
+            if (options.panelColor !== undefined)
+                style.panelColor = options.panelColor
+            if (options.outlineColor !== undefined)
+                style.outlineColor = options.outlineColor
+            if (options.titleColor !== undefined)
+                style.titleColor = options.titleColor
+            if (options.contentMargin !== undefined)
+                style.contentMargin = options.contentMargin
+            if (options.titleGap !== undefined) style.titleGap = options.titleGap
+            if (options.showTitleBar !== undefined)
+                style.showTitleBar = options.showTitleBar
+            return style
+        }
+    }
+
+    function copyModalStyle(target: UiModalStyle, source?: UiModalStyle): void {
+        if (!source) return
+        if (source.panelColor !== undefined)
+            target.panelColor = source.panelColor
+        if (source.outlineColor !== undefined)
+            target.outlineColor = source.outlineColor
+        if (source.frame !== undefined) target.frame = source.frame
+        if (source.titleColor !== undefined) target.titleColor = source.titleColor
+        if (source.titleFont !== undefined) target.titleFont = source.titleFont
+        if (source.contentMargin !== undefined)
+            target.contentMargin = source.contentMargin
+        if (source.titleGap !== undefined) target.titleGap = source.titleGap
+        if (source.showTitleBar !== undefined)
+            target.showTitleBar = source.showTitleBar
     }
 }
