@@ -1,5 +1,4 @@
 namespace accessibility {
-
     export interface AccessibilityMessage {
         type: "text" | "tile" | "rule" | "led" | "note"
         force?: boolean
@@ -22,7 +21,7 @@ namespace accessibility {
         on: boolean
         index: number
     }
-    
+
     export interface TileAccessibilityMessage extends AccessibilityMessage {
         type: "tile"
         value: string
@@ -45,6 +44,6 @@ namespace accessibility {
     }
 
     export function ariaToTooltip(ariaId: string) {
-        return user_interface_base.resolveTooltip(ariaId).replaceAll("_", " ")
+        return ui.resolveTooltip(ariaId).replaceAll("_", " ")
     }
 }

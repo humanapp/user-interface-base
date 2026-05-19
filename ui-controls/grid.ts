@@ -89,7 +89,12 @@ namespace ui {
      * Result emitted by a non-modal control grid.
      */
     export type UiGridResult<T> =
-        | { kind: "activated"; controlId: string; value: T; control: UiControl<T> }
+        | {
+              kind: "activated"
+              controlId: string
+              value: T
+              control: UiControl<T>
+          }
         | {
               kind: "exited"
               direction: UiFocusDirection
@@ -100,8 +105,7 @@ namespace ui {
     /**
      * Renders and navigates a rectangular or ragged control grid.
      */
-    export class UiGrid<T>
-        implements UiFocusableView<UiGridResult<T>> {
+    export class UiGrid<T> implements UiFocusableView<UiGridResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -137,7 +141,9 @@ namespace ui {
             )
             this.rows_ = options.rows
             this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
-            this.controlHeight_ = _uiControls.controlHeight(options.controlHeight)
+            this.controlHeight_ = _uiControls.controlHeight(
+                options.controlHeight,
+            )
             this.rowGap_ = _uiControls.gap(options.rowGap)
             this.columnGap_ = _uiControls.gap(options.columnGap)
             this.layoutSpec =
@@ -209,7 +215,8 @@ namespace ui {
                 this.controlRects_[i].set(
                     this.finalRect.x +
                         column * (this.controlWidth_ + this.columnGap_),
-                    this.finalRect.y + row * (this.controlHeight_ + this.rowGap_),
+                    this.finalRect.y +
+                        row * (this.controlHeight_ + this.rowGap_),
                     this.controlWidth_,
                     this.controlHeight_,
                 )
@@ -236,7 +243,10 @@ namespace ui {
          */
         public getControlRect(controlId: string, output: Rect): boolean {
             for (let i = 0; i < this.controls_.length; i++) {
-                if (this.controls_[i].id == controlId && this.controlRects_[i]) {
+                if (
+                    this.controls_[i].id == controlId &&
+                    this.controlRects_[i]
+                ) {
                     output.copyFrom(this.controlRects_[i])
                     return true
                 }
@@ -308,9 +318,7 @@ namespace ui {
         /**
          * Converts a focus input result into a grid result when one occurred.
          */
-        public handleFocusInput(
-            result: UiFocusInputResult,
-        ): UiGridResult<T> {
+        public handleFocusInput(result: UiFocusInputResult): UiGridResult<T> {
             if (
                 result.kind == "activated" &&
                 result.detail &&
@@ -357,9 +365,7 @@ namespace ui {
         /**
          * Converts a focus movement result into a generic grid boundary exit.
          */
-        public createResultForMove(
-            result: UiFocusMoveResult,
-        ): UiGridResult<T> {
+        public createResultForMove(result: UiFocusMoveResult): UiGridResult<T> {
             if (result.kind != "exited" || result.scopeId != this.scopeId_)
                 return undefined
             return {
@@ -400,8 +406,8 @@ namespace ui {
             )
             const activeTargetId =
                 focus && focus.getActiveScopeId() == this.scopeId_
-                ? focus.getActiveTargetId(this.scopeId_)
-                : undefined
+                    ? focus.getActiveTargetId(this.scopeId_)
+                    : undefined
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!_uiControls.isVisible(control)) continue
@@ -436,8 +442,8 @@ namespace ui {
             )
             const activeTargetId =
                 focus && focus.getActiveScopeId() == this.scopeId_
-                ? focus.getActiveTargetId(this.scopeId_)
-                : undefined
+                    ? focus.getActiveTargetId(this.scopeId_)
+                    : undefined
             _uiControls.renderFocusedControlOverlay(
                 surface,
                 assets,
@@ -523,9 +529,7 @@ namespace ui {
                     const rect = this.controlRects_[index]
                     index++
                     if (!this.isNavigationControl(control)) continue
-                    rowTargets.push(
-                        this.navigationTarget(control, rect),
-                    )
+                    rowTargets.push(this.navigationTarget(control, rect))
                 }
                 rows.push(rowTargets)
             }
@@ -601,7 +605,9 @@ namespace ui {
         private contentHeight(): number {
             const rowCount = this.rowCount()
             if (rowCount <= 0) return 0
-            return rowCount * this.controlHeight_ + (rowCount - 1) * this.rowGap_
+            return (
+                rowCount * this.controlHeight_ + (rowCount - 1) * this.rowGap_
+            )
         }
 
         private maxColumnCount(): number {

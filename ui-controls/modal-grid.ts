@@ -352,7 +352,8 @@ namespace ui {
                 this.titleRow_ = new UiRow<T>({
                     scopeId: options.modalScopeId,
                     controls: options.titleControls,
-                    controlWidth: options.titleControlWidth || options.controlWidth,
+                    controlWidth:
+                        options.titleControlWidth || options.controlWidth,
                     controlHeight:
                         options.titleControlHeight || options.controlHeight,
                     gap: options.titleControlGap,
@@ -414,7 +415,10 @@ namespace ui {
             this.grid_.measure(constraints, output)
             const titleHeight = this.titleHeight()
             const contentMargin = this.contentMargin()
-            const minWidth = Math.max(output.minWidth, this.titleRowSize_.minWidth)
+            const minWidth = Math.max(
+                output.minWidth,
+                this.titleRowSize_.minWidth,
+            )
             const preferredWidth = Math.max(
                 output.preferredWidth,
                 this.titleRowSize_.preferredWidth,
@@ -441,10 +445,7 @@ namespace ui {
                     rect.x + contentMargin,
                     rect.y + titleHeight,
                     Math.max(0, rect.width - contentMargin * 2),
-                    Math.max(
-                        0,
-                        rect.height - titleHeight - contentMargin,
-                    ),
+                    Math.max(0, rect.height - titleHeight - contentMargin),
                 ),
             )
             this.clearLayoutInvalidation()
@@ -532,9 +533,7 @@ namespace ui {
         /**
          * Converts focus input into a modal result when one occurred.
          */
-        public handleFocusInput(
-            result: UiFocusInputResult,
-        ): UiPickerResult<T> {
+        public handleFocusInput(result: UiFocusInputResult): UiPickerResult<T> {
             if (
                 result.kind == "activated" &&
                 result.detail &&
@@ -584,30 +583,19 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
-            drawModalPanel(
-                surface,
-                this.finalRect,
-                this.style_,
-                this.scratch_,
-            )
+            drawModalPanel(surface, this.finalRect, this.style_, this.scratch_)
             const title = this.resolveTitleText(assets)
             const titleBitmap = this.resolveTitleBitmap(assets)
             let titleX = this.finalRect.x + 4
             if (titleBitmap) {
-                surface.drawBitmap(
-                    titleBitmap,
-                    titleX,
-                    this.finalRect.y + 4,
-                )
+                surface.drawBitmap(titleBitmap, titleX, this.finalRect.y + 4)
                 titleX += titleBitmap.width + 2
             }
             if (title.length > 0)
-                surface.drawText(
-                    title,
-                    titleX,
-                    this.finalRect.y + 4,
-                    { color: this.titleColor(), font: this.style_.titleFont },
-                )
+                surface.drawText(title, titleX, this.finalRect.y + 4, {
+                    color: this.titleColor(),
+                    font: this.style_.titleFont,
+                })
             if (this.titleRow_) {
                 this.grid_.renderControls(surface, assets, focus)
                 this.titleRow_.renderControls(surface, assets, focus)
@@ -633,8 +621,7 @@ namespace ui {
         }
 
         private emitCancel(result: UiPickerResult<T>): void {
-            if (!this.onCancel_ || !result || result.kind != "cancelled")
-                return
+            if (!this.onCancel_ || !result || result.kind != "cancelled") return
             this.onCancel_(result.modalScopeId)
         }
 
@@ -670,7 +657,9 @@ namespace ui {
                 : 15
         }
 
-        private resolveTitleBitmap(assets: UiAssetResolver): Bitmap | undefined {
+        private resolveTitleBitmap(
+            assets: UiAssetResolver,
+        ): Bitmap | undefined {
             if (this.titleBitmap_ === undefined) return undefined
             if (typeof this.titleBitmap_ == "string")
                 return assets.getBitmap(this.titleBitmap_)
@@ -730,7 +719,8 @@ namespace ui {
             result: UiFocusActivationResult,
         ): UiGridResult<T> {
             if (this.titleRow_) {
-                const rowResult = this.titleRow_.createResultForActivation(result)
+                const rowResult =
+                    this.titleRow_.createResultForActivation(result)
                 if (rowResult) return rowResult
             }
             return this.grid_.createResultForActivation(result)
@@ -837,7 +827,8 @@ namespace ui {
                 style.titleColor = options.titleColor
             if (options.contentMargin !== undefined)
                 style.contentMargin = options.contentMargin
-            if (options.titleGap !== undefined) style.titleGap = options.titleGap
+            if (options.titleGap !== undefined)
+                style.titleGap = options.titleGap
             if (options.showTitleBar !== undefined)
                 style.showTitleBar = options.showTitleBar
             return style
@@ -851,7 +842,8 @@ namespace ui {
         if (source.outlineColor !== undefined)
             target.outlineColor = source.outlineColor
         if (source.frame !== undefined) target.frame = source.frame
-        if (source.titleColor !== undefined) target.titleColor = source.titleColor
+        if (source.titleColor !== undefined)
+            target.titleColor = source.titleColor
         if (source.titleFont !== undefined) target.titleFont = source.titleFont
         if (source.contentMargin !== undefined)
             target.contentMargin = source.contentMargin

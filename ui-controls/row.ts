@@ -68,7 +68,12 @@ namespace ui {
      * Result emitted by a control row.
      */
     export type UiRowResult<T> =
-        | { kind: "activated"; controlId: string; value: T; control: UiControl<T> }
+        | {
+              kind: "activated"
+              controlId: string
+              value: T
+              control: UiControl<T>
+          }
         | {
               kind: "exited"
               direction: UiFocusDirection
@@ -79,8 +84,7 @@ namespace ui {
     /**
      * Renders and navigates one horizontal control row.
      */
-    export class UiRow<T>
-        implements UiFocusableView<UiRowResult<T>> {
+    export class UiRow<T> implements UiFocusableView<UiRowResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -107,7 +111,9 @@ namespace ui {
             this.scrollOwnerId_ = options.scrollOwnerId
             this.wrap_ = options.wrap || false
             this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
-            this.controlHeight_ = _uiControls.controlHeight(options.controlHeight)
+            this.controlHeight_ = _uiControls.controlHeight(
+                options.controlHeight,
+            )
             this.gap_ = _uiControls.gap(options.gap)
             this.layoutSpec =
                 options.layoutSpec || _uiControls.defaultLayoutSpec()
@@ -215,7 +221,10 @@ namespace ui {
          */
         public getControlRect(controlId: string, output: Rect): boolean {
             for (let i = 0; i < this.controls_.length; i++) {
-                if (this.controls_[i].id == controlId && this.controlRects_[i]) {
+                if (
+                    this.controls_[i].id == controlId &&
+                    this.controlRects_[i]
+                ) {
                     output.copyFrom(this.controlRects_[i])
                     return true
                 }
@@ -306,9 +315,7 @@ namespace ui {
         /**
          * Converts a focus input result into a row result when one occurred.
          */
-        public handleFocusInput(
-            result: UiFocusInputResult,
-        ): UiRowResult<T> {
+        public handleFocusInput(result: UiFocusInputResult): UiRowResult<T> {
             if (
                 result.kind == "activated" &&
                 result.detail &&
@@ -355,9 +362,7 @@ namespace ui {
         /**
          * Converts a focus movement result into a generic row boundary exit.
          */
-        public createResultForMove(
-            result: UiFocusMoveResult,
-        ): UiRowResult<T> {
+        public createResultForMove(result: UiFocusMoveResult): UiRowResult<T> {
             if (result.kind != "exited" || result.scopeId != this.scopeId_)
                 return undefined
             return {
@@ -561,8 +566,7 @@ namespace ui {
     /**
      * Renders and navigates a horizontal run of variable-size controls.
      */
-    export class UiControlStrip<T>
-        implements UiFocusableView<UiRowResult<T>> {
+    export class UiControlStrip<T> implements UiFocusableView<UiRowResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -588,7 +592,9 @@ namespace ui {
             this.scrollOwnerId_ = options.scrollOwnerId
             this.wrap_ = options.wrap || false
             this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
-            this.controlHeight_ = _uiControls.controlHeight(options.controlHeight)
+            this.controlHeight_ = _uiControls.controlHeight(
+                options.controlHeight,
+            )
             this.gap_ = _uiControls.gap(options.gap)
             this.layoutSpec =
                 options.layoutSpec || _uiControls.defaultLayoutSpec()
@@ -688,7 +694,10 @@ namespace ui {
          */
         public getControlRect(controlId: string, output: Rect): boolean {
             for (let i = 0; i < this.controls_.length; i++) {
-                if (this.controls_[i].id == controlId && this.controlRects_[i]) {
+                if (
+                    this.controls_[i].id == controlId &&
+                    this.controlRects_[i]
+                ) {
                     output.copyFrom(this.controlRects_[i])
                     return true
                 }
@@ -705,7 +714,9 @@ namespace ui {
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!this.isNavigationControl(control)) continue
-                output.push(this.navigationTarget(control, this.controlRects_[i]))
+                output.push(
+                    this.navigationTarget(control, this.controlRects_[i]),
+                )
             }
         }
 
@@ -754,9 +765,7 @@ namespace ui {
         /**
          * Converts focus input into a strip result when one occurred.
          */
-        public handleFocusInput(
-            result: UiFocusInputResult,
-        ): UiRowResult<T> {
+        public handleFocusInput(result: UiFocusInputResult): UiRowResult<T> {
             if (
                 result.kind == "activated" &&
                 result.detail &&
@@ -803,9 +812,7 @@ namespace ui {
         /**
          * Converts a focus movement result into a generic strip boundary exit.
          */
-        public createResultForMove(
-            result: UiFocusMoveResult,
-        ): UiRowResult<T> {
+        public createResultForMove(result: UiFocusMoveResult): UiRowResult<T> {
             if (result.kind != "exited" || result.scopeId != this.scopeId_)
                 return undefined
             return {

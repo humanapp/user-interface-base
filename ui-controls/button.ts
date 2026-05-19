@@ -5,7 +5,11 @@ namespace ui {
     /**
      * Border or frame treatment drawn behind button content.
      */
-    export type UiButtonFrame = "none" | "rect" | "roundedRect" | "roundedShadow"
+    export type UiButtonFrame =
+        | "none"
+        | "rect"
+        | "roundedRect"
+        | "roundedShadow"
 
     /**
      * Horizontal content placement inside a button rectangle.
@@ -294,9 +298,10 @@ namespace ui {
             const text = this.contentText(content, resolved)
             const contentWidth = this.contentWidth(content)
             const contentHeight = this.contentHeight(content)
-            const gap = contentWidth > 0 && text.length > 0
-                ? this.contentGap(resolved)
-                : 0
+            const gap =
+                contentWidth > 0 && text.length > 0
+                    ? this.contentGap(resolved)
+                    : 0
             const textWidth = text.length > 0 ? font.charWidth * text.length : 0
             const textHeight = text.length > 0 ? font.charHeight : 0
             const padding = this.padding(resolved)
@@ -388,9 +393,10 @@ namespace ui {
                 surface.drawBitmap(bitmap, contentRect.x, contentRect.y)
             }
             if (text.length > 0) {
-                const textX = graphicWidth > 0
-                    ? contentRect.x + graphicWidth + this.contentGap(style)
-                    : contentRect.x
+                const textX =
+                    graphicWidth > 0
+                        ? contentRect.x + graphicWidth + this.contentGap(style)
+                        : contentRect.x
                 const textY =
                     rect.y +
                     Math.max(0, Math.idiv(rect.height - font.charHeight, 2))
@@ -415,9 +421,8 @@ namespace ui {
             const textHeight = text.length > 0 ? font.charHeight : 0
             const contentWidth = this.contentWidth(content)
             const contentHeight = this.contentHeight(content)
-            const gap = contentWidth > 0 && text.length > 0
-                ? this.contentGap(style)
-                : 0
+            const gap =
+                contentWidth > 0 && text.length > 0 ? this.contentGap(style) : 0
             const width = contentWidth + gap + textWidth
             const height = Math.max(contentHeight, textHeight)
             const alignment = style.contentAlignment || "start"
@@ -829,9 +834,21 @@ namespace ui {
 
         for (let dist = 1; dist <= BUTTON_FOCUS_THICKNESS; dist++) {
             surface.drawLine(left - dist, top, left - dist, bottom, focusColor)
-            surface.drawLine(right + dist, top, right + dist, bottom, focusColor)
+            surface.drawLine(
+                right + dist,
+                top,
+                right + dist,
+                bottom,
+                focusColor,
+            )
             surface.drawLine(left, top - dist, right, top - dist, focusColor)
-            surface.drawLine(left, bottom + dist, right, bottom + dist, focusColor)
+            surface.drawLine(
+                left,
+                bottom + dist,
+                right,
+                bottom + dist,
+                focusColor,
+            )
             if (dist > 1) {
                 surface.drawLine(left - dist, top, left, top - dist, focusColor)
                 surface.drawLine(
@@ -858,5 +875,4 @@ namespace ui {
             }
         }
     }
-
 }

@@ -221,7 +221,6 @@ namespace ui {
     ): UiControl<T> {
         return button(id, bitmapId, undefined, onActivate)
     }
-
 }
 
 namespace _uiControls {
@@ -362,7 +361,10 @@ namespace _uiControls {
         controls: ui.UiControl<T>[],
         targetId: string | undefined,
     ): ui.UiControl<T> {
-        return findControlById(controls, controlIdFromTargetId(scopeId, targetId))
+        return findControlById(
+            controls,
+            controlIdFromTargetId(scopeId, targetId),
+        )
     }
 
     export function preferredControlId<T>(
@@ -392,7 +394,11 @@ namespace _uiControls {
 
         for (let i = 0; i < controls.length; i++) {
             const control = controls[i]
-            if (isVisible(control) && isFocusable(control) && !isDisabled(control))
+            if (
+                isVisible(control) &&
+                isFocusable(control) &&
+                !isDisabled(control)
+            )
                 return targetId(scopeId, control.id)
         }
 

@@ -1634,7 +1634,8 @@ namespace ui {
                 name: "hit test target focus",
                 scopes: [mainScope],
                 targets: [targetA],
-                operation: state => state.setActiveTarget(state.hitTest(11, 12)),
+                operation: state =>
+                    state.setActiveTarget(state.hitTest(11, 12)),
                 expectedResult: {
                     kind: "focused",
                     scopeId: "main",
@@ -4972,8 +4973,7 @@ namespace ui {
         const unhandledCancel = new UiFocusInputController({
             focus: state,
         }).handleInput({ action: "cancel" })
-        if (!unhandledCancel.handled)
-            cancelFallbackCount++
+        if (!unhandledCancel.handled) cancelFallbackCount++
         control.assert(
             !unhandledCancel.handled,
             "unhandled modal cancel falls through",
@@ -5596,9 +5596,7 @@ namespace ui {
             this.inputHandler_ = handler
         }
 
-        public handleScreenInput(
-            event: UiInputEvent,
-        ): boolean | undefined {
+        public handleScreenInput(event: UiInputEvent): boolean | undefined {
             return this.inputHandler_(event)
         }
     }
@@ -5625,7 +5623,10 @@ namespace ui {
 
         control.assert(surface.log.indexOf("fill:1;") >= 0, "control fill")
         control.assert(surface.log.indexOf("line:11;") >= 0, "control shadow")
-        control.assert(surface.log.indexOf("bitmap:2x2;") >= 0, "control bitmap")
+        control.assert(
+            surface.log.indexOf("bitmap:2x2;") >= 0,
+            "control bitmap",
+        )
         control.assert(surface.log.indexOf("line:9;") >= 0, "control focus")
 
         const focusLabelStyle = buttonStyle(
@@ -5639,25 +5640,38 @@ namespace ui {
                 focusLabelGap: 2,
             },
         )
-        control.assert(focusLabelStyle.focusColor == 4, "control style override")
+        control.assert(
+            focusLabelStyle.focusColor == 4,
+            "control style override",
+        )
         control.assert(
             UiButtonStyles.GreenBorderedWhite.borderColor == 7,
             "control green border style",
         )
         surface.log = ""
-        buttonView.render(surface, rect, { bitmap, text: "go" }, {
-            style: focusLabelStyle,
-        })
+        buttonView.render(
+            surface,
+            rect,
+            { bitmap, text: "go" },
+            {
+                style: focusLabelStyle,
+            },
+        )
         control.assert(
             surface.log.indexOf("text:go;") < 0,
             "control focus label hidden",
         )
         surface.log = ""
-        buttonView.render(surface, rect, { bitmap, text: "go" }, {
-            focused: true,
-            style: focusLabelStyle,
-            labelBounds: new Rect(0, 0, 40, 40),
-        })
+        buttonView.render(
+            surface,
+            rect,
+            { bitmap, text: "go" },
+            {
+                focused: true,
+                style: focusLabelStyle,
+                labelBounds: new Rect(0, 0, 40, 40),
+            },
+        )
         control.assert(
             surface.log.indexOf("fill:7;") >= 0,
             "control focus label fill",
@@ -5828,7 +5842,10 @@ namespace ui {
             screenLog == "B;root-cancel;modal-cancel;",
             "screen controller modal-first input",
         )
-        control.assert(!screen.hasModal, "screen controller modal cancel closes")
+        control.assert(
+            !screen.hasModal,
+            "screen controller modal cancel closes",
+        )
         screen.exit()
     }
 
@@ -5937,7 +5954,10 @@ namespace ui {
             controls[0].visible === undefined,
             "visible omitted default",
         )
-        control.assert(_uiControls.isVisible(controls[0]), "visible default true")
+        control.assert(
+            _uiControls.isVisible(controls[0]),
+            "visible default true",
+        )
         control.assert(
             _uiControls.controlText(
                 {
@@ -6015,7 +6035,8 @@ namespace ui {
         )
         control.assert(drawLog == "custom:false;", "draw callback precedence")
         control.assert(
-            _uiControls.controlBitmap(controls[4], assets) == assets.fallbackBitmap,
+            _uiControls.controlBitmap(controls[4], assets) ==
+                assets.fallbackBitmap,
             "missing bitmap fallback",
         )
         control.assert(
@@ -6028,14 +6049,9 @@ namespace ui {
         control.assert(_uiControls.isToggled(controls[8]), "toggled flag")
 
         let helperActivationLog = ""
-        const helperButton = button(
-            "helper",
-            "known",
-            "knownText",
-            () => {
-                helperActivationLog += "clicked;"
-            },
-        )
+        const helperButton = button("helper", "known", "knownText", () => {
+            helperActivationLog += "clicked;"
+        })
         control.assert(helperButton.value == "helper", "button helper value")
         control.assert(helperButton.bitmapId == "known", "button helper bitmap")
         control.assert(helperButton.textId == "knownText", "button helper text")
@@ -6097,7 +6113,8 @@ namespace ui {
                 control: UiControl<number>,
                 controlId: string,
             ) => {
-                activationLog += controlId + ":" + value + ":" + control.id + ";"
+                activationLog +=
+                    controlId + ":" + value + ":" + control.id + ";"
             },
         })
 
@@ -6161,8 +6178,7 @@ namespace ui {
             "row replacement activation",
         )
         control.assert(
-            activationLog ==
-                "control:a:1:a;a:1:a;replacement:9:replacement;",
+            activationLog == "control:a:1:a;a:1:a;replacement:9:replacement;",
             "row replacement callback",
         )
     }
@@ -6284,7 +6300,8 @@ namespace ui {
                 control: UiControl<number>,
                 controlId: string,
             ) => {
-                activationLog += controlId + ":" + value + ":" + control.id + ";"
+                activationLog +=
+                    controlId + ":" + value + ":" + control.id + ";"
             },
         })
 
@@ -6383,8 +6400,7 @@ namespace ui {
             "grid replacement activation",
         )
         control.assert(
-            activationLog ==
-                "control:c:3:c;c:3:c;replacement:99:replacement;",
+            activationLog == "control:c:3:c;c:3:c;replacement:99:replacement;",
             "grid replacement callback",
         )
 
@@ -6519,7 +6535,8 @@ namespace ui {
                 control: UiControl<string>,
                 controlId: string,
             ) => {
-                activationLog += controlId + ":" + value + ":" + control.id + ";"
+                activationLog +=
+                    controlId + ":" + value + ":" + control.id + ";"
             },
             onCancel: (modalScopeId: UiFocusScopeId) => {
                 cancelLog += modalScopeId + ";"
@@ -6720,7 +6737,9 @@ namespace ui {
         const titleNearestModal = new UiPicker<string>({
             parentScopeId: "parent",
             modalScopeId: "title-nearest",
-            titleControls: [{ id: "delete", value: "delete", bitmapId: "known" }],
+            titleControls: [
+                { id: "delete", value: "delete", bitmapId: "known" },
+            ],
             controls: [
                 { id: "c0", value: "0" },
                 { id: "c1", value: "1" },
@@ -6873,7 +6892,8 @@ namespace ui {
                 control: UiControl<string>,
                 controlId: string,
             ) => {
-                activationLog += controlId + ":" + value + ":" + control.id + ";"
+                activationLog +=
+                    controlId + ":" + value + ":" + control.id + ";"
             },
         })
         keepOpen.arrange(new Rect(0, 0, 60, 40))
@@ -6938,7 +6958,10 @@ namespace ui {
             defaultControlId: "led12",
             deleteEnabled: true,
             horizontalWrap: true,
-            toggle: control => ({ kind: "keepOpen", value: control.value + 100 }),
+            toggle: control => ({
+                kind: "keepOpen",
+                value: control.value + 100,
+            }),
         })
         led.arrange(new Rect(0, 0, 100, 100))
         led.open(focus, controller)
@@ -6962,7 +6985,13 @@ namespace ui {
         const ledResult = led.handleFocusInput(
             controller.handleInput({ action: "activate" }),
         )
-        assertControlActivation(ledResult, "keepOpen", "led12", 12, "led toggle")
+        assertControlActivation(
+            ledResult,
+            "keepOpen",
+            "led12",
+            12,
+            "led toggle",
+        )
         control.assert(
             (<any>ledResult).updatedValue == 112,
             "led updated value",
@@ -7250,7 +7279,9 @@ namespace ui {
         modal.arrange(new Rect(0, 0, 88, 111))
 
         const modalFocus = new UiFocusState()
-        const modalController = new UiFocusInputController({ focus: modalFocus })
+        const modalController = new UiFocusInputController({
+            focus: modalFocus,
+        })
         modalFocus.setScope({ id: "parent" })
         modalFocus.setActiveScope("parent")
         modal.open(modalFocus, modalController)
@@ -7293,7 +7324,10 @@ namespace ui {
             },
         })
         const deleteModalMeasured = new UiMeasuredSize()
-        deleteModal.measure({ maxWidth: 160, maxHeight: 120 }, deleteModalMeasured)
+        deleteModal.measure(
+            { maxWidth: 160, maxHeight: 120 },
+            deleteModalMeasured,
+        )
         control.assert(
             deleteModalMeasured.preferredWidth == 86,
             "numeric delete modal measured width",

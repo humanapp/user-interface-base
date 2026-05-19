@@ -1,27 +1,36 @@
-namespace user_interface_base {
+namespace ui {
+    /** Default bitmap font shared by legacy controls and app-level helpers. */
+    export const font = bitmaps.font8
+
+    /** Resolves an icon id to a bitmap. */
+    export let getIcon: (
+        name: string | number,
+        nullIfMissing: boolean,
+    ) => Bitmap = null
+
+    /** Resolves an accessibility id to display text. */
+    export let resolveTooltip: (ariaId: string) => string = null
+
     let extraImage: Bitmap = null
 
     /**
-    * This is used by the webapp. Ignore otherwise.
-    */
+     * This is used by the webapp. Ignore otherwise.
+     */
     //% shim=TD_NOOP
-    function extraSamples(name: string) {
-
-    }
-
+    function extraSamples(name: string) {}
 
     /**
-    * This contains a number of assets that are shared by all Microbit apps.
-    * Simply invoke icons.get("compass") to get a bitmap.
-    * If your program does not use an icon it will be tree-shaken from your program.
-    * So binary size should be minimised.
-    *
-    * The argument nullIfMissing is false by default meaning the icondb.MISSING icon is returned.
-    * 
-    * If you are adding your own assets we recommend making your own get function in your own namespace,
-    * that checks for your bitmap names, and invokes this function if it cannot find them.
-    * See MicroData/assets.ts as an example.
-    */
+     * This contains a number of assets that are shared by all Microbit apps.
+     * Simply invoke icons.get("compass") to get a bitmap.
+     * If your program does not use an icon it will be tree-shaken from your program.
+     * So binary size should be minimised.
+     *
+     * The argument nullIfMissing is false by default meaning the icondb.MISSING icon is returned.
+     *
+     * If you are adding your own assets we recommend making your own get function in your own namespace,
+     * that checks for your bitmap names, and invokes this function if it cannot find them.
+     * See MicroData/assets.ts as an example.
+     */
     export class icons {
         public static get(name: string, nullIfMissing = false): Bitmap {
             // editor icons
@@ -51,7 +60,8 @@ namespace user_interface_base {
             if (name == "largeSettingsGear") return icondb.largeSettingsGear
 
             if (name == "microbitLogo") return icondb.microbitLogo
-            if (name == "microbitLogoWhiteBackground") return icondb.microbitLogoWhiteBackground
+            if (name == "microbitLogoWhiteBackground")
+                return icondb.microbitLogoWhiteBackground
 
             extraImage = null
             extraSamples(name) // only for web app
@@ -60,7 +70,6 @@ namespace user_interface_base {
             return icondb.MISSING
         }
     }
-
 }
 
 namespace icondb {
@@ -204,11 +213,9 @@ namespace icondb {
         . . . . . . . . . . . . . . . .
     `
 
-
     //------------------------
     // SENSORS AND ACTUATORS:
     //------------------------
-
 
     export const pin_0 = bmp`
         1 1 1 1 1 1 1 1 1 1 1 1 1 1 1

@@ -195,8 +195,7 @@ namespace ui {
             result: UiFocusActivationResult,
         ): UiToggleGridResult<T> {
             const modalResult = this.modal_.createResultForActivation(result)
-            if (!modalResult || modalResult.kind != "keepOpen")
-                return undefined
+            if (!modalResult || modalResult.kind != "keepOpen") return undefined
             const policyResult: UiToggleGridActionResult<T> = this.toggle_
                 ? this.toggle_(modalResult.control)
                 : { kind: "keepOpen" }

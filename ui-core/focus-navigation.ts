@@ -260,7 +260,10 @@ namespace ui {
                 current.target,
                 destination.target,
             )
-        if (input.wrap || (isHorizontalDirection(input.direction) && input.horizontalWrap))
+        if (
+            input.wrap ||
+            (isHorizontalDirection(input.direction) && input.horizontalWrap)
+        )
             return boundaryMoveResult(input.scopeId, input.currentTargetId)
         return exitedMoveResult(
             input.scopeId,
@@ -299,7 +302,10 @@ namespace ui {
                 current.target,
                 destination.target,
             )
-        if (input.wrap || (isHorizontalDirection(input.direction) && input.horizontalWrap))
+        if (
+            input.wrap ||
+            (isHorizontalDirection(input.direction) && input.horizontalWrap)
+        )
             return boundaryMoveResult(input.scopeId, input.currentTargetId)
         return exitedMoveResult(
             input.scopeId,

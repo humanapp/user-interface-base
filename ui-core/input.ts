@@ -69,5 +69,4 @@ namespace ui {
          */
         dy?: number
     }
-
 }

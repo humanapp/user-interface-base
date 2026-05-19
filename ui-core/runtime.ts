@@ -381,8 +381,18 @@ namespace ui {
                 vertical,
             )
             root.childRect.set(
-                _uiLayout.alignedOffset(root.rect.x, width, childWidth, horizontal),
-                _uiLayout.alignedOffset(root.rect.y, height, childHeight, vertical),
+                _uiLayout.alignedOffset(
+                    root.rect.x,
+                    width,
+                    childWidth,
+                    horizontal,
+                ),
+                _uiLayout.alignedOffset(
+                    root.rect.y,
+                    height,
+                    childHeight,
+                    vertical,
+                ),
                 childWidth,
                 childHeight,
             )
@@ -390,7 +400,9 @@ namespace ui {
         }
 
         private hasExplicitSize(placement: UiPlacement): boolean {
-            return placement.width !== undefined && placement.height !== undefined
+            return (
+                placement.width !== undefined && placement.height !== undefined
+            )
         }
 
         private placementX(placement: UiPlacement, width: number): number {
