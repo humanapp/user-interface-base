@@ -331,29 +331,39 @@ namespace ui {
         }
     }
 
-    type UiNumericEntryModalKey =
-        | "digit"
-        | "decimalPoint"
-        | "toggleSign"
-        | "backspace"
-        | "spacer"
-        | "delete"
-        | "enter"
-
-    interface UiNumericEntryModalKeyValue {
-        kind: UiNumericEntryModalKey
-        digit?: number
-    }
+    type UiNumericEntryModalKeyValue = number
 
     /**
-     * Bitmap or resolver-backed icon for a numeric entry key.
+     * Resolver-backed icon for a numeric entry key.
      */
-    export type UiNumericEntryKeyIcon = Bitmap | string | number
+    export type UiNumericEntryKeyIcon = string | number
 
     const UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT = 18
     const UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP = 5
     const UI_NUMERIC_ENTRY_MODAL_KEY_SIZE = 18
     const UI_NUMERIC_ENTRY_MODAL_KEY_GAP = 2
+    const UI_NUMERIC_ENTRY_KEY_SPACER = -1
+    const UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT = 10
+    const UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN = 11
+    const UI_NUMERIC_ENTRY_KEY_BACKSPACE = 12
+    const UI_NUMERIC_ENTRY_KEY_DELETE = 13
+    const UI_NUMERIC_ENTRY_KEY_ENTER = 14
+    const UI_NUMERIC_ENTRY_MODAL_ENTER_STYLE: UiButtonStyle = {
+        backgroundColor: 1,
+        borderColor: 7,
+        frame: "roundedRect",
+        contentAlignment: "center",
+        focusKind: "rect",
+        focusColor: 9,
+    }
+    const UI_NUMERIC_ENTRY_MODAL_DELETE_STYLE: UiButtonStyle = {
+        backgroundColor: 1,
+        borderColor: 2,
+        frame: "roundedRect",
+        contentAlignment: "center",
+        focusKind: "rect",
+        focusColor: 9,
+    }
 
     /**
      * Options for a modal numeric keypad backed by `UiNumericEntry`.
@@ -578,20 +588,19 @@ namespace ui {
         private applyKey(
             value: UiNumericEntryModalKeyValue,
         ): UiNumericEntryResult {
-            switch (value.kind) {
-                case "digit":
-                    return this.entry_.inputDigit(value.digit)
-                case "decimalPoint":
+            if (value >= 0 && value <= 9) return this.entry_.inputDigit(value)
+            switch (value) {
+                case UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT:
                     return this.entry_.inputDecimalPoint()
-                case "toggleSign":
+                case UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN:
                     return this.entry_.toggleSign()
-                case "backspace":
+                case UI_NUMERIC_ENTRY_KEY_BACKSPACE:
                     return this.entry_.backspace()
-                case "delete":
+                case UI_NUMERIC_ENTRY_KEY_DELETE:
                     return this.entry_.createDeleteResult()
-                case "enter":
+                case UI_NUMERIC_ENTRY_KEY_ENTER:
                     return this.entry_.enter()
-                case "spacer":
+                case UI_NUMERIC_ENTRY_KEY_SPACER:
                     return undefined
             }
             return undefined
@@ -604,7 +613,13 @@ namespace ui {
             this.pushDigitControl(controls, 1)
             this.pushDigitControl(controls, 2)
             this.pushDigitControl(controls, 3)
-            controls.push(this.keyControl("backspace", "<-", "backspace"))
+            controls.push(
+                this.keyControl(
+                    UI_NUMERIC_ENTRY_KEY_BACKSPACE,
+                    "<-",
+                    "backspace",
+                ),
+            )
             this.pushDigitControl(controls, 4)
             this.pushDigitControl(controls, 5)
             this.pushDigitControl(controls, 6)
@@ -613,13 +628,27 @@ namespace ui {
             this.pushDigitControl(controls, 9)
             if (this.deleteEnabled_) controls.push(this.deleteControl())
             if (mode == "decimal")
-                controls.push(this.keyControl("decimalPoint", "."))
+                controls.push(
+                    this.keyControl(
+                        UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT,
+                        ".",
+                        "decimalPoint",
+                    ),
+                )
             else controls.push(this.spacerControl("spacer-zero-left"))
             this.pushDigitControl(controls, 0)
             if (mode == "decimal")
-                controls.push(this.keyControl("toggleSign", "+/-"))
+                controls.push(
+                    this.keyControl(
+                        UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN,
+                        "+/-",
+                        "toggleSign",
+                    ),
+                )
             else controls.push(this.spacerControl("spacer-zero-right"))
-            controls.push(this.keyControl("enter", "OK", "enter"))
+            controls.push(
+                this.keyControl(UI_NUMERIC_ENTRY_KEY_ENTER, "OK", "enter"),
+            )
             return controls
         }
 
@@ -646,65 +675,40 @@ namespace ui {
         ): void {
             controls.push({
                 id: "digit-" + digit,
-                value: { kind: "digit", digit },
-                bitmap: this.keyLabelBitmap("" + digit),
+                value: digit,
+                text: "" + digit,
             })
         }
 
         private keyControl(
-            kind: UiNumericEntryModalKey,
+            key: UiNumericEntryModalKeyValue,
             text: string,
-            id?: string,
+            id: string,
         ): UiControl<UiNumericEntryModalKeyValue> {
             return {
-                id: id || kind,
-                value: { kind },
-                bitmap: this.keyLabelBitmap(text),
-                style: this.keyStyle(kind),
+                id,
+                value: key,
+                text,
+                style:
+                    key == UI_NUMERIC_ENTRY_KEY_ENTER
+                        ? UI_NUMERIC_ENTRY_MODAL_ENTER_STYLE
+                        : key == UI_NUMERIC_ENTRY_KEY_DELETE
+                          ? UI_NUMERIC_ENTRY_MODAL_DELETE_STYLE
+                          : undefined,
             }
         }
 
         private deleteControl(): UiControl<UiNumericEntryModalKeyValue> {
-            const control = this.keyControl("delete", "DEL")
+            const control = this.keyControl(
+                UI_NUMERIC_ENTRY_KEY_DELETE,
+                "DEL",
+                "delete",
+            )
             if (this.deleteIcon_ !== undefined) {
-                control.bitmap = undefined
-                if (
-                    typeof this.deleteIcon_ == "string" ||
-                    typeof this.deleteIcon_ == "number"
-                ) {
-                    control.bitmapId = this.deleteIcon_
-                } else {
-                    control.bitmap = this.deleteIcon_
-                }
+                control.text = undefined
+                control.bitmapId = this.deleteIcon_
             }
             return control
-        }
-
-        private keyStyle(kind: UiNumericEntryModalKey): UiButtonStyle {
-            if (kind == "enter")
-                return buttonStyle(
-                    UiButtonStyles.GreenBorderedWhite,
-                    UiButtonStyles.RoundedFrame,
-                )
-            if (kind == "delete")
-                return buttonStyle(
-                    UiButtonStyles.RedBorderedWhite,
-                    UiButtonStyles.RoundedFrame,
-                )
-            return undefined
-        }
-
-        private keyLabelBitmap(text: string): Bitmap {
-            const font = NUMERIC_ENTRY_FONT
-            const labelSize = Math.max(1, UI_NUMERIC_ENTRY_MODAL_KEY_SIZE - 2)
-            const bitmap = bitmaps.create(labelSize, labelSize)
-            const x = Math.max(
-                0,
-                Math.idiv(labelSize - font.charWidth * text.length, 2),
-            )
-            const y = Math.max(0, Math.idiv(labelSize - font.charHeight, 2))
-            bitmap.print(text, x, y, 15, font)
-            return bitmap
         }
 
         private spacerControl(
@@ -712,7 +716,7 @@ namespace ui {
         ): UiControl<UiNumericEntryModalKeyValue> {
             return {
                 id,
-                value: { kind: "spacer" },
+                value: UI_NUMERIC_ENTRY_KEY_SPACER,
                 focusable: false,
                 visible: false,
             }
