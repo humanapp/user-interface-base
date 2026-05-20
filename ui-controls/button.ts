@@ -42,11 +42,6 @@ namespace ui {
         foregroundColor?: number
 
         /**
-         * Foreground color used when disabled.
-         */
-        disabledForegroundColor?: number
-
-        /**
          * Fill color used when selected.
          */
         selectedColor?: number
@@ -55,11 +50,6 @@ namespace ui {
          * Fill color used when toggled.
          */
         toggledColor?: number
-
-        /**
-         * Fill color used when disabled.
-         */
-        disabledColor?: number
 
         /**
          * Frame shape drawn around the button.
@@ -203,10 +193,6 @@ namespace ui {
          */
         toggled?: boolean
 
-        /**
-         * Whether the button is disabled.
-         */
-        disabled?: boolean
     }
 
     /**
@@ -506,12 +492,6 @@ namespace ui {
         ): number | undefined {
             const palette = options ? options.palette : undefined
             if (options) {
-                if (options.disabled) {
-                    if (palette && palette.disabledColor !== undefined)
-                        return palette.disabledColor
-                    if (style.disabledColor !== undefined)
-                        return style.disabledColor
-                }
                 if (options.toggled) {
                     if (palette && palette.toggledColor !== undefined)
                         return palette.toggledColor
@@ -537,13 +517,6 @@ namespace ui {
             const palette = options ? options.palette : undefined
             if (palette && palette.foregroundColor !== undefined)
                 return palette.foregroundColor
-            if (
-                options &&
-                options.disabled &&
-                style.disabledForegroundColor !== undefined
-            ) {
-                return style.disabledForegroundColor
-            }
             return style.foregroundColor !== undefined
                 ? style.foregroundColor
                 : 15
@@ -607,10 +580,8 @@ namespace ui {
         export const Default: UiButtonStyle = {
             backgroundColor: 0,
             foregroundColor: 15,
-            disabledForegroundColor: 8,
             selectedColor: 5,
             toggledColor: 6,
-            disabledColor: 1,
             frame: "none",
             contentAlignment: "start",
             focusKind: "rect",
@@ -728,14 +699,10 @@ namespace ui {
             target.backgroundColor = source.backgroundColor
         if (source.foregroundColor !== undefined)
             target.foregroundColor = source.foregroundColor
-        if (source.disabledForegroundColor !== undefined)
-            target.disabledForegroundColor = source.disabledForegroundColor
         if (source.selectedColor !== undefined)
             target.selectedColor = source.selectedColor
         if (source.toggledColor !== undefined)
             target.toggledColor = source.toggledColor
-        if (source.disabledColor !== undefined)
-            target.disabledColor = source.disabledColor
         if (source.frame !== undefined) target.frame = source.frame
         if (source.borderColor !== undefined)
             target.borderColor = source.borderColor

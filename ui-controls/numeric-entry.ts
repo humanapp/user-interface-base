@@ -720,7 +720,7 @@ namespace ui {
                 id,
                 value: { kind: "spacer" },
                 focusable: false,
-                draw: () => {},
+                visible: false,
             }
         }
 

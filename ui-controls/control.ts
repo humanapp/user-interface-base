@@ -1,6 +1,6 @@
 namespace ui {
     /**
-     * Palette colors used when a control does not provide a custom `draw` callback.
+     * Palette colors used by the default control renderer.
      */
     export interface UiControlPalette {
         /**
@@ -24,32 +24,9 @@ namespace ui {
         toggledColor?: number
 
         /**
-         * Fill color for disabled controls.
-         */
-        disabledColor?: number
-
-        /**
          * Outline color for the focused control.
          */
         focusColor?: number
-    }
-
-    /**
-     * Draws one control inside its arranged rectangle.
-     */
-    export interface UiControlDraw<T> {
-        /**
-         * Renders the complete visual contents of `rect`.
-         */
-        (
-            surface: DrawSurface,
-            control: UiControl<T>,
-            rect: Rect,
-            focused: boolean,
-            selected: boolean,
-            toggled: boolean,
-            disabled: boolean,
-        ): void
     }
 
     /**
@@ -103,8 +80,7 @@ namespace ui {
         customContent?: UiButtonCustomContent
 
         /**
-         * Bitmap drawn for this control when `draw` is omitted. Takes precedence over
-         * `bitmapId`.
+         * Bitmap drawn for this control. Takes precedence over `bitmapId`.
          */
         bitmap?: Bitmap
 
@@ -119,7 +95,7 @@ namespace ui {
         omitMissingBitmap?: boolean
 
         /**
-         * Optional colors used when `draw` is omitted.
+         * Optional colors used by the default renderer.
          */
         palette?: UiControlPalette
 
@@ -161,11 +137,6 @@ namespace ui {
         visible?: boolean
 
         /**
-         * Whether this control is visible but cannot be focused or activated.
-         */
-        disabled?: boolean
-
-        /**
          * Whether built-in control drawing should show selected state.
          */
         selected?: boolean
@@ -174,11 +145,6 @@ namespace ui {
          * Whether built-in control drawing should show toggled state.
          */
         toggled?: boolean
-
-        /**
-         * Optional callback that draws the complete control rectangle.
-         */
-        draw?: UiControlDraw<T>
 
         /**
          * Optional callback invoked when this control is activated.
@@ -239,10 +205,6 @@ namespace _uiControls {
 
     export function isVisible<T>(control: ui.UiControl<T>): boolean {
         return control.visible !== false
-    }
-
-    export function isDisabled<T>(control: ui.UiControl<T>): boolean {
-        return control.disabled || false
     }
 
     export function isSelected<T>(control: ui.UiControl<T>): boolean {
@@ -376,8 +338,7 @@ namespace _uiControls {
         if (
             explicit &&
             isVisible(explicit) &&
-            isFocusable(explicit) &&
-            !isDisabled(explicit)
+            isFocusable(explicit)
         )
             return targetId(scopeId, explicit.id)
 
@@ -386,7 +347,6 @@ namespace _uiControls {
             if (
                 isVisible(control) &&
                 isFocusable(control) &&
-                !isDisabled(control) &&
                 isSelected(control)
             )
                 return targetId(scopeId, control.id)
@@ -394,11 +354,7 @@ namespace _uiControls {
 
         for (let i = 0; i < controls.length; i++) {
             const control = controls[i]
-            if (
-                isVisible(control) &&
-                isFocusable(control) &&
-                !isDisabled(control)
-            )
+            if (isVisible(control) && isFocusable(control))
                 return targetId(scopeId, control.id)
         }
 
@@ -410,26 +366,12 @@ namespace _uiControls {
         assets: ui.UiAssetResolver,
         control: ui.UiControl<T>,
         rect: ui.Rect,
-        focused: boolean,
         buttonView: ui.UiButtonView,
         controlStyle?: ui.UiButtonStyle,
         labelBounds?: ui.Rect,
     ): void {
         const selected = isSelected(control)
         const toggled = isToggled(control)
-        const disabled = isDisabled(control)
-        if (control.draw) {
-            control.draw(
-                surface,
-                control,
-                rect,
-                focused,
-                selected,
-                toggled,
-                disabled,
-            )
-            return
-        }
 
         buttonView.render(
             surface,
@@ -440,10 +382,8 @@ namespace _uiControls {
                 text: controlText(control, assets),
             },
             {
-                focused,
                 selected,
                 toggled,
-                disabled,
                 style: control.style || controlStyle,
                 palette: control.palette,
                 labelBounds,
@@ -461,7 +401,6 @@ namespace _uiControls {
         controlStyle?: ui.UiButtonStyle,
         labelBounds?: ui.Rect,
     ): void {
-        if (control.draw) return
         buttonView.renderFocus(
             surface,
             rect,
@@ -474,7 +413,6 @@ namespace _uiControls {
                 focused: true,
                 selected: isSelected(control),
                 toggled: isToggled(control),
-                disabled: isDisabled(control),
                 style: control.style || controlStyle,
                 palette: control.palette,
                 labelBounds,

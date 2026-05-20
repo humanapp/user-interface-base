@@ -88,11 +88,6 @@ namespace ui {
         rect: Rect
 
         /**
-         * Whether focus and activation reject this target.
-         */
-        disabled?: boolean
-
-        /**
          * Whether focus and activation ignore this target.
          */
         hidden?: boolean
@@ -182,7 +177,6 @@ namespace ui {
                   | "missingScope"
                   | "missingTarget"
                   | "scopeMismatch"
-                  | "disabled"
                   | "hidden"
                   | "modalBlocked"
                   | "notModal"
@@ -226,7 +220,6 @@ namespace ui {
               reason:
                   | "missingActive"
                   | "missingTarget"
-                  | "disabled"
                   | "hidden"
                   | "notActivatable"
           }
@@ -286,7 +279,6 @@ namespace ui {
         public id: UiFocusId
         public scopeId: UiFocusScopeId
         public rect: Rect
-        public disabled: boolean
         public hidden: boolean
         public activatable: boolean
         public scrollOwnerId: UiFocusScrollOwnerId | undefined
@@ -297,7 +289,6 @@ namespace ui {
             this.id = options.id
             this.scopeId = options.scopeId
             this.rect = new Rect()
-            this.disabled = false
             this.hidden = false
             this.activatable = false
             this.scrollOwnerId = undefined
@@ -312,7 +303,6 @@ namespace ui {
         ): void {
             this.scopeId = options.scopeId
             copyArrangedLayoutRect(this.rect, options.rect)
-            this.disabled = options.disabled || false
             this.hidden = options.hidden || false
             this.activatable = options.activatable || false
             this.scrollOwnerId = options.scrollOwnerId
@@ -544,13 +534,6 @@ namespace ui {
                     targetId,
                     reason: "scopeMismatch",
                 }
-            if (target.disabled)
-                return {
-                    kind: "rejected",
-                    scopeId,
-                    targetId,
-                    reason: "disabled",
-                }
             if (target.hidden)
                 return { kind: "rejected", scopeId, targetId, reason: "hidden" }
 
@@ -634,13 +617,6 @@ namespace ui {
                     reason: "missingTarget",
                 }
             }
-            if (target.disabled)
-                return {
-                    kind: "notActivated",
-                    scopeId: scope.id,
-                    targetId: target.id,
-                    reason: "disabled",
-                }
             if (target.hidden)
                 return {
                     kind: "notActivated",
@@ -761,7 +737,6 @@ namespace ui {
             return (
                 !!target &&
                 target.scopeId == scopeId &&
-                !target.disabled &&
                 !target.hidden
             )
         }

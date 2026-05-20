@@ -21,11 +21,6 @@ namespace ui {
         /**
          * Whether movement skips this target as a destination.
          */
-        disabled?: boolean
-
-        /**
-         * Whether movement skips this target as a destination.
-         */
         hidden?: boolean
 
         /**
@@ -43,7 +38,7 @@ namespace ui {
     }
 
     /**
-     * Ordered target record for row and column focus movement.
+     * Ordered target record for row focus movement.
      *
      * The `targets` array defines movement order. Disabled and hidden targets in
      * that array are skipped as destinations.
@@ -215,27 +210,10 @@ namespace ui {
     }
 
     /**
-     * Returns the focus movement result for a vertical column.
-     *
-     * Up and down requests move through `targets` order. Left and right requests
-     * return a boundary result. Callers apply moved results to focus state.
-     */
-    export function moveFocusInColumn(
-        input: UiFocusLinearMoveInput,
-    ): UiFocusMoveResult {
-        return moveFocusInLinearOrder(
-            input,
-            input.direction == "up",
-            input.direction == "down",
-        )
-    }
-
-    /**
      * Returns the focus movement result for a sparse coordinate grid.
      *
-     * Movement scans in the requested direction from the current cell. Missing,
-     * disabled, and hidden cells are skipped. Callers apply moved results to
-     * focus state.
+     * Movement scans in the requested direction from the current cell. Missing
+     * and hidden cells are skipped. Callers apply moved results to focus state.
      */
     export function moveFocusInGrid(
         input: UiFocusGridMoveInput,
@@ -776,7 +754,7 @@ namespace ui {
     function isEligibleNavigationTarget(
         target: UiFocusNavigationTarget,
     ): boolean {
-        return !!target && !target.disabled && !target.hidden
+        return !!target && !target.hidden
     }
 
     function isHorizontalDirection(direction: UiFocusDirection): boolean {

@@ -797,7 +797,6 @@ namespace ui {
             return {
                 id: _uiControls.targetId(this.modalScopeId_, control.id),
                 rect,
-                disabled: _uiControls.isDisabled(control),
                 hidden: !_uiControls.isVisible(control),
             }
         }

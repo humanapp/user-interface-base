@@ -404,22 +404,14 @@ namespace ui {
                 surface,
                 this.labelBounds_,
             )
-            const activeTargetId =
-                focus && focus.getActiveScopeId() == this.scopeId_
-                    ? focus.getActiveTargetId(this.scopeId_)
-                    : undefined
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!_uiControls.isVisible(control)) continue
-                const focused =
-                    activeTargetId ==
-                    _uiControls.targetId(this.scopeId_, control.id)
                 _uiControls.renderControl(
                     surface,
                     assets,
                     control,
                     this.controlRects_[i],
-                    focused && !!control.draw,
                     this.controlView_,
                     this.controlStyle_,
                     labelBounds,
@@ -482,7 +474,6 @@ namespace ui {
                     rect,
                     scrollOwnerId: this.scrollOwnerId_,
                     scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                    disabled: _uiControls.isDisabled(control),
                     hidden: !_uiControls.isVisible(control),
                     activatable: true,
                 })
@@ -545,7 +536,6 @@ namespace ui {
                 rect,
                 scrollOwnerId: this.scrollOwnerId_,
                 scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                disabled: _uiControls.isDisabled(control),
                 hidden: !_uiControls.isVisible(control),
             }
         }

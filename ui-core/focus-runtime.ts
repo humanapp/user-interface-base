@@ -4,7 +4,6 @@ namespace ui {
      */
     export type UiFocusNavigation =
         | UiRowFocusNavigation
-        | UiColumnFocusNavigation
         | UiGridFocusNavigation
         | UiRaggedGridFocusNavigation
         | UiFocusNavigationProvider
@@ -25,26 +24,6 @@ namespace ui {
 
         /**
          * Whether movement wraps inside the row.
-         */
-        wrap?: boolean
-    }
-
-    /**
-     * Column navigation for a focus scope.
-     */
-    export interface UiColumnFocusNavigation {
-        /**
-         * Navigation kind.
-         */
-        kind: "column"
-
-        /**
-         * Targets in movement order.
-         */
-        targets: UiFocusNavigationTarget[]
-
-        /**
-         * Whether movement wraps inside the column.
          */
         wrap?: boolean
     }
@@ -479,16 +458,6 @@ namespace ui {
                         direction: request.direction,
                         targets: row.targets,
                         wrap: row.wrap,
-                    })
-                }
-                case "column": {
-                    const column = <UiColumnFocusNavigation>navigation
-                    return moveFocusInColumn({
-                        scopeId: request.scopeId,
-                        currentTargetId: request.currentTargetId,
-                        direction: request.direction,
-                        targets: column.targets,
-                        wrap: column.wrap,
                     })
                 }
                 case "grid": {
