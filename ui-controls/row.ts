@@ -509,31 +509,3 @@ namespace ui {
         }
     }
 }
-
-namespace _uiControls {
-    export function activeTargetIdForScope(
-        focus: ui.UiFocusState,
-        scopeId: ui.UiFocusScopeId,
-    ): ui.UiFocusId {
-        if (!focus || focus.getActiveScopeId() != scopeId) return undefined
-        return focus.getActiveTargetId(scopeId)
-    }
-
-    export function focusedControlOverlayIndex<T>(
-        scopeId: ui.UiFocusScopeId,
-        controls: ui.UiControl<T>[],
-        activeTargetId: ui.UiFocusId,
-    ): number {
-        if (activeTargetId === undefined) return -1
-        for (let i = 0; i < controls.length; i++) {
-            const control = controls[i]
-            if (
-                isVisible(control) &&
-                isFocusable(control) &&
-                activeTargetId == targetId(scopeId, control.id)
-            )
-                return i
-        }
-        return -1
-    }
-}

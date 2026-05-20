@@ -387,10 +387,13 @@ namespace ui {
         public layoutDirty: boolean
         private modalScopeId_: UiFocusScopeId
         private entry_: UiNumericEntry
-        private grid_: UiGrid<UiNumericEntryModalKeyValue>
+        private controls_: UiControl<UiNumericEntryModalKeyValue>[]
+        private rows_: number[]
+        private controlRects_: Rect[]
+        private keyStyle_: UiButtonStyle
+        private keyView_: UiButtonView
         private displayRect_: Rect
         private gridRect_: Rect
-        private measuredGrid_: UiMeasuredSize
         private modalStyle_: UiModalStyle
         private contentMargin_: number
         private deleteEnabled_: boolean
@@ -404,19 +407,12 @@ namespace ui {
             this.contentMargin_ = this.contentMargin(options.modalStyle)
             this.deleteEnabled_ = options.deleteEnabled || false
             this.deleteIcon_ = options.deleteIcon
-            const keyGap = UI_NUMERIC_ENTRY_MODAL_KEY_GAP
-            this.grid_ = new UiGrid<UiNumericEntryModalKeyValue>({
-                scopeId: options.modalScopeId,
-                controls: this.createControls(options.mode),
-                rows: this.rows(),
-                defaultControlId: "digit-1",
-                controlWidth: UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
-                controlHeight: UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
-                rowGap: keyGap,
-                columnGap: keyGap,
-                controlStyle:
-                    options.keyStyle || UiButtonStyles.LightShadowedWhite,
-            })
+            this.controls_ = this.createControls(options.mode)
+            this.rows_ = this.rows()
+            this.controlRects_ = []
+            this.keyStyle_ =
+                options.keyStyle || UiButtonStyles.LightShadowedWhite
+            this.keyView_ = new UiButtonView({ style: this.keyStyle_ })
             this.layoutSpec = {
                 width: { mode: "content" },
                 height: { mode: "content" },
@@ -425,7 +421,6 @@ namespace ui {
             this.layoutDirty = true
             this.displayRect_ = new Rect()
             this.gridRect_ = new Rect()
-            this.measuredGrid_ = new UiMeasuredSize()
             this.onResult_ = options.onResult
         }
 
@@ -443,14 +438,12 @@ namespace ui {
             constraints: UiLayoutConstraints,
             output: UiMeasuredSize,
         ): void {
-            this.grid_.measure(constraints, this.measuredGrid_)
-            const width =
-                this.measuredGrid_.preferredWidth + this.contentMargin_ * 2
+            const width = this.gridWidth() + this.contentMargin_ * 2
             const height =
                 this.contentMargin_ * 2 +
                 UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT +
                 UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP +
-                this.measuredGrid_.preferredHeight
+                this.gridHeight()
             output.set(width, height, width, height)
             this.clearLayoutInvalidation()
         }
@@ -478,7 +471,7 @@ namespace ui {
                         UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP,
                 ),
             )
-            this.grid_.arrange(this.gridRect_)
+            this.arrangeKeys()
             this.clearLayoutInvalidation()
         }
 
@@ -487,7 +480,6 @@ namespace ui {
          */
         public invalidateLayout(): void {
             this.layoutDirty = true
-            this.grid_.invalidateLayout()
         }
 
         /**
@@ -495,7 +487,6 @@ namespace ui {
          */
         public clearLayoutInvalidation(): void {
             this.layoutDirty = false
-            this.grid_.clearLayoutInvalidation()
         }
 
         /**
@@ -505,14 +496,23 @@ namespace ui {
             focus: UiFocusState,
             controller?: UiFocusInputController,
         ): UiFocusSetResult {
-            this.grid_.registerFocusTargets(focus, {
+            focus.setScope({
                 id: this.modalScopeId_,
                 parentScopeId: focus.getActiveScopeId(),
-                preferredTargetId: this.grid_.resolvePreferredTargetId(),
+                preferredTargetId: _uiControls.targetId(
+                    this.modalScopeId_,
+                    "digit-1",
+                ),
                 handlesCancel: true,
                 modal: true,
             })
-            if (controller) this.grid_.registerNavigation(controller)
+            this.registerTargets(focus)
+            if (controller)
+                controller.setNavigation(this.modalScopeId_, {
+                    kind: "raggedGrid",
+                    rows: this.navigationRows(),
+                    horizontalWrap: true,
+                })
             return focus.setActiveScope(this.modalScopeId_)
         }
 
@@ -535,11 +535,17 @@ namespace ui {
                 result.detail &&
                 result.detail.activationResult
             ) {
-                const gridResult = this.grid_.createResultForActivation(
-                    result.detail.activationResult,
+                const control = _uiControls.findControlByTargetId(
+                    this.modalScopeId_,
+                    this.controls_,
+                    result.detail.activationResult.targetId,
                 )
-                if (gridResult && gridResult.kind == "activated")
-                    entryResult = this.applyKey(gridResult.value)
+                if (
+                    control &&
+                    result.detail.activationResult.kind == "activated" &&
+                    result.detail.activationResult.scopeId == this.modalScopeId_
+                )
+                    entryResult = this.applyKey(control.value)
             } else if (result.kind == "cancelled") {
                 entryResult = this.entry_.cancel()
             }
@@ -556,9 +562,164 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
-            drawModalPanel(surface, this.finalRect, this.modalStyle_)
+            surface.drawRoundedRect(
+                this.finalRect,
+                15,
+                this.modalStyle_ &&
+                    this.modalStyle_.panelColor !== undefined
+                    ? this.modalStyle_.panelColor
+                    : 1,
+            )
             this.entry_.render(surface, this.displayRect_)
-            this.grid_.render(surface, assets, focus)
+            this.renderKeys(surface, assets)
+            this.renderFocus(surface, assets, focus)
+        }
+
+        private arrangeKeys(): void {
+            this.ensureKeyRects()
+            let index = 0
+            for (let row = 0; row < this.rows_.length; row++) {
+                for (
+                    let column = 0;
+                    column < this.rows_[row] && index < this.controls_.length;
+                    column++
+                ) {
+                    this.controlRects_[index].set(
+                        this.gridRect_.x +
+                            column *
+                                (UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
+                                    UI_NUMERIC_ENTRY_MODAL_KEY_GAP),
+                        this.gridRect_.y +
+                            row *
+                                (UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
+                                    UI_NUMERIC_ENTRY_MODAL_KEY_GAP),
+                        UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
+                        UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
+                    )
+                    index++
+                }
+            }
+        }
+
+        private registerTargets(focus: UiFocusState): void {
+            this.ensureKeyRects()
+            for (let i = 0; i < this.controls_.length; i++) {
+                const control = this.controls_[i]
+                if (
+                    !_uiControls.isVisible(control) ||
+                    !_uiControls.isFocusable(control)
+                )
+                    continue
+                focus.setTarget({
+                    id: _uiControls.targetId(this.modalScopeId_, control.id),
+                    scopeId: this.modalScopeId_,
+                    rect: this.controlRects_[i],
+                    activatable: true,
+                })
+            }
+        }
+
+        private navigationRows(): UiFocusNavigationTarget[][] {
+            const rows: UiFocusNavigationTarget[][] = []
+            let index = 0
+            for (let row = 0; row < this.rows_.length; row++) {
+                const rowTargets: UiFocusNavigationTarget[] = []
+                for (
+                    let column = 0;
+                    column < this.rows_[row] && index < this.controls_.length;
+                    column++
+                ) {
+                    const control = this.controls_[index]
+                    if (
+                        _uiControls.isVisible(control) &&
+                        _uiControls.isFocusable(control)
+                    )
+                        rowTargets.push({
+                            id: _uiControls.targetId(
+                                this.modalScopeId_,
+                                control.id,
+                            ),
+                            rect: this.controlRects_[index],
+                            hidden: !_uiControls.isVisible(control),
+                        })
+                    index++
+                }
+                if (rowTargets.length) rows.push(rowTargets)
+            }
+            return rows
+        }
+
+        private renderKeys(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+        ): void {
+            for (let i = 0; i < this.controls_.length; i++) {
+                const control = this.controls_[i]
+                if (!_uiControls.isVisible(control)) continue
+                _uiControls.renderControl(
+                    surface,
+                    assets,
+                    control,
+                    this.controlRects_[i],
+                    this.keyView_,
+                    this.keyStyle_,
+                )
+            }
+        }
+
+        private renderFocus(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus: UiFocusState,
+        ): void {
+            const activeTargetId = _uiControls.activeTargetIdForScope(
+                focus,
+                this.modalScopeId_,
+            )
+            const index = _uiControls.focusedControlOverlayIndex(
+                this.modalScopeId_,
+                this.controls_,
+                activeTargetId,
+            )
+            if (index < 0) return
+            _uiControls.renderControl(
+                surface,
+                assets,
+                this.controls_[index],
+                this.controlRects_[index],
+                this.keyView_,
+                this.keyStyle_,
+                undefined,
+                true,
+            )
+        }
+
+        private ensureKeyRects(): void {
+            while (this.controlRects_.length < this.controls_.length)
+                this.controlRects_.push(new Rect())
+            while (this.controlRects_.length > this.controls_.length)
+                this.controlRects_.pop()
+        }
+
+        private gridWidth(): number {
+            return (
+                this.maxRowLength() * UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
+                (this.maxRowLength() - 1) * UI_NUMERIC_ENTRY_MODAL_KEY_GAP
+            )
+        }
+
+        private gridHeight(): number {
+            return (
+                this.rows_.length * UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
+                (this.rows_.length - 1) * UI_NUMERIC_ENTRY_MODAL_KEY_GAP
+            )
+        }
+
+        private maxRowLength(): number {
+            let max = 0
+            for (let i = 0; i < this.rows_.length; i++)
+                max = Math.max(max, this.rows_[i])
+            return max
         }
 
         private applyKey(
