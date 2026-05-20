@@ -438,16 +438,21 @@ namespace ui {
                 focus,
                 this.scopeId_,
             )
-            _uiControls.renderFocusedControlOverlay(
-                surface,
-                assets,
+            const index = _uiControls.focusedControlOverlayIndex(
                 this.scopeId_,
                 this.controls_,
-                this.controlRects_,
                 activeTargetId,
+            )
+            if (index < 0) return
+            _uiControls.renderControl(
+                surface,
+                assets,
+                this.controls_[index],
+                this.controlRects_[index],
                 this.controlView_,
                 this.controlStyle_,
                 labelBounds,
+                true,
             )
         }
 
@@ -553,35 +558,7 @@ namespace _uiControls {
         return focus.getActiveTargetId(scopeId)
     }
 
-    export function renderFocusedControlOverlay<T>(
-        surface: ui.DrawSurface,
-        assets: ui.UiAssetResolver,
-        scopeId: ui.UiFocusScopeId,
-        controls: ui.UiControl<T>[],
-        controlRects: ui.Rect[],
-        activeTargetId: ui.UiFocusId,
-        buttonView: ui.UiButtonView,
-        controlStyle?: ui.UiButtonStyle,
-        labelBounds?: ui.Rect,
-    ): void {
-        const index = focusedControlOverlayIndex(
-            scopeId,
-            controls,
-            activeTargetId,
-        )
-        if (index < 0) return
-        renderControlFocus(
-            surface,
-            assets,
-            controls[index],
-            controlRects[index],
-            buttonView,
-            controlStyle,
-            labelBounds,
-        )
-    }
-
-    function focusedControlOverlayIndex<T>(
+    export function focusedControlOverlayIndex<T>(
         scopeId: ui.UiFocusScopeId,
         controls: ui.UiControl<T>[],
         activeTargetId: ui.UiFocusId,

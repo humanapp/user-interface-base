@@ -453,16 +453,21 @@ namespace ui {
                 focus && focus.getActiveScopeId() == this.scopeId_
                     ? focus.getActiveTargetId(this.scopeId_)
                     : undefined
-            _uiControls.renderFocusedControlOverlay(
-                surface,
-                assets,
+            const index = _uiControls.focusedControlOverlayIndex(
                 this.scopeId_,
                 this.controls_,
-                this.controlRects_,
                 activeTargetId,
+            )
+            if (index < 0) return
+            _uiControls.renderControl(
+                surface,
+                assets,
+                this.controls_[index],
+                this.controlRects_[index],
                 this.controlView_,
                 this.controlStyle_,
                 labelBounds,
+                true,
             )
         }
 

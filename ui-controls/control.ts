@@ -246,39 +246,6 @@ namespace _uiControls {
         return value < 0 ? 0 : value
     }
 
-    export function controlText<T>(
-        control: ui.UiControl<T>,
-        assets: ui.UiAssetResolver,
-    ): string {
-        if (control.text !== undefined) return control.text
-        if (control.textId !== undefined) return assets.getText(control.textId)
-        return ""
-    }
-
-    export function controlFocusLabelText<T>(
-        control: ui.UiControl<T>,
-        assets: ui.UiAssetResolver,
-    ): string | undefined {
-        if (control.focusLabel !== undefined) return control.focusLabel
-        if (control.focusLabelId !== undefined)
-            return assets.getText(control.focusLabelId)
-        return undefined
-    }
-
-    export function controlBitmap<T>(
-        control: ui.UiControl<T>,
-        assets: ui.UiAssetResolver,
-    ): Bitmap | undefined {
-        if (control.customContent) return undefined
-        if (control.bitmap) return control.bitmap
-        if (control.bitmapId !== undefined)
-            return assets.getBitmap(
-                control.bitmapId,
-                control.omitMissingBitmap || false,
-            )
-        return undefined
-    }
-
     export function findControlById<T>(
         controls: ui.UiControl<T>[],
         controlId: string | undefined,
@@ -341,40 +308,43 @@ namespace _uiControls {
         buttonView: ui.UiButtonView,
         controlStyle?: ui.UiButtonStyle,
         labelBounds?: ui.Rect,
+        focused?: boolean,
     ): void {
-        buttonView.render(
-            surface,
-            rect,
-            {
-                customContent: control.customContent,
-                bitmap: controlBitmap(control, assets),
-                text: controlText(control, assets),
-            },
-            control.style || controlStyle,
-        )
-    }
-
-    export function renderControlFocus<T>(
-        surface: ui.DrawSurface,
-        assets: ui.UiAssetResolver,
-        control: ui.UiControl<T>,
-        rect: ui.Rect,
-        buttonView: ui.UiButtonView,
-        controlStyle?: ui.UiButtonStyle,
-        labelBounds?: ui.Rect,
-    ): void {
-        buttonView.renderFocus(
-            surface,
-            rect,
-            {
-                customContent: control.customContent,
-                bitmap: controlBitmap(control, assets),
-                text: controlText(control, assets),
-            },
-            control.style || controlStyle,
-            labelBounds,
-            controlFocusLabelText(control, assets),
-        )
+        const content: ui.UiButtonContent = {
+            customContent: control.customContent,
+            text: control.text !== undefined
+                ? control.text
+                : control.textId !== undefined
+                  ? assets.getText(control.textId)
+                  : "",
+        }
+        if (!control.customContent) {
+            if (control.bitmap) content.bitmap = control.bitmap
+            else if (control.bitmapId !== undefined)
+                content.bitmap = assets.getBitmap(
+                    control.bitmapId,
+                    control.omitMissingBitmap || false,
+                )
+        }
+        const style = control.style || controlStyle
+        if (focused) {
+            const focusLabel =
+                control.focusLabel !== undefined
+                    ? control.focusLabel
+                    : control.focusLabelId !== undefined
+                      ? assets.getText(control.focusLabelId)
+                      : undefined
+            buttonView.renderFocus(
+                surface,
+                rect,
+                content,
+                style,
+                labelBounds,
+                focusLabel,
+            )
+        } else {
+            buttonView.render(surface, rect, content, style)
+        }
     }
 
     const labelBoundsScratch = new ui.Rect()
