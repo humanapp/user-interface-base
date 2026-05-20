@@ -413,9 +413,10 @@ namespace ui {
          * Converts focus activation into a modal activation or keep-open result.
          */
         public createResultForActivation(
-            result: UiFocusActivationResult,
+            scopeId: UiFocusScopeId,
+            targetId: UiFocusId,
         ): UiPickerResult<T> {
-            const control = this.activatedControl(result)
+            const control = this.activatedControl(scopeId, targetId)
             if (!control) return undefined
             if (this.closeOnActivate_) {
                 return {
@@ -438,13 +439,10 @@ namespace ui {
          * Converts focus input into a modal result when one occurred.
          */
         public handleFocusInput(result: UiFocusInputResult): UiPickerResult<T> {
-            if (
-                result.kind == "activated" &&
-                result.detail &&
-                result.detail.activationResult
-            ) {
+            if (result.kind == "activated") {
                 const activation = this.createResultForActivation(
-                    result.detail.activationResult,
+                    result.scopeId,
+                    result.targetId,
                 )
                 this.emitActivate(activation)
                 return activation
@@ -639,20 +637,20 @@ namespace ui {
         }
 
         private activatedControl(
-            result: UiFocusActivationResult,
+            scopeId: UiFocusScopeId,
+            targetId: UiFocusId,
         ): UiControl<T> {
-            if (result.kind != "activated" || result.scopeId != this.modalScopeId_)
-                return undefined
+            if (scopeId != this.modalScopeId_) return undefined
             return (
                 _uiControls.findControlByTargetId(
                     this.modalScopeId_,
                     this.titleControls_,
-                    result.targetId,
+                    targetId,
                 ) ||
                 _uiControls.findControlByTargetId(
                     this.modalScopeId_,
                     this.controls_,
-                    result.targetId,
+                    targetId,
                 )
             )
         }

@@ -140,32 +140,6 @@ namespace ui {
         | "unsupportedPhase"
 
     /**
-     * Optional operation details returned by focus input handling.
-     */
-    export interface UiFocusInputDetail {
-        /**
-         * Directional movement result when movement handling ran.
-         */
-        moveResult?: UiFocusMoveResult
-
-        /**
-         * Focus transition result when the controller requested focus changes.
-         */
-        focusResult?: UiFocusSetResult
-
-        /**
-         * Activation result when focus activation was requested.
-         */
-        activationResult?: UiFocusActivationResult
-
-        /**
-         * Cancellation result when focus cancellation was requested.
-         */
-        cancelResult?: UiFocusCancelResult
-
-    }
-
-    /**
      * Result returned by focus input handling.
      */
     export interface UiFocusInputResult {
@@ -190,9 +164,19 @@ namespace ui {
         reason?: UiFocusInputReason
 
         /**
-         * Optional lower-level result details.
+         * Scope associated with the handled focus input.
          */
-        detail?: UiFocusInputDetail
+        scopeId?: UiFocusScopeId
+
+        /**
+         * Target associated with the handled focus input.
+         */
+        targetId?: UiFocusId
+
+        /**
+         * Direction associated with a boundary exit.
+         */
+        direction?: UiFocusDirection
 
         /**
          * Scroll request emitted by focus movement or a focus transition.
@@ -200,27 +184,19 @@ namespace ui {
         scrollRequest?: UiFocusScrollRequest
     }
 
-    class UiFocusNavigationRecord {
-        public scopeId: UiFocusScopeId
-        public navigation: UiFocusNavigation
-
-        constructor(scopeId: UiFocusScopeId, navigation: UiFocusNavigation) {
-            this.scopeId = scopeId
-            this.navigation = navigation
-        }
-    }
-
     /**
      * Composes semantic input actions with focus state and registered navigation.
      */
     export class UiFocusInputController {
         private focus_: UiFocusState
-        private navigation_: UiFocusNavigationRecord[]
+        private navigationScopeIds_: UiFocusScopeId[]
+        private navigationValues_: UiFocusNavigation[]
         private scroll_: UiFocusScrollHandler
 
         constructor(options: UiFocusInputControllerOptions) {
             this.focus_ = options.focus
-            this.navigation_ = []
+            this.navigationScopeIds_ = []
+            this.navigationValues_ = []
             this.scroll_ = options.scroll
         }
 
@@ -231,13 +207,12 @@ namespace ui {
             scopeId: UiFocusScopeId,
             navigation: UiFocusNavigation,
         ): void {
-            const record = this.navigationForScope(scopeId)
-            if (record) {
-                record.navigation = navigation
+            const index = this.navigationIndex(scopeId)
+            if (index >= 0) {
+                this.navigationValues_[index] = navigation
             } else {
-                this.navigation_.push(
-                    new UiFocusNavigationRecord(scopeId, navigation),
-                )
+                this.navigationScopeIds_.push(scopeId)
+                this.navigationValues_.push(navigation)
             }
         }
 
@@ -245,11 +220,10 @@ namespace ui {
          * Removes directional navigation for one focus scope.
          */
         public clearNavigation(scopeId: UiFocusScopeId): void {
-            for (let i = 0; i < this.navigation_.length; i++) {
-                if (this.navigation_[i].scopeId == scopeId) {
-                    this.navigation_.removeAt(i)
-                    return
-                }
+            const index = this.navigationIndex(scopeId)
+            if (index >= 0) {
+                this.navigationScopeIds_.removeAt(index)
+                this.navigationValues_.removeAt(index)
             }
         }
 
@@ -281,7 +255,8 @@ namespace ui {
             event: UiInputEvent,
             direction: UiFocusDirection,
         ): UiFocusInputResult {
-            if (!this.isPressedOrRepeated(event)) {
+            const phase = event.phase || "pressed"
+            if (phase != "pressed" && phase != "repeated") {
                 return {
                     action: event.action,
                     handled: false,
@@ -300,8 +275,8 @@ namespace ui {
                 }
             }
 
-            const record = this.navigationForScope(activeScopeId)
-            if (!record) {
+            const navigationIndex = this.navigationIndex(activeScopeId)
+            if (navigationIndex < 0) {
                 return {
                     action: event.action,
                     handled: false,
@@ -311,7 +286,9 @@ namespace ui {
             }
 
             const currentTargetId = this.focus_.getActiveTargetId(activeScopeId)
-            const moveResult = this.moveFocus(record.navigation, {
+            const moveResult = (<UiFocusNavigationProvider>(
+                this.navigationValues_[navigationIndex]
+            )).move({
                 scopeId: activeScopeId,
                 direction,
                 currentTargetId,
@@ -330,25 +307,30 @@ namespace ui {
                     moveResult.toScopeId,
                     moveResult.toTargetId,
                 )
-                if (!this.isAcceptedFocusResult(focusResult)) {
+                if (
+                    focusResult.kind != "focused" &&
+                    focusResult.kind != "unchanged"
+                ) {
                     return {
                         action: event.action,
                         handled: false,
                         kind: "ignored",
                         reason: "focusRejected",
-                        detail: { moveResult, focusResult },
                     }
                 }
 
                 const scrollRequest =
-                    this.focusScrollRequest(focusResult) ||
+                    (focusResult.kind == "focused"
+                        ? focusResult.scrollRequest
+                        : undefined) ||
                     moveResult.scrollRequest
-                if (scrollRequest) this.deliverScrollRequest(scrollRequest)
+                if (scrollRequest && this.scroll_) this.scroll_(scrollRequest)
                 return {
                     action: event.action,
                     handled: true,
                     kind: "moved",
-                    detail: { moveResult, focusResult },
+                    scopeId: moveResult.toScopeId,
+                    targetId: moveResult.toTargetId,
                     scrollRequest,
                 }
             }
@@ -359,7 +341,9 @@ namespace ui {
                     handled: false,
                     kind: "exited",
                     reason: "movementExited",
-                    detail: { moveResult },
+                    scopeId: moveResult.scopeId,
+                    targetId: moveResult.targetId,
+                    direction: moveResult.direction,
                 }
             }
 
@@ -367,12 +351,13 @@ namespace ui {
                 action: event.action,
                 handled: true,
                 kind: "stayed",
-                detail: { moveResult },
+                scopeId: moveResult.scopeId,
+                targetId: moveResult.targetId,
             }
         }
 
         private handleActivateInput(event: UiInputEvent): UiFocusInputResult {
-            if (this.phase(event) != "pressed") {
+            if ((event.phase || "pressed") != "pressed") {
                 return {
                     action: event.action,
                     handled: false,
@@ -389,12 +374,13 @@ namespace ui {
                     activationResult.kind == "activated"
                         ? "activated"
                         : "notActivated",
-                detail: { activationResult },
+                scopeId: activationResult.scopeId,
+                targetId: activationResult.targetId,
             }
         }
 
         private handleCancelInput(event: UiInputEvent): UiFocusInputResult {
-            if (this.phase(event) != "pressed") {
+            if ((event.phase || "pressed") != "pressed") {
                 return {
                     action: event.action,
                     handled: false,
@@ -411,74 +397,15 @@ namespace ui {
                     cancelResult.kind == "handled"
                         ? "cancelled"
                         : "notCancelled",
-                detail: { cancelResult },
+                scopeId: cancelResult.scopeId,
             }
         }
 
-        private moveFocus(
-            navigation: UiFocusNavigation,
-            request: UiFocusNavigationRequest,
-        ): UiFocusMoveResult | undefined {
-            const kind = (<any>navigation).kind
-            if (kind === undefined)
-                return (<UiFocusNavigationProvider>navigation).move(request)
-
-            if (kind == "row") {
-                const row = <UiRowFocusNavigation>navigation
-                return moveFocusInRow({
-                    scopeId: request.scopeId,
-                    currentTargetId: request.currentTargetId,
-                    direction: request.direction,
-                    targets: row.targets,
-                    wrap: row.wrap,
-                })
+        private navigationIndex(scopeId: UiFocusScopeId): number {
+            for (let i = 0; i < this.navigationScopeIds_.length; i++) {
+                if (this.navigationScopeIds_[i] == scopeId) return i
             }
-
-            const raggedGrid = <UiRaggedGridFocusNavigation>navigation
-            return moveFocusInRaggedGrid({
-                scopeId: request.scopeId,
-                currentTargetId: request.currentTargetId,
-                direction: request.direction,
-                rows: raggedGrid.rows,
-                wrap: raggedGrid.wrap,
-                horizontalWrap: raggedGrid.horizontalWrap,
-                columnIntent: raggedGrid.columnIntent,
-                verticalStrategy: raggedGrid.verticalStrategy,
-            })
-        }
-
-        private navigationForScope(
-            scopeId: UiFocusScopeId,
-        ): UiFocusNavigationRecord {
-            for (let i = 0; i < this.navigation_.length; i++) {
-                const record = this.navigation_[i]
-                if (record.scopeId == scopeId) return record
-            }
-            return undefined
-        }
-
-        private phase(event: UiInputEvent): UiInputPhase {
-            return event.phase || "pressed"
-        }
-
-        private isPressedOrRepeated(event: UiInputEvent): boolean {
-            const phase = this.phase(event)
-            return phase == "pressed" || phase == "repeated"
-        }
-
-        private isAcceptedFocusResult(result: UiFocusSetResult): boolean {
-            return result.kind == "focused" || result.kind == "unchanged"
-        }
-
-        private focusScrollRequest(
-            result: UiFocusSetResult,
-        ): UiFocusScrollRequest {
-            if (result.kind == "focused") return result.scrollRequest
-            return undefined
-        }
-
-        private deliverScrollRequest(request: UiFocusScrollRequest): void {
-            if (this.scroll_) this.scroll_(request)
+            return -1
         }
     }
 }

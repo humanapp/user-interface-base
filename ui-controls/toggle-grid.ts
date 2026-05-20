@@ -180,9 +180,13 @@ namespace ui {
          * Converts focus activation into a keep-open toggle result.
          */
         public createResultForActivation(
-            result: UiFocusActivationResult,
+            scopeId: UiFocusScopeId,
+            targetId: UiFocusId,
         ): UiToggleGridResult<T> {
-            const modalResult = this.modal_.createResultForActivation(result)
+            const modalResult = this.modal_.createResultForActivation(
+                scopeId,
+                targetId,
+            )
             if (!modalResult || modalResult.kind != "keepOpen") return undefined
             const policyResult: UiToggleGridActionResult<T> = this.toggle_
                 ? this.toggle_(modalResult.control)
@@ -206,13 +210,10 @@ namespace ui {
         public handleFocusInput(
             result: UiFocusInputResult,
         ): UiToggleGridResult<T> {
-            if (
-                result.kind == "activated" &&
-                result.detail &&
-                result.detail.activationResult
-            ) {
+            if (result.kind == "activated") {
                 return this.createResultForActivation(
-                    result.detail.activationResult,
+                    result.scopeId,
+                    result.targetId,
                 )
             }
             if (result.kind == "cancelled")

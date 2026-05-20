@@ -304,23 +304,20 @@ namespace ui {
          * Converts a focus input result into a grid result when one occurred.
          */
         public handleFocusInput(result: UiFocusInputResult): UiGridResult<T> {
-            if (
-                result.kind == "activated" &&
-                result.detail &&
-                result.detail.activationResult
-            ) {
+            if (result.kind == "activated") {
                 const activation = this.createResultForActivation(
-                    result.detail.activationResult,
+                    result.scopeId,
+                    result.targetId,
                 )
                 this.emitActivate(activation)
                 return activation
             }
-            if (
-                result.kind == "exited" &&
-                result.detail &&
-                result.detail.moveResult
-            ) {
-                return this.createResultForMove(result.detail.moveResult)
+            if (result.kind == "exited") {
+                return this.createResultForMove(
+                    result.scopeId,
+                    result.targetId,
+                    result.direction,
+                )
             }
             return undefined
         }
@@ -329,14 +326,14 @@ namespace ui {
          * Converts a focus activation result into a typed grid activation.
          */
         public createResultForActivation(
-            result: UiFocusActivationResult,
+            scopeId: UiFocusScopeId,
+            targetId: UiFocusId,
         ): UiGridResult<T> {
-            if (result.kind != "activated" || result.scopeId != this.scopeId_)
-                return undefined
+            if (scopeId != this.scopeId_) return undefined
             const control = _uiControls.findControlByTargetId(
                 this.scopeId_,
                 this.controls_,
-                result.targetId,
+                targetId,
             )
             if (!control) return undefined
             return {
@@ -350,16 +347,19 @@ namespace ui {
         /**
          * Converts a focus movement result into a generic grid boundary exit.
          */
-        public createResultForMove(result: UiFocusMoveResult): UiGridResult<T> {
-            if (result.kind != "exited" || result.scopeId != this.scopeId_)
-                return undefined
+        public createResultForMove(
+            scopeId: UiFocusScopeId,
+            targetId: UiFocusId,
+            direction: UiFocusDirection,
+        ): UiGridResult<T> {
+            if (scopeId != this.scopeId_) return undefined
             return {
                 kind: "exited",
-                direction: result.direction,
-                scopeId: result.scopeId,
+                direction,
+                scopeId,
                 controlId: _uiControls.controlIdFromTargetId(
                     this.scopeId_,
-                    result.targetId,
+                    targetId,
                 ),
             }
         }
