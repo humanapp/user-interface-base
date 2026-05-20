@@ -355,7 +355,6 @@ namespace ui {
 
             this.updateVisibleContentRect()
             this.clearLayoutInvalidation()
-
         }
 
         public invalidateLayout(): void {
@@ -477,7 +476,6 @@ namespace ui {
                 maxOffset,
             )
         }
-
     }
 
     const SCROLL_VIEWPORT_MAX_CONTENT_EXTENT = 32767

@@ -112,7 +112,6 @@ namespace ui {
          * Optional scroll request sink.
          */
         scroll?: UiFocusScrollHandler
-
     }
 
     /**
@@ -322,8 +321,7 @@ namespace ui {
                 const scrollRequest =
                     (focusResult.kind == "focused"
                         ? focusResult.scrollRequest
-                        : undefined) ||
-                    moveResult.scrollRequest
+                        : undefined) || moveResult.scrollRequest
                 if (scrollRequest && this.scroll_) this.scroll_(scrollRequest)
                 return {
                     action: event.action,

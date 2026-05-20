@@ -43,6 +43,5 @@ namespace ui {
          * Press lifecycle phase for button-like input.
          */
         phase?: UiInputPhase
-
     }
 }

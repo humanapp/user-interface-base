@@ -353,7 +353,6 @@ namespace ui {
                 constraints.maxHeight,
             )
         }
-
     }
 
     class UiMeasuredAxis {

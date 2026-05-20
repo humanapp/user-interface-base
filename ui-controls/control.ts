@@ -245,11 +245,7 @@ namespace _uiControls {
         defaultControlId: string | undefined,
     ): string | undefined {
         const explicit = findControlById(controls, defaultControlId)
-        if (
-            explicit &&
-            isVisible(explicit) &&
-            isFocusable(explicit)
-        )
+        if (explicit && isVisible(explicit) && isFocusable(explicit))
             return targetId(scopeId, explicit.id)
 
         for (let i = 0; i < controls.length; i++) {
@@ -282,11 +278,12 @@ namespace _uiControls {
         focused?: boolean,
     ): void {
         const content: ui.UiButtonContent = {
-            text: control.text !== undefined
-                ? control.text
-                : control.textId !== undefined
-                  ? assets.getText(control.textId)
-                  : "",
+            text:
+                control.text !== undefined
+                    ? control.text
+                    : control.textId !== undefined
+                      ? assets.getText(control.textId)
+                      : "",
         }
         if (control.bitmap) content.bitmap = control.bitmap
         else if (control.bitmapId !== undefined)

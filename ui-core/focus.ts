@@ -596,11 +596,7 @@ namespace ui {
             scopeId: UiFocusScopeId,
         ): boolean {
             const target = this.findTarget(targetId)
-            return (
-                !!target &&
-                target.scopeId == scopeId &&
-                !target.hidden
-            )
+            return !!target && target.scopeId == scopeId && !target.hidden
         }
 
         private clearRetainedActiveTarget(
@@ -679,6 +675,5 @@ namespace ui {
             }
             return result
         }
-
     }
 }

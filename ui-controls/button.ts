@@ -70,7 +70,6 @@ namespace ui {
          * render text as a focus label.
          */
         focusLabelGap?: number
-
     }
 
     /**

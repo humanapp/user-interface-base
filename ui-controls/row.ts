@@ -211,7 +211,9 @@ namespace ui {
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!this.isNavigationControl(control)) continue
-                output.push(this.navigationTarget(control, this.controlRects_[i]))
+                output.push(
+                    this.navigationTarget(control, this.controlRects_[i]),
+                )
             }
         }
 
@@ -430,7 +432,9 @@ namespace ui {
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!this.isNavigationControl(control)) continue
-                targets.push(this.navigationTarget(control, this.controlRects_[i]))
+                targets.push(
+                    this.navigationTarget(control, this.controlRects_[i]),
+                )
             }
             return targets
         }

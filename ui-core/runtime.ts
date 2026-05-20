@@ -652,6 +652,5 @@ namespace ui {
                 this.clearColor_,
             )
         }
-
     }
 }

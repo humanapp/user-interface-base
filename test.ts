@@ -967,7 +967,6 @@ namespace ui {
             surface.log.indexOf("text:go;") >= 0,
             "control focus label text",
         )
-
     }
 
     /**
@@ -1423,7 +1422,6 @@ namespace ui {
             "numeric modal delete callback",
         )
     }
-
 }
 
 ui.runGeometrySmokeTest()

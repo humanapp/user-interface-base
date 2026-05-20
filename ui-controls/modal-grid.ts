@@ -535,7 +535,11 @@ namespace ui {
 
         private titleHeight(): number {
             if (this.hasTitleControls())
-                return this.contentMargin() + this.titleControlHeight_ + this.titleGap()
+                return (
+                    this.contentMargin() +
+                    this.titleControlHeight_ +
+                    this.titleGap()
+                )
             if (
                 !this.showTitleBar() &&
                 this.title_ === undefined &&
@@ -586,7 +590,11 @@ namespace ui {
         private arrangeTitleControls(rect: Rect, contentMargin: number): void {
             if (!this.hasTitleControls()) return
             this.ensureRects(this.titleControls_, this.titleControlRects_)
-            let x = rect.x + rect.width - contentMargin - this.titleControlContentWidth()
+            let x =
+                rect.x +
+                rect.width -
+                contentMargin -
+                this.titleControlContentWidth()
             for (let i = 0; i < this.titleControls_.length; i++) {
                 this.titleControlRects_[i].set(
                     x,
@@ -657,7 +665,11 @@ namespace ui {
 
         private navigationRows(): UiFocusNavigationTarget[][] {
             const rows: UiFocusNavigationTarget[][] = []
-            this.addNavigationRow(rows, this.titleControls_, this.titleControlRects_)
+            this.addNavigationRow(
+                rows,
+                this.titleControls_,
+                this.titleControlRects_,
+            )
             const rowCount = Math.idiv(
                 this.controls_.length + this.columnCount_ - 1,
                 this.columnCount_,
@@ -818,7 +830,9 @@ namespace ui {
                 this.columnCount_,
             )
             if (rowCount <= 0) return 0
-            return rowCount * this.controlHeight_ + (rowCount - 1) * this.rowGap_
+            return (
+                rowCount * this.controlHeight_ + (rowCount - 1) * this.rowGap_
+            )
         }
 
         private maxColumnCount(): number {
@@ -832,7 +846,6 @@ namespace ui {
                 (this.titleControls_.length - 1) * this.titleControlGap_
             )
         }
-
     }
 
     function copyModalStyle(target: UiModalStyle, source?: UiModalStyle): void {

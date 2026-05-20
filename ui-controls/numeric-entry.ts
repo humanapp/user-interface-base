@@ -210,10 +210,7 @@ namespace ui {
         /**
          * Renders the current entry text.
          */
-        public render(
-            surface: DrawSurface,
-            rect: Rect,
-        ): void {
+        public render(surface: DrawSurface, rect: Rect): void {
             const background = 1
             const foreground = 15
             const padding = 4
@@ -543,51 +540,15 @@ namespace ui {
             return entryResult
         }
 
-        public move(
-            request: UiFocusNavigationRequest,
-        ): UiFocusMoveResult {
-            const rows = this.navigationRows()
-            const current = this.currentCell(rows, request.currentTargetId)
-            if (!current)
-                return {
-                    kind: "stayed",
-                    scopeId: this.modalScopeId_,
-                    targetId: request.currentTargetId,
-                    reason: "missingActive",
-                }
-            const destination =
-                request.direction == "left" || request.direction == "right"
-                    ? this.horizontalDestination(
-                          rows,
-                          current,
-                          request.direction == "left" ? -1 : 1,
-                      )
-                    : this.verticalDestination(
-                          rows,
-                          current,
-                          request.direction == "up" ? -1 : 1,
-                      )
-            if (destination)
-                return {
-                    kind: "moved",
-                    fromScopeId: this.modalScopeId_,
-                    fromTargetId: current.target.id,
-                    toScopeId: this.modalScopeId_,
-                    toTargetId: destination.target.id,
-                }
-            if (request.direction == "left" || request.direction == "right")
-                return {
-                    kind: "stayed",
-                    scopeId: this.modalScopeId_,
-                    targetId: request.currentTargetId,
-                    reason: "boundary",
-                }
-            return {
-                kind: "exited",
+        public move(request: UiFocusNavigationRequest): UiFocusMoveResult {
+            return moveFocusInRaggedGrid({
                 scopeId: this.modalScopeId_,
-                targetId: request.currentTargetId,
+                currentTargetId: request.currentTargetId,
                 direction: request.direction,
-            }
+                rows: this.navigationRows(),
+                horizontalWrap: true,
+                verticalStrategy: "exact",
+            })
         }
 
         /**
@@ -601,8 +562,7 @@ namespace ui {
             surface.drawRoundedRect(
                 this.finalRect,
                 15,
-                this.modalStyle_ &&
-                    this.modalStyle_.panelColor !== undefined
+                this.modalStyle_ && this.modalStyle_.panelColor !== undefined
                     ? this.modalStyle_.panelColor
                     : 1,
             )
@@ -683,63 +643,6 @@ namespace ui {
                 if (rowTargets.length) rows.push(rowTargets)
             }
             return rows
-        }
-
-        private currentCell(
-            rows: UiFocusNavigationTarget[][],
-            targetId: UiFocusId,
-        ): UiNumericEntryNavigationCell {
-            for (let row = 0; row < rows.length; row++) {
-                const targets = rows[row]
-                for (let column = 0; column < targets.length; column++) {
-                    const target = targets[column]
-                    if (target.id == targetId && !target.hidden)
-                        return { row, column, target }
-                }
-            }
-            return undefined
-        }
-
-        private horizontalDestination(
-            rows: UiFocusNavigationTarget[][],
-            current: UiNumericEntryNavigationCell,
-            step: number,
-        ): UiNumericEntryNavigationCell {
-            const row = rows[current.row]
-            let column = current.column + step
-            while (column >= 0 && column < row.length) {
-                if (!row[column].hidden)
-                    return { row: current.row, column, target: row[column] }
-                column += step
-            }
-            column = step < 0 ? row.length - 1 : 0
-            while (column != current.column) {
-                if (!row[column].hidden)
-                    return { row: current.row, column, target: row[column] }
-                column += step
-            }
-            return undefined
-        }
-
-        private verticalDestination(
-            rows: UiFocusNavigationTarget[][],
-            current: UiNumericEntryNavigationCell,
-            step: number,
-        ): UiNumericEntryNavigationCell {
-            for (
-                let rowIndex = current.row + step;
-                rowIndex >= 0 && rowIndex < rows.length;
-                rowIndex += step
-            ) {
-                const target = rows[rowIndex][current.column]
-                if (target && !target.hidden)
-                    return {
-                        row: rowIndex,
-                        column: current.column,
-                        target,
-                    }
-            }
-            return undefined
         }
 
         private renderKeys(
@@ -957,11 +860,5 @@ namespace ui {
                 return Math.max(0, style.contentMargin)
             return 4
         }
-    }
-
-    interface UiNumericEntryNavigationCell {
-        row: number
-        column: number
-        target: UiFocusNavigationTarget
     }
 }
