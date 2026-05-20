@@ -22,12 +22,6 @@ namespace ui {
      */
     export interface UiToggleGridOptions<T> {
         /**
-         * Parent focus scope restored after the modal closes. Defaults to the
-         * active scope when the modal opens.
-         */
-        parentScopeId?: UiFocusScopeId
-
-        /**
          * Modal focus scope owned by this grid while open.
          */
         modalScopeId: UiFocusScopeId
@@ -41,11 +35,6 @@ namespace ui {
          * Number of columns for the grid.
          */
         columnCount: number
-
-        /**
-         * Whether left/right movement may wrap inside the current row.
-         */
-        horizontalWrap?: boolean
 
         /**
          * Control id to focus first when available.
@@ -106,13 +95,11 @@ namespace ui {
 
         constructor(options: UiToggleGridOptions<T>) {
             this.modal_ = new UiPicker<T>({
-                parentScopeId: options.parentScopeId,
                 modalScopeId: options.modalScopeId,
                 controls: options.controls,
                 defaultControlId: options.defaultControlId,
                 closeOnActivate: false,
                 columnCount: options.columnCount,
-                horizontalWrap: options.horizontalWrap,
                 controlWidth: options.controlWidth,
                 controlHeight: options.controlHeight,
                 modalStyle: options.modalStyle,

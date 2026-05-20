@@ -24,11 +24,6 @@ namespace ui {
         scrollOwnerId?: UiFocusScrollOwnerId
 
         /**
-         * Whether left/right movement may wrap inside the current row.
-         */
-        horizontalWrap?: boolean
-
-        /**
          * Number of columns for rectangular grids. Defaults to the control count.
          */
         columnCount?: number
@@ -103,7 +98,6 @@ namespace ui {
         private controls_: UiControl<T>[]
         private defaultControlId_: string
         private scrollOwnerId_: UiFocusScrollOwnerId
-        private horizontalWrap_: boolean
         private columnCount_: number
         private rows_: number[]
         private controlWidth_: number
@@ -121,7 +115,6 @@ namespace ui {
             this.controls_ = options.controls
             this.defaultControlId_ = options.defaultControlId
             this.scrollOwnerId_ = options.scrollOwnerId
-            this.horizontalWrap_ = options.horizontalWrap || false
             this.columnCount_ = _uiControls.sanitizeDimension(
                 options.columnCount,
                 Math.max(1, options.controls.length),
@@ -259,7 +252,7 @@ namespace ui {
             controller.setNavigation(this.scopeId_, {
                 kind: "raggedGrid",
                 rows: this.navigationRows(),
-                horizontalWrap: this.horizontalWrap_,
+                horizontalWrap: true,
             })
         }
 

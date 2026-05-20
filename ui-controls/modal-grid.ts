@@ -113,11 +113,6 @@ namespace ui {
         closeOnActivate?: boolean
 
         /**
-         * Whether left/right movement may wrap inside content rows.
-         */
-        horizontalWrap?: boolean
-
-        /**
          * Number of columns for rectangular modal grids.
          */
         columnCount?: number
@@ -244,7 +239,6 @@ namespace ui {
         private onActivate_: UiControlActivateHandler<T>
         private onCancel_: UiPickerCancelHandler
         private titleRowSize_: UiMeasuredSize
-        private horizontalWrap_: boolean
 
         constructor(options: UiPickerOptions<T>) {
             this.modalScopeId_ = options.modalScopeId
@@ -256,7 +250,6 @@ namespace ui {
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.titleRowSize_ = new UiMeasuredSize()
-            this.horizontalWrap_ = options.horizontalWrap || false
             if (options.titleControls && options.titleControls.length)
                 this.titleRow_ = new UiRow<T>({
                     scopeId: options.modalScopeId,
@@ -278,7 +271,6 @@ namespace ui {
                 controlHeight: options.controlHeight,
                 rowGap: options.rowGap,
                 columnGap: options.columnGap,
-                horizontalWrap: options.horizontalWrap,
                 controlStyle: options.controlStyle,
             })
             this.layoutSpec = _uiControls.defaultLayoutSpec()
@@ -592,7 +584,7 @@ namespace ui {
             controller.setNavigation(this.modalScopeId_, {
                 kind: "raggedGrid",
                 rows: this.navigationRows(),
-                horizontalWrap: this.horizontalWrap_,
+                horizontalWrap: true,
                 verticalStrategy: "nearest",
             })
         }
