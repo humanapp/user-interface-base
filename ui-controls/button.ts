@@ -18,11 +18,6 @@ namespace ui {
     export type UiButtonContentAlignment = "start" | "center"
 
     /**
-     * Focus treatment drawn for a focused button.
-     */
-    export type UiButtonFocusKind = "none" | "rect"
-
-    /**
      * Placement for button text.
      */
     export type UiButtonTextPlacement = "content" | "focusLabel"
@@ -85,11 +80,6 @@ namespace ui {
          * Gap between icon and text when both are present.
          */
         contentGap?: number
-
-        /**
-         * Focus treatment drawn when focused.
-         */
-        focusKind?: UiButtonFocusKind
 
         /**
          * Focus color.
@@ -292,8 +282,6 @@ namespace ui {
             options?: UiButtonViewRenderOptions,
         ): void {
             const style = this.styleFor(options)
-            const focusKind = style.focusKind || "rect"
-            if (focusKind == "none") return
             const focusColor = this.focusColor(style, options)
             drawButtonFocusRing(surface, rect, focusColor)
             this.renderFocusLabel(surface, rect, content, style, options)
@@ -552,7 +540,6 @@ namespace ui {
             toggledColor: 6,
             frame: "none",
             contentAlignment: "start",
-            focusKind: "rect",
             focusColor: 15,
         }
 
@@ -562,7 +549,6 @@ namespace ui {
         export const Transparent: UiButtonStyle = {
             frame: "none",
             contentAlignment: "center",
-            focusKind: "rect",
             focusColor: 9,
         }
 
@@ -592,7 +578,6 @@ namespace ui {
             shadowColor: 11,
             frame: "roundedShadow",
             contentAlignment: "center",
-            focusKind: "rect",
             focusColor: 9,
         }
 
@@ -605,7 +590,6 @@ namespace ui {
             shadowColor: 12,
             frame: "roundedShadow",
             contentAlignment: "center",
-            focusKind: "rect",
             focusColor: 9,
         }
 
@@ -617,7 +601,6 @@ namespace ui {
             borderColor: 1,
             frame: "rect",
             contentAlignment: "center",
-            focusKind: "rect",
             focusColor: 9,
         }
 
@@ -629,7 +612,6 @@ namespace ui {
             borderColor: 12,
             frame: "rect",
             contentAlignment: "center",
-            focusKind: "rect",
             focusColor: 9,
         }
 
@@ -641,7 +623,6 @@ namespace ui {
             borderColor: 2,
             frame: "rect",
             contentAlignment: "center",
-            focusKind: "rect",
             focusColor: 9,
         }
 
@@ -653,7 +634,6 @@ namespace ui {
             borderColor: 7,
             frame: "rect",
             contentAlignment: "center",
-            focusKind: "rect",
             focusColor: 9,
         }
     }
@@ -682,7 +662,6 @@ namespace ui {
         if (source.padding !== undefined) target.padding = source.padding
         if (source.contentGap !== undefined)
             target.contentGap = source.contentGap
-        if (source.focusKind !== undefined) target.focusKind = source.focusKind
         if (source.focusColor !== undefined)
             target.focusColor = source.focusColor
         if (source.font !== undefined) target.font = source.font
