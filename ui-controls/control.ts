@@ -1,21 +1,5 @@
 namespace ui {
     /**
-     * Palette colors used by the default control renderer.
-     */
-    export interface UiControlPalette {
-        /**
-         * Fill color for an ordinary control background.
-         */
-        backgroundColor?: number
-
-        /**
-         * Text and bitmap color used by callers that draw monochrome assets.
-         */
-        foregroundColor?: number
-
-    }
-
-    /**
      * Handles activation of one control.
      */
     export interface UiControlActivateHandler<T> {
@@ -199,13 +183,6 @@ namespace _uiControls {
     ): void {
         if (control.onActivate) control.onActivate(value, control, controlId)
         if (onActivate) onActivate(value, control, controlId)
-    }
-
-    export function containsString(values: string[], value: string): boolean {
-        for (let i = 0; i < values.length; i++) {
-            if (values[i] == value) return true
-        }
-        return false
     }
 
     export function defaultLayoutSpec(): ui.UiLayoutSpec {

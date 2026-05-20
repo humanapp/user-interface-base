@@ -1101,7 +1101,6 @@ namespace ui {
         )
 
         const screenModal = new UiPicker<string>({
-            parentScopeId: "screen-row",
             modalScopeId: "screen-modal",
             controls: [{ id: "modal", value: "M" }],
             onCancel: () => {
@@ -1338,10 +1337,7 @@ namespace ui {
             mode: "decimal",
             initialText: "42",
         })
-        displayEntry.render(displaySurface, new Rect(0, 0, 24, 12), {
-            backgroundColor: 1,
-            foregroundColor: 15,
-        })
+        displayEntry.render(displaySurface, new Rect(0, 0, 24, 12))
         control.assert(
             displaySurface.log.indexOf("rounded:15:1;") >= 0,
             "numeric display rounded border",
@@ -1355,7 +1351,6 @@ namespace ui {
             modalStyle: modalStyle(UiModalStyles.Titleless, {
                 contentMargin: 5,
             }),
-            displayPalette: { backgroundColor: 1, foregroundColor: 15 },
             onResult: result => {
                 modalResult = result
             },

@@ -9,19 +9,9 @@ namespace ui {
         panelColor?: number
 
         /**
-         * Outline color for the modal panel.
-         */
-        outlineColor?: number
-
-        /**
          * Text color for the modal title.
          */
         titleColor?: number
-
-        /**
-         * Font used for the modal title.
-         */
-        titleFont?: TextFont
 
         /**
          * Inset between the modal outline and modal content.
@@ -64,7 +54,6 @@ namespace ui {
          */
         export const Default: UiModalStyle = {
             panelColor: 1,
-            outlineColor: 15,
             titleColor: 15,
             contentMargin: 4,
             titleGap: 0,
@@ -83,12 +72,6 @@ namespace ui {
      * Options for a modal picker or control grid.
      */
     export interface UiPickerOptions<T> {
-        /**
-         * Parent focus scope restored after the modal closes. Defaults to the
-         * active scope when the modal opens.
-         */
-        parentScopeId?: UiFocusScopeId
-
         /**
          * Modal focus scope owned by this grid while open.
          */
@@ -138,11 +121,6 @@ namespace ui {
          * Number of columns for rectangular modal grids.
          */
         columnCount?: number
-
-        /**
-         * Row lengths for ragged modal grids.
-         */
-        rows?: number[]
 
         /**
          * Width assigned to each control.
@@ -195,36 +173,6 @@ namespace ui {
         modalStyle?: UiModalStyle
 
         /**
-         * Inset between the modal outline and control grid. Defaults to `4`.
-         */
-        contentMargin?: number
-
-        /**
-         * Extra vertical space between the title band and control grid. Defaults to `0`.
-         */
-        titleGap?: number
-
-        /**
-         * Whether an empty modal reserves title-band space. Defaults to `true`.
-         */
-        showTitleBar?: boolean
-
-        /**
-         * Fill color for the modal panel. Defaults to `1`.
-         */
-        panelColor?: number
-
-        /**
-         * Outline color for the modal panel. Defaults to `15`.
-         */
-        outlineColor?: number
-
-        /**
-         * Text color for the modal title. Defaults to `15`.
-         */
-        titleColor?: number
-
-        /**
          * Called when an enabled modal control is activated.
          */
         onActivate?: UiControlActivateHandler<T>
@@ -272,12 +220,10 @@ namespace ui {
         surface: DrawSurface,
         rect: Rect,
         style?: UiModalStyle,
-        _scratch?: Rect,
     ): void {
-        const resolved = modalStyle(UiModalStyles.Default, style)
-        const fill = resolved.panelColor
-        const outline = resolved.outlineColor
-        surface.drawRoundedRect(rect, outline, fill)
+        const fill =
+            style && style.panelColor !== undefined ? style.panelColor : 1
+        surface.drawRoundedRect(rect, 15, fill)
     }
 
     /**
@@ -287,7 +233,6 @@ namespace ui {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
-        private parentScopeId_: UiFocusScopeId
         private modalScopeId_: UiFocusScopeId
         private title_: string
         private titleId_: string
@@ -298,21 +243,18 @@ namespace ui {
         private grid_: UiGrid<T>
         private onActivate_: UiControlActivateHandler<T>
         private onCancel_: UiPickerCancelHandler
-        private scratch_: Rect
         private titleRowSize_: UiMeasuredSize
         private horizontalWrap_: boolean
 
         constructor(options: UiPickerOptions<T>) {
-            this.parentScopeId_ = options.parentScopeId
             this.modalScopeId_ = options.modalScopeId
             this.title_ = options.title
             this.titleId_ = options.titleId
             this.titleBitmap_ = options.titleBitmap
             this.closeOnActivate_ = options.closeOnActivate !== false
-            this.style_ = this.resolveModalStyle(options)
+            this.style_ = options.modalStyle || UiModalStyles.Default
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
-            this.scratch_ = new Rect()
             this.titleRowSize_ = new UiMeasuredSize()
             this.horizontalWrap_ = options.horizontalWrap || false
             if (options.titleControls && options.titleControls.length)
@@ -332,7 +274,6 @@ namespace ui {
                 controls: options.controls,
                 defaultControlId: options.defaultControlId,
                 columnCount: options.columnCount,
-                rows: options.rows,
                 controlWidth: options.controlWidth,
                 controlHeight: options.controlHeight,
                 rowGap: options.rowGap,
@@ -357,18 +298,6 @@ namespace ui {
          */
         public get controls(): UiControl<T>[] {
             return this.grid_.controls
-        }
-
-        /**
-         * Copies one arranged modal control rectangle into `output`.
-         */
-        public getControlRect(controlId: string, output: Rect): boolean {
-            return (
-                this.grid_.getControlRect(controlId, output) ||
-                (this.titleRow_
-                    ? this.titleRow_.getControlRect(controlId, output)
-                    : false)
-            )
         }
 
         /**
@@ -443,7 +372,7 @@ namespace ui {
         ): UiFocusSetResult {
             const scopeOptions: UiFocusScopeOptions = {
                 id: this.modalScopeId_,
-                parentScopeId: this.parentScopeId_ || focus.getActiveScopeId(),
+                parentScopeId: focus.getActiveScopeId(),
                 preferredTargetId: this.resolvePreferredTargetId(),
                 handlesCancel: true,
                 modal: true,
@@ -531,7 +460,7 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
-            drawModalPanel(surface, this.finalRect, this.style_, this.scratch_)
+            drawModalPanel(surface, this.finalRect, this.style_)
             const title = this.resolveTitleText(assets)
             const titleBitmap = this.resolveTitleBitmap(assets)
             let titleX = this.finalRect.x + 4
@@ -542,7 +471,6 @@ namespace ui {
             if (title.length > 0)
                 surface.drawText(title, titleX, this.finalRect.y + 4, {
                     color: this.titleColor(),
-                    font: this.style_.titleFont,
                 })
             if (this.titleRow_) {
                 this.grid_.renderControls(surface, assets, focus)
@@ -592,15 +520,21 @@ namespace ui {
         }
 
         private contentMargin(): number {
-            return _uiControls.sanitizeDimension(this.style_.contentMargin, 4)
+            return _uiControls.sanitizeDimension(
+                this.style_ ? this.style_.contentMargin : undefined,
+                4,
+            )
         }
 
         private titleGap(): number {
-            return _uiControls.sanitizeDimension(this.style_.titleGap, 0)
+            return _uiControls.sanitizeDimension(
+                this.style_ ? this.style_.titleGap : undefined,
+                0,
+            )
         }
 
         private titleColor(): number {
-            return this.style_.titleColor !== undefined
+            return this.style_ && this.style_.titleColor !== undefined
                 ? this.style_.titleColor
                 : 15
         }
@@ -615,7 +549,7 @@ namespace ui {
         }
 
         private showTitleBar(): boolean {
-            return this.style_.showTitleBar !== false
+            return !this.style_ || this.style_.showTitleBar !== false
         }
 
         private measureTitleRow(constraints: UiLayoutConstraints): void {
@@ -697,41 +631,14 @@ namespace ui {
             return this.grid_.navigationRows()
         }
 
-        private resolveModalStyle(options: UiPickerOptions<T>): UiModalStyle {
-            return modalStyle(
-                UiModalStyles.Default,
-                options.modalStyle,
-                this.optionModalStyle(options),
-            )
-        }
-
-        private optionModalStyle(options: UiPickerOptions<T>): UiModalStyle {
-            const style: UiModalStyle = {}
-            if (options.panelColor !== undefined)
-                style.panelColor = options.panelColor
-            if (options.outlineColor !== undefined)
-                style.outlineColor = options.outlineColor
-            if (options.titleColor !== undefined)
-                style.titleColor = options.titleColor
-            if (options.contentMargin !== undefined)
-                style.contentMargin = options.contentMargin
-            if (options.titleGap !== undefined)
-                style.titleGap = options.titleGap
-            if (options.showTitleBar !== undefined)
-                style.showTitleBar = options.showTitleBar
-            return style
-        }
     }
 
     function copyModalStyle(target: UiModalStyle, source?: UiModalStyle): void {
         if (!source) return
         if (source.panelColor !== undefined)
             target.panelColor = source.panelColor
-        if (source.outlineColor !== undefined)
-            target.outlineColor = source.outlineColor
         if (source.titleColor !== undefined)
             target.titleColor = source.titleColor
-        if (source.titleFont !== undefined) target.titleFont = source.titleFont
         if (source.contentMargin !== undefined)
             target.contentMargin = source.contentMargin
         if (source.titleGap !== undefined) target.titleGap = source.titleGap

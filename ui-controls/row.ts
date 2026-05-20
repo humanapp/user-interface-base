@@ -24,16 +24,6 @@ namespace ui {
         scrollOwnerId?: UiFocusScrollOwnerId
 
         /**
-         * Whether left/right movement may wrap inside the row.
-         */
-        wrap?: boolean
-
-        /**
-         * Sizing request for the row as a layout node.
-         */
-        layoutSpec?: UiLayoutSpec
-
-        /**
          * Width assigned to each control.
          */
         controlWidth?: number
@@ -92,12 +82,10 @@ namespace ui {
         private controls_: UiControl<T>[]
         private defaultControlId_: string
         private scrollOwnerId_: UiFocusScrollOwnerId
-        private wrap_: boolean
         private controlWidth_: number
         private controlHeight_: number
         private gap_: number
         private controlRects_: Rect[]
-        private registeredTargetIds_: string[]
         private controlView_: UiButtonView
         private controlStyle_: UiButtonStyle
         private labelBounds_: Rect
@@ -108,18 +96,15 @@ namespace ui {
             this.controls_ = options.controls
             this.defaultControlId_ = options.defaultControlId
             this.scrollOwnerId_ = options.scrollOwnerId
-            this.wrap_ = options.wrap || false
             this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
             this.controlHeight_ = _uiControls.controlHeight(
                 options.controlHeight,
             )
             this.gap_ = _uiControls.gap(options.gap)
-            this.layoutSpec =
-                options.layoutSpec || _uiControls.defaultLayoutSpec()
+            this.layoutSpec = _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect()
             this.layoutDirty = true
             this.controlRects_ = []
-            this.registeredTargetIds_ = []
             this.controlStyle_ = options.controlStyle
             this.labelBounds_ = options.labelBounds
             this.controlView_ = new UiButtonView({
@@ -140,14 +125,6 @@ namespace ui {
          */
         public get controls(): UiControl<T>[] {
             return this.controls_
-        }
-
-        /**
-         * Replaces the caller-owned control array used on later layout and render passes.
-         */
-        public setControls(controls: UiControl<T>[]): void {
-            this.controls_ = controls
-            this.invalidateLayout()
         }
 
         /**
@@ -254,23 +231,9 @@ namespace ui {
                 scopeOptions || {
                     id: this.scopeId_,
                     preferredTargetId: preferred,
-                    wrap: this.wrap_,
                 },
             )
             this.ensureControlRects()
-            const currentTargetIds: string[] = []
-            for (let i = 0; i < this.controls_.length; i++) {
-                const control = this.controls_[i]
-                if (!this.isNavigationControl(control)) continue
-                currentTargetIds.push(
-                    _uiControls.targetId(this.scopeId_, control.id),
-                )
-            }
-            for (let i = 0; i < this.registeredTargetIds_.length; i++) {
-                const targetId = this.registeredTargetIds_[i]
-                if (!_uiControls.containsString(currentTargetIds, targetId))
-                    focus.removeTarget(targetId)
-            }
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
                 if (!this.isNavigationControl(control)) continue
@@ -285,7 +248,6 @@ namespace ui {
                     activatable: true,
                 })
             }
-            this.registeredTargetIds_ = currentTargetIds
         }
 
         /**
@@ -295,7 +257,6 @@ namespace ui {
             controller.setNavigation(this.scopeId_, {
                 kind: "row",
                 targets: this.navigationTargets(),
-                wrap: this.wrap_,
             })
         }
 

@@ -213,16 +213,9 @@ namespace ui {
         public render(
             surface: DrawSurface,
             rect: Rect,
-            palette?: UiControlPalette,
         ): void {
-            const background =
-                palette && palette.backgroundColor !== undefined
-                    ? palette.backgroundColor
-                    : 0
-            const foreground =
-                palette && palette.foregroundColor !== undefined
-                    ? palette.foregroundColor
-                    : 15
+            const background = 1
+            const foreground = 15
             const padding = 4
             const font = NUMERIC_ENTRY_FONT
             const textSize = surface.measureText(this.text_, font)
@@ -375,11 +368,6 @@ namespace ui {
         keyStyle?: UiButtonStyle
 
         /**
-         * Palette used by the numeric display.
-         */
-        displayPalette?: UiControlPalette
-
-        /**
          * Optional icon for the delete key shown when `deleteEnabled` is true.
          */
         deleteIcon?: UiNumericEntryKeyIcon
@@ -404,7 +392,6 @@ namespace ui {
         private gridRect_: Rect
         private measuredGrid_: UiMeasuredSize
         private modalStyle_: UiModalStyle
-        private displayPalette_: UiControlPalette
         private contentMargin_: number
         private deleteEnabled_: boolean
         private deleteIcon_: UiNumericEntryKeyIcon
@@ -414,7 +401,6 @@ namespace ui {
             this.modalScopeId_ = options.modalScopeId
             this.entry_ = this.createEntry(options)
             this.modalStyle_ = options.modalStyle
-            this.displayPalette_ = options.displayPalette || {}
             this.contentMargin_ = this.contentMargin(options.modalStyle)
             this.deleteEnabled_ = options.deleteEnabled || false
             this.deleteIcon_ = options.deleteIcon
@@ -571,7 +557,7 @@ namespace ui {
             focus?: UiFocusState,
         ): void {
             drawModalPanel(surface, this.finalRect, this.modalStyle_)
-            this.entry_.render(surface, this.displayRect_, this.displayPalette_)
+            this.entry_.render(surface, this.displayRect_)
             this.grid_.render(surface, assets, focus)
         }
 
