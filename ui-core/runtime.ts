@@ -38,26 +38,6 @@ namespace ui {
     }
 
     /**
-     * Sink for accessibility announcements.
-     */
-    export interface UiAccessibilitySink {
-        /**
-         * Publishes an accessibility message.
-         */
-        publish(message: string): void
-    }
-
-    /**
-     * Sink for named profiling marks.
-     */
-    export interface UiProfiler {
-        /**
-         * Records a named profiling mark.
-         */
-        mark(name: string): void
-    }
-
-    /**
      * Frame scheduling hook for integrations with an automatic frame pump.
      */
     export interface UiScheduler {
@@ -82,16 +62,6 @@ namespace ui {
         assets?: UiAssetResolver
 
         /**
-         * Accessibility message sink. Missing service drops messages.
-         */
-        accessibility?: UiAccessibilitySink
-
-        /**
-         * Profiling sink. Missing service drops marks.
-         */
-        profiler?: UiProfiler
-
-        /**
          * Frame scheduler. Missing service requires manual `runFrame()` calls.
          */
         scheduler?: UiScheduler
@@ -110,11 +80,6 @@ namespace ui {
          * Optional scroll request sink used by focus movement.
          */
         scroll?: UiFocusScrollHandler
-
-        /**
-         * Optional wheel handler used by focus input.
-         */
-        wheel?: UiFocusWheelHandler
 
         /**
          * Default measurement limits used when opening modals without options.
@@ -465,8 +430,6 @@ namespace ui {
                 const handled = this.defaultHandled(modalResult)
                 return handled !== undefined ? handled : result.handled
             }
-            if (event.action == "pointerClick" && result.kind == "miss")
-                return true
             return result.handled
         }
 
@@ -498,7 +461,6 @@ namespace ui {
             return new UiFocusInputController({
                 focus: this.focus_,
                 scroll: this.options_.scroll,
-                wheel: this.options_.wheel,
             })
         }
 
@@ -569,14 +531,6 @@ namespace ui {
         }
     }
 
-    class UiNoopAccessibilitySink implements UiAccessibilitySink {
-        public publish(message: string): void {}
-    }
-
-    class UiNoopProfiler implements UiProfiler {
-        public mark(name: string): void {}
-    }
-
     class UiManualScheduler implements UiScheduler {
         public requestFrame(handler: () => void): void {}
     }
@@ -587,32 +541,18 @@ namespace ui {
     export class UiRuntime {
         private display_: UiDisplayAdapter
         private assets_: UiAssetResolver
-        private accessibility_: UiAccessibilitySink
-        private profiler_: UiProfiler
         private scheduler_: UiScheduler
         private clearColor_: number
         private stack_: UiSceneStack
         private inputQueue_: UiInputEvent[]
-        private inputPointScratch_: Point
-        private wheelLogicalToUiScaleX_: number
-        private wheelLogicalToUiScaleY_: number
 
         constructor(options: UiRuntimeServices) {
-            const displayProfile = options.display.surface.displayProfile
             this.display_ = options.display
             this.assets_ = options.assets || new UiNoopAssetResolver()
-            this.accessibility_ =
-                options.accessibility || new UiNoopAccessibilitySink()
-            this.profiler_ = options.profiler || new UiNoopProfiler()
             this.scheduler_ = options.scheduler || new UiManualScheduler()
             this.clearColor_ =
                 options.clearColor !== undefined ? options.clearColor : 0
             this.inputQueue_ = []
-            this.inputPointScratch_ = new Point()
-            this.wheelLogicalToUiScaleX_ =
-                1 / displayProfile.designToLogicalScaleX
-            this.wheelLogicalToUiScaleY_ =
-                1 / displayProfile.designToLogicalScaleY
             this.stack_ = new UiSceneStack(this)
         }
 
@@ -628,20 +568,6 @@ namespace ui {
          */
         public get assets(): UiAssetResolver {
             return this.assets_
-        }
-
-        /**
-         * Accessibility announcement sink.
-         */
-        public get accessibility(): UiAccessibilitySink {
-            return this.accessibility_
-        }
-
-        /**
-         * Profiling mark sink.
-         */
-        public get profiler(): UiProfiler {
-            return this.profiler_
         }
 
         /**
@@ -706,8 +632,7 @@ namespace ui {
          * Queues an input event for the next frame.
          */
         public dispatchInput(event: UiInputEvent): void {
-            const normalized = this.normalizeInputEvent(event)
-            if (normalized) this.inputQueue_.push(normalized)
+            this.inputQueue_.push(event)
         }
 
         /**
@@ -728,45 +653,5 @@ namespace ui {
             )
         }
 
-        private normalizeInputEvent(
-            event: UiInputEvent,
-        ): UiInputEvent | undefined {
-            if (
-                event.action != "pointerMove" &&
-                event.action != "pointerClick" &&
-                event.action != "wheel"
-            ) {
-                return event
-            }
-
-            const normalized: UiInputEvent = {
-                action: event.action,
-                source: event.source,
-                phase: event.phase,
-                dx: event.dx,
-                dy: event.dy,
-            }
-
-            if (event.dx !== undefined)
-                normalized.dx = event.dx * this.wheelLogicalToUiScaleX_
-            if (event.dy !== undefined)
-                normalized.dy = event.dy * this.wheelLogicalToUiScaleY_
-
-            if (event.x === undefined || event.y === undefined)
-                return normalized
-            if (
-                !this.display_.surface.uiPointFromPhysical(
-                    event.x,
-                    event.y,
-                    this.inputPointScratch_,
-                )
-            ) {
-                return undefined
-            }
-
-            normalized.x = this.inputPointScratch_.x
-            normalized.y = this.inputPointScratch_.y
-            return normalized
-        }
     }
 }

@@ -147,13 +147,6 @@ namespace ui {
     }
 
     /**
-     * Handles simulator wheel input outside active focus targeting.
-     */
-    export interface UiFocusWheelHandler {
-        (event: UiInputEvent): boolean
-    }
-
-    /**
      * Dependencies used by `UiFocusInputController`.
      */
     export interface UiFocusInputControllerOptions {
@@ -167,10 +160,6 @@ namespace ui {
          */
         scroll?: UiFocusScrollHandler
 
-        /**
-         * Optional simulator wheel sink.
-         */
-        wheel?: UiFocusWheelHandler
     }
 
     /**
@@ -185,9 +174,6 @@ namespace ui {
         | "notActivated"
         | "cancelled"
         | "notCancelled"
-        | "hit"
-        | "miss"
-        | "wheel"
 
     /**
      * Machine-readable reason for an ignored, rejected, or unhandled focus input.
@@ -196,11 +182,9 @@ namespace ui {
         | "unsupportedAction"
         | "missingActiveScope"
         | "missingNavigation"
-        | "missingPointerCoordinates"
         | "movementExited"
         | "focusRejected"
         | "unsupportedPhase"
-        | "wheelUnhandled"
 
     /**
      * Optional operation details returned by focus input handling.
@@ -226,10 +210,6 @@ namespace ui {
          */
         cancelResult?: UiFocusCancelResult
 
-        /**
-         * Hit-test result when pointer input was processed.
-         */
-        hitTestResult?: UiFocusHitTestResult
     }
 
     /**
@@ -284,13 +264,11 @@ namespace ui {
         private focus_: UiFocusState
         private navigation_: UiFocusNavigationRecord[]
         private scroll_: UiFocusScrollHandler
-        private wheel_: UiFocusWheelHandler
 
         constructor(options: UiFocusInputControllerOptions) {
             this.focus_ = options.focus
             this.navigation_ = []
             this.scroll_ = options.scroll
-            this.wheel_ = options.wheel
         }
 
         /**
@@ -336,12 +314,6 @@ namespace ui {
                     return this.handleActivateInput(event)
                 case "cancel":
                     return this.handleCancelInput(event)
-                case "pointerMove":
-                    return this.handlePointerMoveInput(event)
-                case "pointerClick":
-                    return this.handlePointerClickInput(event)
-                case "wheel":
-                    return this.handleWheelInput(event)
             }
 
             return {
@@ -490,121 +462,6 @@ namespace ui {
             }
         }
 
-        private handlePointerMoveInput(
-            event: UiInputEvent,
-        ): UiFocusInputResult {
-            if (!this.hasPointerCoordinates(event)) {
-                return {
-                    action: event.action,
-                    handled: false,
-                    kind: "ignored",
-                    reason: "missingPointerCoordinates",
-                }
-            }
-
-            const hitTestResult = this.focus_.hitTest(event.x, event.y)
-            return {
-                action: event.action,
-                handled: false,
-                kind: hitTestResult.kind == "hit" ? "hit" : "miss",
-                detail: { hitTestResult },
-            }
-        }
-
-        private handlePointerClickInput(
-            event: UiInputEvent,
-        ): UiFocusInputResult {
-            if (!this.hasPointerCoordinates(event)) {
-                return {
-                    action: event.action,
-                    handled: false,
-                    kind: "ignored",
-                    reason: "missingPointerCoordinates",
-                }
-            }
-
-            const hitTestResult = this.focus_.hitTest(event.x, event.y)
-            if (hitTestResult.kind == "miss") {
-                return {
-                    action: event.action,
-                    handled: false,
-                    kind: "miss",
-                    detail: { hitTestResult },
-                }
-            }
-
-            if (hitTestResult.disabled) {
-                return {
-                    action: event.action,
-                    handled: true,
-                    kind: "hit",
-                    detail: { hitTestResult },
-                }
-            }
-
-            let focusResult: UiFocusSetResult = undefined
-            const activeScopeId = this.focus_.getActiveScopeId()
-            const activeTargetId = this.focus_.getActiveTargetId(
-                hitTestResult.scopeId,
-            )
-            if (
-                activeScopeId != hitTestResult.scopeId ||
-                activeTargetId != hitTestResult.targetId
-            ) {
-                focusResult = this.focus_.setActiveTarget(
-                    hitTestResult.scopeId,
-                    hitTestResult.targetId,
-                )
-                if (!this.isAcceptedFocusResult(focusResult)) {
-                    return {
-                        action: event.action,
-                        handled: false,
-                        kind: "ignored",
-                        reason: "focusRejected",
-                        detail: { focusResult, hitTestResult },
-                    }
-                }
-            }
-
-            const scrollRequest = focusResult
-                ? this.focusScrollRequest(focusResult)
-                : undefined
-            if (scrollRequest) this.deliverScrollRequest(scrollRequest)
-            const activationResult = this.focus_.activate()
-            const detail: UiFocusInputDetail = focusResult
-                ? { focusResult, activationResult, hitTestResult }
-                : { activationResult, hitTestResult }
-            return {
-                action: event.action,
-                handled: true,
-                kind:
-                    activationResult.kind == "activated"
-                        ? "activated"
-                        : "notActivated",
-                detail,
-                scrollRequest,
-            }
-        }
-
-        private handleWheelInput(event: UiInputEvent): UiFocusInputResult {
-            if (this.wheel_) {
-                const handled = this.wheel_(event)
-                return {
-                    action: event.action,
-                    handled,
-                    kind: "wheel",
-                    reason: handled ? undefined : "wheelUnhandled",
-                }
-            }
-
-            return {
-                action: event.action,
-                handled: false,
-                kind: "wheel",
-                reason: "wheelUnhandled",
-            }
-        }
-
         private moveFocus(
             navigation: UiFocusNavigation,
             request: UiFocusNavigationRequest,
@@ -677,10 +534,6 @@ namespace ui {
         private isPressedOrRepeated(event: UiInputEvent): boolean {
             const phase = this.phase(event)
             return phase == "pressed" || phase == "repeated"
-        }
-
-        private hasPointerCoordinates(event: UiInputEvent): boolean {
-            return event.x !== undefined && event.y !== undefined
         }
 
         private isAcceptedFocusResult(result: UiFocusSetResult): boolean {

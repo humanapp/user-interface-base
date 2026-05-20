@@ -1,4 +1,6 @@
 namespace ui {
+    const NUMERIC_ENTRY_FONT = bitmaps.font8
+
     /**
      * Numeric entry editing mode.
      */
@@ -222,7 +224,7 @@ namespace ui {
                     ? palette.foregroundColor
                     : 15
             const padding = 4
-            const font = bitmaps.font5
+            const font = NUMERIC_ENTRY_FONT
             const textSize = surface.measureText(this.text_, font)
             const textX = Math.max(
                 rect.x + padding,
@@ -699,7 +701,7 @@ namespace ui {
         }
 
         private keyLabelBitmap(text: string): Bitmap {
-            const font = bitmaps.font5
+            const font = NUMERIC_ENTRY_FONT
             const labelSize = Math.max(1, this.keySize_ - 2)
             const bitmap = bitmaps.create(labelSize, labelSize)
             const x = Math.max(

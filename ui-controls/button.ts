@@ -1,6 +1,7 @@
 namespace ui {
     const BUTTON_FOCUS_THICKNESS = 3
     const BUTTON_FOCUS_LABEL_OFFSET = 1
+    const BUTTON_DEFAULT_FONT = bitmaps.font8
 
     /**
      * Border or frame treatment drawn behind button content.
@@ -294,7 +295,7 @@ namespace ui {
             style?: UiButtonStyle,
         ): void {
             const resolved = style || this.style_
-            const font = resolved.font || bitmaps.font5
+            const font = resolved.font || BUTTON_DEFAULT_FONT
             const text = this.contentText(content, resolved)
             const contentWidth = this.contentWidth(content)
             const contentHeight = this.contentHeight(content)
@@ -383,7 +384,7 @@ namespace ui {
             const customContent = content.customContent
             const bitmap = customContent ? undefined : content.bitmap
             const text = this.contentText(content, style)
-            const font = style.font || bitmaps.font5
+            const font = style.font || BUTTON_DEFAULT_FONT
             const foreground = this.foregroundColor(style, options)
             const graphicWidth = this.contentWidth(content)
 
@@ -415,7 +416,7 @@ namespace ui {
             style: UiButtonStyle,
             output: Rect,
         ): void {
-            const font = style.font || bitmaps.font5
+            const font = style.font || BUTTON_DEFAULT_FONT
             const text = this.contentText(content, style)
             const textWidth = text.length > 0 ? font.charWidth * text.length : 0
             const textHeight = text.length > 0 ? font.charHeight : 0
@@ -444,7 +445,8 @@ namespace ui {
         ): void {
             const text = this.focusLabelText(content, style, options)
             if (text.length == 0) return
-            const font = style.focusLabelFont || style.font || bitmaps.font5
+            const font =
+                style.focusLabelFont || style.font || BUTTON_DEFAULT_FONT
             const textWidth = font.charWidth * text.length
             const textHeight = font.charHeight
             const padding =

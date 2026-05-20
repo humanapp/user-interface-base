@@ -10,9 +10,6 @@ namespace ui {
         | "activate"
         | "cancel"
         | "menu"
-        | "pointerMove"
-        | "pointerClick"
-        | "wheel"
 
     /**
      * Physical or synthetic source that produced a semantic input action.
@@ -21,8 +18,6 @@ namespace ui {
         | "displayShieldController"
         | "microbitButton"
         | "keyboard"
-        | "pointer"
-        | "wheel"
         | "synthetic"
 
     /**
@@ -49,24 +44,5 @@ namespace ui {
          */
         phase?: UiInputPhase
 
-        /**
-         * Pointer x coordinate in UI units.
-         */
-        x?: number
-
-        /**
-         * Pointer y coordinate in UI units.
-         */
-        y?: number
-
-        /**
-         * Wheel x delta in UI units.
-         */
-        dx?: number
-
-        /**
-         * Wheel y delta in UI units.
-         */
-        dy?: number
     }
 }

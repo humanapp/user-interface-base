@@ -1,9 +1,7 @@
 {
     "name": "user-interface-base",
-    "version": "0.0.34",
+    "version": "0.0.35",
     "files": [
-        "ui-accessibility/accessibility.ts",
-        "ui-assets/assets.ts",
         "ui-core/geometry.ts",
         "ui-core/viewport.ts",
         "ui-core/draw-surface.ts",
@@ -13,21 +11,17 @@
         "ui-core/input.ts",
         "ui-core/scene-stack.ts",
         "ui-core/layout.ts",
-        "ui-core/layout-containers.ts",
-        "ui-core/layout-structured.ts",
         "ui-core/layout-scroll.ts",
         "ui-core/focus.ts",
         "ui-core/focus-navigation.ts",
         "ui-core/focus-runtime.ts",
         "ui-core/view.ts",
         "ui-core/modal.ts",
-        "ui-core/observation.ts",
         "ui-controls/button.ts",
         "ui-controls/control.ts",
         "ui-controls/row.ts",
         "ui-controls/grid.ts",
         "ui-controls/modal-grid.ts",
-        "ui-controls/toggle-grid.ts",
         "ui-controls/numeric-entry.ts"
     ],
     "yotta": {
