@@ -44,12 +44,6 @@ namespace ui {
         focusLabelId?: string
 
         /**
-         * Caller-owned content drawn by the built-in button view. Takes precedence
-         * over `bitmap` and `bitmapId`.
-         */
-        customContent?: UiButtonCustomContent
-
-        /**
          * Bitmap drawn for this control. Takes precedence over `bitmapId`.
          */
         bitmap?: Bitmap
@@ -288,21 +282,18 @@ namespace _uiControls {
         focused?: boolean,
     ): void {
         const content: ui.UiButtonContent = {
-            customContent: control.customContent,
             text: control.text !== undefined
                 ? control.text
                 : control.textId !== undefined
                   ? assets.getText(control.textId)
                   : "",
         }
-        if (!control.customContent) {
-            if (control.bitmap) content.bitmap = control.bitmap
-            else if (control.bitmapId !== undefined)
-                content.bitmap = assets.getBitmap(
-                    control.bitmapId,
-                    control.omitMissingBitmap || false,
-                )
-        }
+        if (control.bitmap) content.bitmap = control.bitmap
+        else if (control.bitmapId !== undefined)
+            content.bitmap = assets.getBitmap(
+                control.bitmapId,
+                control.omitMissingBitmap || false,
+            )
         const style = control.style || controlStyle
         if (focused) {
             const focusLabel =

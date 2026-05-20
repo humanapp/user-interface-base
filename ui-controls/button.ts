@@ -74,36 +74,9 @@ namespace ui {
     }
 
     /**
-     * Draws caller-owned button content inside the content rectangle selected by
-     * `UiButtonView`.
-     */
-    export interface UiButtonCustomContent {
-        /**
-         * Requested content width in UI units.
-         */
-        width: number
-
-        /**
-         * Requested content height in UI units.
-         */
-        height: number
-
-        /**
-         * Draws the content inside the arranged content rectangle.
-         */
-        draw(surface: DrawSurface, rect: Rect): void
-    }
-
-    /**
      * Content rendered by `UiButtonView`.
      */
     export interface UiButtonContent {
-        /**
-         * Caller-owned content drawn before the text or centered by itself. Takes
-         * precedence over `bitmap`.
-         */
-        customContent?: UiButtonCustomContent
-
         /**
          * Bitmap drawn before the text or centered by itself.
          */
@@ -230,23 +203,14 @@ namespace ui {
         ): void {
             const contentRect = this.scratch_
             this.contentRect(rect, content, style, contentRect)
-            const customContent = content.customContent
-            const bitmap = customContent ? undefined : content.bitmap
+            const bitmap = content.bitmap
             const text = this.contentText(content, style)
             const font = style.font || BUTTON_DEFAULT_FONT
             const foreground =
                 style.foregroundColor !== undefined ? style.foregroundColor : 15
             const graphicWidth = this.contentWidth(content)
 
-            if (customContent) {
-                contentRect.set(
-                    contentRect.x,
-                    contentRect.y,
-                    customContent.width,
-                    customContent.height,
-                )
-                customContent.draw(surface, contentRect)
-            } else if (bitmap) {
+            if (bitmap) {
                 surface.drawBitmap(bitmap, contentRect.x, contentRect.y)
             }
             if (text.length > 0) {
@@ -363,12 +327,10 @@ namespace ui {
         }
 
         private contentWidth(content: UiButtonContent): number {
-            if (content.customContent) return content.customContent.width
             return content.bitmap ? content.bitmap.width : 0
         }
 
         private contentHeight(content: UiButtonContent): number {
-            if (content.customContent) return content.customContent.height
             return content.bitmap ? content.bitmap.height : 0
         }
     }

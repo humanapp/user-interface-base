@@ -968,39 +968,6 @@ namespace ui {
             "control focus label text",
         )
 
-        let customDrawn = false
-        const customContent: UiButtonCustomContent = {
-            width: 5,
-            height: 7,
-            draw: (target: DrawSurface, contentRect: Rect) => {
-                customDrawn = contentRect.width == 5 && contentRect.height == 7
-                target.fillRect(contentRect, 6)
-            },
-        }
-        surface.log = ""
-        buttonView.render(
-            surface,
-            rect,
-            { customContent, text: "in" },
-            UiButtonStyles.Transparent,
-        )
-        buttonView.renderFocus(
-            surface,
-            rect,
-            { customContent, text: "in" },
-            UiButtonStyles.Transparent,
-            undefined,
-            "tip",
-        )
-        control.assert(customDrawn, "custom content drawn")
-        control.assert(
-            surface.log.indexOf("text:in;") >= 0,
-            "custom content visible text",
-        )
-        control.assert(
-            surface.log.indexOf("text:tip;") >= 0,
-            "custom content focus label",
-        )
     }
 
     /**
