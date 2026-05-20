@@ -136,11 +136,6 @@ namespace ui {
         titleControls?: UiControl<T>[]
 
         /**
-         * Whether delete may emit a `deleted` result.
-         */
-        deleteEnabled?: boolean
-
-        /**
          * Whether activation emits `activated` with `close: true`. Defaults to `true`.
          */
         closeOnActivate?: boolean
@@ -280,8 +275,6 @@ namespace ui {
               updatedValue?: T
           }
         | { kind: "cancelled"; modalScopeId: UiFocusScopeId }
-        | { kind: "closed"; modalScopeId: UiFocusScopeId }
-        | { kind: "deleted"; modalScopeId: UiFocusScopeId }
 
     /**
      * Draws a modal panel using the supplied style.
@@ -316,7 +309,6 @@ namespace ui {
         private title_: string
         private titleId_: string
         private titleBitmap_: Bitmap | string
-        private deleteEnabled_: boolean
         private closeOnActivate_: boolean
         private style_: UiModalStyle
         private titleRow_: UiRow<T>
@@ -325,8 +317,6 @@ namespace ui {
         private onCancel_: UiPickerCancelHandler
         private scratch_: Rect
         private titleRowSize_: UiMeasuredSize
-        private gridRows_: number[]
-        private columnCount_: number
         private horizontalWrap_: boolean
 
         constructor(options: UiPickerOptions<T>) {
@@ -335,19 +325,13 @@ namespace ui {
             this.title_ = options.title
             this.titleId_ = options.titleId
             this.titleBitmap_ = options.titleBitmap
-            this.deleteEnabled_ = options.deleteEnabled || false
             this.closeOnActivate_ = options.closeOnActivate !== false
             this.style_ = this.resolveModalStyle(options)
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.scratch_ = new Rect()
             this.titleRowSize_ = new UiMeasuredSize()
-            this.gridRows_ = options.rows
             this.horizontalWrap_ = options.horizontalWrap || false
-            this.columnCount_ = _uiControls.sanitizeDimension(
-                options.columnCount,
-                Math.max(1, options.controls.length),
-            )
             if (options.titleControls && options.titleControls.length)
                 this.titleRow_ = new UiRow<T>({
                     scopeId: options.modalScopeId,
@@ -364,7 +348,7 @@ namespace ui {
                 scopeId: options.modalScopeId,
                 controls: options.controls,
                 defaultControlId: options.defaultControlId,
-                columnCount: this.columnCount_,
+                columnCount: options.columnCount,
                 rows: options.rows,
                 controlWidth: options.controlWidth,
                 controlHeight: options.controlHeight,
@@ -546,33 +530,14 @@ namespace ui {
                 return activation
             }
             if (result.kind == "cancelled") {
-                const cancelled = this.createCancelResult()
+                const cancelled: UiPickerResult<T> = {
+                    kind: "cancelled",
+                    modalScopeId: this.modalScopeId_,
+                }
                 this.emitCancel(cancelled)
                 return cancelled
             }
             return undefined
-        }
-
-        /**
-         * Creates a cancellation result without closing the focus scope.
-         */
-        public createCancelResult(): UiPickerResult<T> {
-            return { kind: "cancelled", modalScopeId: this.modalScopeId_ }
-        }
-
-        /**
-         * Creates a close result without closing the focus scope.
-         */
-        public createCloseResult(): UiPickerResult<T> {
-            return { kind: "closed", modalScopeId: this.modalScopeId_ }
-        }
-
-        /**
-         * Creates a delete result when delete is enabled.
-         */
-        public createDeleteResult(): UiPickerResult<T> {
-            if (!this.deleteEnabled_) return undefined
-            return { kind: "deleted", modalScopeId: this.modalScopeId_ }
         }
 
         /**
@@ -741,71 +706,12 @@ namespace ui {
         private titleNavigationTargets(): UiFocusNavigationTarget[] {
             const targets: UiFocusNavigationTarget[] = []
             if (!this.titleRow_) return targets
-            const controls = this.titleRow_.controls
-            for (let i = 0; i < controls.length; i++) {
-                const control = controls[i]
-                if (!this.isNavigationControl(control)) continue
-                const rect = new Rect()
-                this.titleRow_.getControlRect(control.id, rect)
-                targets.push(this.navigationTarget(control, rect))
-            }
+            this.titleRow_.copyNavigationTargets(targets)
             return targets
         }
 
         private contentNavigationRows(): UiFocusNavigationTarget[][] {
-            const rows: UiFocusNavigationTarget[][] = []
-            const controls = this.grid_.controls
-            let index = 0
-            for (let row = 0; row < this.rowCount(); row++) {
-                const rowTargets: UiFocusNavigationTarget[] = []
-                const count = this.rowLength(row)
-                for (
-                    let column = 0;
-                    column < count && index < controls.length;
-                    column++
-                ) {
-                    const control = controls[index]
-                    index++
-                    if (!this.isNavigationControl(control)) continue
-                    const rect = new Rect()
-                    this.grid_.getControlRect(control.id, rect)
-                    rowTargets.push(this.navigationTarget(control, rect))
-                }
-                rows.push(rowTargets)
-            }
-            return rows
-        }
-
-        private rowCount(): number {
-            if (this.gridRows_) return this.gridRows_.length
-            return Math.idiv(
-                this.grid_.controls.length + this.columnCount_ - 1,
-                this.columnCount_,
-            )
-        }
-
-        private rowLength(row: number): number {
-            if (!this.gridRows_) return this.columnCount_
-            if (row < 0 || row >= this.gridRows_.length) return 0
-            return _uiControls.sanitizeDimension(this.gridRows_[row], 0)
-        }
-
-        private navigationTarget(
-            control: UiControl<T>,
-            rect: Rect,
-        ): UiFocusNavigationTarget {
-            return {
-                id: _uiControls.targetId(this.modalScopeId_, control.id),
-                rect,
-                hidden: !_uiControls.isVisible(control),
-            }
-        }
-
-        private isNavigationControl(control: UiControl<T>): boolean {
-            return (
-                _uiControls.isVisible(control) &&
-                _uiControls.isFocusable(control)
-            )
+            return this.grid_.navigationRows()
         }
 
         private resolveModalStyle(options: UiPickerOptions<T>): UiModalStyle {

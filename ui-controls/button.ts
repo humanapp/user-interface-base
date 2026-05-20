@@ -266,38 +266,6 @@ namespace ui {
         }
 
         /**
-         * Replaces the default style used by later render calls.
-         */
-        public setStyle(style: UiButtonStyle): void {
-            this.style_ = style || UiButtonStyles.Default
-        }
-
-        /**
-         * Measures the preferred size for button content.
-         */
-        public measure(
-            content: UiButtonContent,
-            output: UiMeasuredSize,
-            style?: UiButtonStyle,
-        ): void {
-            const resolved = style || this.style_
-            const font = resolved.font || BUTTON_DEFAULT_FONT
-            const text = this.contentText(content, resolved)
-            const contentWidth = this.contentWidth(content)
-            const contentHeight = this.contentHeight(content)
-            const gap =
-                contentWidth > 0 && text.length > 0
-                    ? this.contentGap(resolved)
-                    : 0
-            const textWidth = text.length > 0 ? font.charWidth * text.length : 0
-            const textHeight = text.length > 0 ? font.charHeight : 0
-            const padding = this.padding(resolved)
-            const width = contentWidth + gap + textWidth + padding * 2
-            const height = Math.max(contentHeight, textHeight) + padding * 2
-            output.set(width, height, width, height)
-        }
-
-        /**
          * Renders the button frame, content, and optional focus state.
          */
         public render(

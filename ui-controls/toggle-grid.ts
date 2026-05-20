@@ -102,6 +102,7 @@ namespace ui {
         public layoutDirty: boolean
         private modal_: UiPicker<T>
         private toggle_: UiToggleGridAction<T>
+        private deleteEnabled_: boolean
 
         constructor(options: UiToggleGridOptions<T>) {
             this.modal_ = new UiPicker<T>({
@@ -109,7 +110,6 @@ namespace ui {
                 modalScopeId: options.modalScopeId,
                 controls: options.controls,
                 defaultControlId: options.defaultControlId,
-                deleteEnabled: options.deleteEnabled,
                 closeOnActivate: false,
                 columnCount: options.columnCount,
                 horizontalWrap: options.horizontalWrap,
@@ -118,6 +118,7 @@ namespace ui {
                 modalStyle: options.modalStyle,
             })
             this.toggle_ = options.toggle
+            this.deleteEnabled_ = options.deleteEnabled || false
             this.layoutSpec = this.modal_.layoutSpec
             this.finalRect = this.modal_.finalRect
             this.layoutDirty = true
@@ -239,10 +240,8 @@ namespace ui {
          * Creates a delete result when delete is enabled.
          */
         public createDeleteResult(): UiToggleGridResult<T> {
-            const result = this.modal_.createDeleteResult()
-            return result && result.kind == "deleted"
-                ? { kind: "deleted", modalScopeId: this.modalScopeId }
-                : undefined
+            if (!this.deleteEnabled_) return undefined
+            return { kind: "deleted", modalScopeId: this.modalScopeId }
         }
 
         /**

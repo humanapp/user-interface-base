@@ -406,9 +406,6 @@ namespace ui {
         private modalStyle_: UiModalStyle
         private displayPalette_: UiControlPalette
         private contentMargin_: number
-        private displayHeight_: number
-        private displayGap_: number
-        private keySize_: number
         private deleteEnabled_: boolean
         private deleteIcon_: UiNumericEntryKeyIcon
         private onResult_: (result: UiNumericEntryResult) => void
@@ -419,9 +416,6 @@ namespace ui {
             this.modalStyle_ = options.modalStyle
             this.displayPalette_ = options.displayPalette || {}
             this.contentMargin_ = this.contentMargin(options.modalStyle)
-            this.displayHeight_ = UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT
-            this.displayGap_ = UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP
-            this.keySize_ = UI_NUMERIC_ENTRY_MODAL_KEY_SIZE
             this.deleteEnabled_ = options.deleteEnabled || false
             this.deleteIcon_ = options.deleteIcon
             const keyGap = UI_NUMERIC_ENTRY_MODAL_KEY_GAP
@@ -430,8 +424,8 @@ namespace ui {
                 controls: this.createControls(options.mode),
                 rows: this.rows(),
                 defaultControlId: "digit-1",
-                controlWidth: this.keySize_,
-                controlHeight: this.keySize_,
+                controlWidth: UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
+                controlHeight: UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
                 rowGap: keyGap,
                 columnGap: keyGap,
                 controlStyle:
@@ -468,8 +462,8 @@ namespace ui {
                 this.measuredGrid_.preferredWidth + this.contentMargin_ * 2
             const height =
                 this.contentMargin_ * 2 +
-                this.displayHeight_ +
-                this.displayGap_ +
+                UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT +
+                UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP +
                 this.measuredGrid_.preferredHeight
             output.set(width, height, width, height)
             this.clearLayoutInvalidation()
@@ -484,18 +478,18 @@ namespace ui {
                 rect.x + this.contentMargin_,
                 rect.y + this.contentMargin_,
                 Math.max(0, rect.width - this.contentMargin_ * 2),
-                this.displayHeight_,
+                UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT,
             )
             this.gridRect_.set(
                 rect.x + this.contentMargin_,
-                this.displayRect_.bottom + this.displayGap_,
+                this.displayRect_.bottom + UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP,
                 Math.max(0, rect.width - this.contentMargin_ * 2),
                 Math.max(
                     0,
                     rect.height -
                         this.contentMargin_ * 2 -
-                        this.displayHeight_ -
-                        this.displayGap_,
+                        UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT -
+                        UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP,
                 ),
             )
             this.grid_.arrange(this.gridRect_)
@@ -702,7 +696,7 @@ namespace ui {
 
         private keyLabelBitmap(text: string): Bitmap {
             const font = NUMERIC_ENTRY_FONT
-            const labelSize = Math.max(1, this.keySize_ - 2)
+            const labelSize = Math.max(1, UI_NUMERIC_ENTRY_MODAL_KEY_SIZE - 2)
             const bitmap = bitmaps.create(labelSize, labelSize)
             const x = Math.max(
                 0,
@@ -722,20 +716,6 @@ namespace ui {
                 focusable: false,
                 visible: false,
             }
-        }
-
-        private positiveDimension(value: number, defaultValue: number): number {
-            const result = this.nonNegativeDimension(value, defaultValue)
-            return result == 0 ? defaultValue : result
-        }
-
-        private nonNegativeDimension(
-            value: number,
-            defaultValue: number,
-        ): number {
-            if (value === undefined || value != value) return defaultValue
-            const result = Math.round(value)
-            return result < 0 ? 0 : result
         }
 
         private contentMargin(style: UiModalStyle): number {

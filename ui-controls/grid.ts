@@ -280,21 +280,12 @@ namespace ui {
          * Registers grid or ragged-grid navigation with a focus input controller.
          */
         public registerNavigation(controller: UiFocusInputController): void {
-            if (this.rows_) {
-                controller.setNavigation(this.scopeId_, {
-                    kind: "raggedGrid",
-                    rows: this.raggedNavigationRows(),
-                    wrap: this.wrap_,
-                    horizontalWrap: this.horizontalWrap_,
-                })
-            } else {
-                controller.setNavigation(this.scopeId_, {
-                    kind: "grid",
-                    cells: this.gridNavigationCells(),
-                    wrap: this.wrap_,
-                    horizontalWrap: this.horizontalWrap_,
-                })
-            }
+            controller.setNavigation(this.scopeId_, {
+                kind: "raggedGrid",
+                rows: this.navigationRows(),
+                wrap: this.wrap_,
+                horizontalWrap: this.horizontalWrap_,
+            })
         }
 
         /**
@@ -313,6 +304,32 @@ namespace ui {
                 this.controls_,
                 this.defaultControlId_,
             )
+        }
+
+        /**
+         * Returns focus navigation rows using this grid's current arranged rectangles.
+         */
+        public navigationRows(): UiFocusNavigationTarget[][] {
+            this.ensureControlRects()
+            const rows: UiFocusNavigationTarget[][] = []
+            let index = 0
+            for (let row = 0; row < this.rowCount(); row++) {
+                const rowTargets: UiFocusNavigationTarget[] = []
+                const count = this.rowLength(row)
+                for (
+                    let column = 0;
+                    column < count && index < this.controls_.length;
+                    column++
+                ) {
+                    const control = this.controls_[index]
+                    const rect = this.controlRects_[index]
+                    index++
+                    if (!this.isNavigationControl(control)) continue
+                    rowTargets.push(this.navigationTarget(control, rect))
+                }
+                rows.push(rowTargets)
+            }
+            return rows
         }
 
         /**
@@ -486,45 +503,6 @@ namespace ui {
                 this.controlRects_.push(new Rect())
             while (this.controlRects_.length > this.controls_.length)
                 this.controlRects_.pop()
-        }
-
-        private gridNavigationCells(): UiFocusGridNavigationCell[] {
-            this.ensureControlRects()
-            const cells: UiFocusGridNavigationCell[] = []
-            for (let i = 0; i < this.controls_.length; i++) {
-                const control = this.controls_[i]
-                if (!this.isNavigationControl(control)) continue
-                const rect = this.controlRects_[i]
-                cells.push({
-                    row: this.rowForIndex(i),
-                    column: this.columnForIndex(i),
-                    target: this.navigationTarget(control, rect),
-                })
-            }
-            return cells
-        }
-
-        private raggedNavigationRows(): UiFocusNavigationTarget[][] {
-            this.ensureControlRects()
-            const rows: UiFocusNavigationTarget[][] = []
-            let index = 0
-            for (let row = 0; row < this.rowCount(); row++) {
-                const rowTargets: UiFocusNavigationTarget[] = []
-                const count = this.rowLength(row)
-                for (
-                    let column = 0;
-                    column < count && index < this.controls_.length;
-                    column++
-                ) {
-                    const control = this.controls_[index]
-                    const rect = this.controlRects_[index]
-                    index++
-                    if (!this.isNavigationControl(control)) continue
-                    rowTargets.push(this.navigationTarget(control, rect))
-                }
-                rows.push(rowTargets)
-            }
-            return rows
         }
 
         private navigationTarget(

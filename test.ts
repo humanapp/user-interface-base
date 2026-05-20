@@ -5610,15 +5610,11 @@ namespace ui {
             style: UiButtonStyles.LightShadowedWhite,
         })
         const rect = new Rect(10, 20, 18, 18)
-        const measured = new UiMeasuredSize()
         const bitmap = bmp`
       2 2
       2 2
     `
 
-        buttonView.measure({ bitmap }, measured)
-        control.assert(measured.preferredWidth == 6, "control measured width")
-        control.assert(measured.preferredHeight == 6, "control measured height")
         buttonView.render(surface, rect, { bitmap }, { focused: true })
 
         control.assert(surface.log.indexOf("fill:1;") >= 0, "control fill")
@@ -5691,11 +5687,6 @@ namespace ui {
             },
         }
         surface.log = ""
-        buttonView.measure({ customContent }, measured, {
-            padding: 0,
-        })
-        control.assert(measured.preferredWidth == 5, "custom content width")
-        control.assert(measured.preferredHeight == 7, "custom content height")
         buttonView.render(
             surface,
             rect,
@@ -6503,7 +6494,6 @@ namespace ui {
             title: "Caller title",
             titleId: "knownText",
             defaultControlId: "disabled",
-            deleteEnabled: true,
             closeOnActivate: true,
             columnCount: 2,
             controls: [
@@ -6853,10 +6843,6 @@ namespace ui {
             "modal activation callback",
         )
         control.assert((<any>activated).close, "modal activate close flag")
-        const deleted = modal.createDeleteResult()
-        control.assert(deleted.kind == "deleted", "modal delete result")
-        const closed = modal.createCloseResult()
-        control.assert(closed.kind == "closed", "modal close result")
         modal.close(focus)
         control.assert(
             focus.getActiveScopeId() == "parent",
