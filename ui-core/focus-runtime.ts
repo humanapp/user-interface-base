@@ -4,7 +4,6 @@ namespace ui {
      */
     export type UiFocusNavigation =
         | UiRowFocusNavigation
-        | UiGridFocusNavigation
         | UiRaggedGridFocusNavigation
         | UiFocusNavigationProvider
 
@@ -26,31 +25,6 @@ namespace ui {
          * Whether movement wraps inside the row.
          */
         wrap?: boolean
-    }
-
-    /**
-     * Grid navigation for a focus scope.
-     */
-    export interface UiGridFocusNavigation {
-        /**
-         * Navigation kind.
-         */
-        kind: "grid"
-
-        /**
-         * Target cells in caller-defined coordinate order.
-         */
-        cells: UiFocusGridNavigationCell[]
-
-        /**
-         * Whether movement wraps inside the current row or column.
-         */
-        wrap?: boolean
-
-        /**
-         * Whether left/right movement wraps inside the current row.
-         */
-        horizontalWrap?: boolean
     }
 
     /**
@@ -449,28 +423,15 @@ namespace ui {
             if (kind === undefined)
                 return (<UiFocusNavigationProvider>navigation).move(request)
 
-            switch (kind) {
-                case "row": {
-                    const row = <UiRowFocusNavigation>navigation
-                    return moveFocusInRow({
-                        scopeId: request.scopeId,
-                        currentTargetId: request.currentTargetId,
-                        direction: request.direction,
-                        targets: row.targets,
-                        wrap: row.wrap,
-                    })
-                }
-                case "grid": {
-                    const grid = <UiGridFocusNavigation>navigation
-                    return moveFocusInGrid({
-                        scopeId: request.scopeId,
-                        currentTargetId: request.currentTargetId,
-                        direction: request.direction,
-                        cells: grid.cells,
-                        wrap: grid.wrap,
-                        horizontalWrap: grid.horizontalWrap,
-                    })
-                }
+            if (kind == "row") {
+                const row = <UiRowFocusNavigation>navigation
+                return moveFocusInRow({
+                    scopeId: request.scopeId,
+                    currentTargetId: request.currentTargetId,
+                    direction: request.direction,
+                    targets: row.targets,
+                    wrap: row.wrap,
+                })
             }
 
             const raggedGrid = <UiRaggedGridFocusNavigation>navigation

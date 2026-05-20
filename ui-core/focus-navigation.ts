@@ -72,66 +72,6 @@ namespace ui {
     }
 
     /**
-     * Positioned target entry for grid focus movement.
-     */
-    export interface UiFocusGridNavigationCell {
-        /**
-         * Non-negative integer row coordinate.
-         */
-        row: number
-
-        /**
-         * Non-negative integer column coordinate.
-         */
-        column: number
-
-        /**
-         * Target stored at this grid coordinate.
-         */
-        target: UiFocusNavigationTarget
-    }
-
-    /**
-     * Grid target record for directional focus movement.
-     *
-     * The `cells` array supplies sparse row and column coordinates. Disabled and
-     * hidden targets are skipped as destinations.
-     */
-    export interface UiFocusGridMoveInput {
-        /**
-         * Scope that owns the targets.
-         */
-        scopeId: UiFocusScopeId
-
-        /**
-         * Active target id before movement. Missing or ineligible ids return a
-         * `missingActive` result.
-         */
-        currentTargetId?: UiFocusId
-
-        /**
-         * Requested movement direction.
-         */
-        direction: UiFocusDirection
-
-        /**
-         * Whether movement may wrap within the current row or column. Defaults to
-         * `false`.
-         */
-        wrap?: boolean
-
-        /**
-         * Whether left/right movement may wrap within the current row.
-         */
-        horizontalWrap?: boolean
-
-        /**
-         * Target cells in caller-defined coordinate order.
-         */
-        cells: UiFocusGridNavigationCell[]
-    }
-
-    /**
      * Ragged row record for directional focus movement.
      *
      * Each nested array is one row in movement order. Disabled and hidden targets
@@ -181,12 +121,6 @@ namespace ui {
         verticalStrategy?: UiFocusVerticalStrategy
     }
 
-    interface UiResolvedGridCell {
-        row: number
-        column: number
-        target: UiFocusNavigationTarget
-    }
-
     interface UiResolvedRaggedCell {
         row: number
         column: number
@@ -206,47 +140,6 @@ namespace ui {
             input,
             input.direction == "left",
             input.direction == "right",
-        )
-    }
-
-    /**
-     * Returns the focus movement result for a sparse coordinate grid.
-     *
-     * Movement scans in the requested direction from the current cell. Missing
-     * and hidden cells are skipped. Callers apply moved results to focus state.
-     */
-    export function moveFocusInGrid(
-        input: UiFocusGridMoveInput,
-    ): UiFocusMoveResult {
-        const current = currentGridCell(input)
-
-        if (!hasEligibleGridTarget(input.cells))
-            return emptyMoveResult(input.scopeId)
-        if (!current)
-            return missingActiveMoveResult(input.scopeId, input.currentTargetId)
-
-        let destination: UiResolvedGridCell | undefined = undefined
-        if (input.direction == "left" || input.direction == "right") {
-            destination = scanGridRow(input, current)
-        } else {
-            destination = scanGridColumn(input, current)
-        }
-
-        if (destination)
-            return movedResult(
-                input.scopeId,
-                current.target,
-                destination.target,
-            )
-        if (
-            input.wrap ||
-            (isHorizontalDirection(input.direction) && input.horizontalWrap)
-        )
-            return boundaryMoveResult(input.scopeId, input.currentTargetId)
-        return exitedMoveResult(
-            input.scopeId,
-            input.currentTargetId,
-            input.direction,
         )
     }
 
@@ -362,203 +255,6 @@ namespace ui {
         }
 
         return -1
-    }
-
-    function scanGridRow(
-        input: UiFocusGridMoveInput,
-        current: UiResolvedGridCell,
-    ): UiResolvedGridCell | undefined {
-        const step = input.direction == "left" ? -1 : 1
-        const min = minGridColumn(input.cells, current.row)
-        const max = maxGridColumn(input.cells, current.row)
-        let found = scanGridRowRange(
-            input.cells,
-            current.row,
-            current.column + step,
-            step < 0 ? min - 1 : max + 1,
-            step,
-        )
-
-        if (!found && (input.wrap || input.horizontalWrap)) {
-            const start = step < 0 ? max : min
-            const end = current.column
-            found = scanGridRowRange(input.cells, current.row, start, end, step)
-        }
-
-        return found
-    }
-
-    function scanGridColumn(
-        input: UiFocusGridMoveInput,
-        current: UiResolvedGridCell,
-    ): UiResolvedGridCell | undefined {
-        const step = input.direction == "up" ? -1 : 1
-        const min = minGridRow(input.cells, current.column)
-        const max = maxGridRow(input.cells, current.column)
-        let found = scanGridColumnRange(
-            input.cells,
-            current.column,
-            current.row + step,
-            step < 0 ? min - 1 : max + 1,
-            step,
-        )
-
-        if (!found && input.wrap) {
-            const start = step < 0 ? max : min
-            const end = current.row
-            found = scanGridColumnRange(
-                input.cells,
-                current.column,
-                start,
-                end,
-                step,
-            )
-        }
-
-        return found
-    }
-
-    function scanGridRowRange(
-        cells: UiFocusGridNavigationCell[],
-        row: number,
-        start: number,
-        end: number,
-        step: number,
-    ): UiResolvedGridCell | undefined {
-        for (let column = start; column != end; column += step) {
-            const cell = firstEligibleGridCellAt(cells, row, column)
-            if (cell) return cell
-        }
-
-        return undefined
-    }
-
-    function scanGridColumnRange(
-        cells: UiFocusGridNavigationCell[],
-        column: number,
-        start: number,
-        end: number,
-        step: number,
-    ): UiResolvedGridCell | undefined {
-        for (let row = start; row != end; row += step) {
-            const cell = firstEligibleGridCellAt(cells, row, column)
-            if (cell) return cell
-        }
-
-        return undefined
-    }
-
-    function currentGridCell(
-        input: UiFocusGridMoveInput,
-    ): UiResolvedGridCell | undefined {
-        for (let i = 0; i < input.cells.length; i++) {
-            const cell = input.cells[i]
-            if (
-                isValidGridCoordinate(cell.row) &&
-                isValidGridCoordinate(cell.column) &&
-                cell.target.id == input.currentTargetId &&
-                isEligibleNavigationTarget(cell.target)
-            ) {
-                return {
-                    row: cell.row,
-                    column: cell.column,
-                    target: cell.target,
-                }
-            }
-        }
-
-        return undefined
-    }
-
-    function firstEligibleGridCellAt(
-        cells: UiFocusGridNavigationCell[],
-        row: number,
-        column: number,
-    ): UiResolvedGridCell | undefined {
-        for (let i = 0; i < cells.length; i++) {
-            const cell = cells[i]
-            if (
-                cell.row == row &&
-                cell.column == column &&
-                isValidGridCoordinate(cell.row) &&
-                isValidGridCoordinate(cell.column) &&
-                isEligibleNavigationTarget(cell.target)
-            ) {
-                return { row, column, target: cell.target }
-            }
-        }
-
-        return undefined
-    }
-
-    function minGridColumn(
-        cells: UiFocusGridNavigationCell[],
-        row: number,
-    ): number {
-        let value = -1
-        for (let i = 0; i < cells.length; i++) {
-            const cell = cells[i]
-            if (
-                cell.row == row &&
-                isValidGridCoordinate(cell.column) &&
-                (value < 0 || cell.column < value)
-            ) {
-                value = cell.column
-            }
-        }
-        return value
-    }
-
-    function maxGridColumn(
-        cells: UiFocusGridNavigationCell[],
-        row: number,
-    ): number {
-        let value = -1
-        for (let i = 0; i < cells.length; i++) {
-            const cell = cells[i]
-            if (
-                cell.row == row &&
-                isValidGridCoordinate(cell.column) &&
-                cell.column > value
-            )
-                value = cell.column
-        }
-        return value
-    }
-
-    function minGridRow(
-        cells: UiFocusGridNavigationCell[],
-        column: number,
-    ): number {
-        let value = -1
-        for (let i = 0; i < cells.length; i++) {
-            const cell = cells[i]
-            if (
-                cell.column == column &&
-                isValidGridCoordinate(cell.row) &&
-                (value < 0 || cell.row < value)
-            ) {
-                value = cell.row
-            }
-        }
-        return value
-    }
-
-    function maxGridRow(
-        cells: UiFocusGridNavigationCell[],
-        column: number,
-    ): number {
-        let value = -1
-        for (let i = 0; i < cells.length; i++) {
-            const cell = cells[i]
-            if (
-                cell.column == column &&
-                isValidGridCoordinate(cell.row) &&
-                cell.row > value
-            )
-                value = cell.row
-        }
-        return value
     }
 
     function scanRaggedRow(
@@ -713,22 +409,6 @@ namespace ui {
         return false
     }
 
-    function hasEligibleGridTarget(
-        cells: UiFocusGridNavigationCell[],
-    ): boolean {
-        for (let i = 0; i < cells.length; i++) {
-            const cell = cells[i]
-            if (
-                isValidGridCoordinate(cell.row) &&
-                isValidGridCoordinate(cell.column) &&
-                isEligibleNavigationTarget(cell.target)
-            ) {
-                return true
-            }
-        }
-        return false
-    }
-
     function hasEligibleRaggedTarget(
         rows: UiFocusNavigationTarget[][],
     ): boolean {
@@ -759,10 +439,6 @@ namespace ui {
 
     function isHorizontalDirection(direction: UiFocusDirection): boolean {
         return direction == "left" || direction == "right"
-    }
-
-    function isValidGridCoordinate(value: number): boolean {
-        return value >= 0 && Math.floor(value) == value
     }
 
     function emptyMoveResult(scopeId: UiFocusScopeId): UiFocusMoveResult {
