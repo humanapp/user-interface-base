@@ -81,11 +81,6 @@ namespace ui {
         omitMissingBitmap?: boolean
 
         /**
-         * Optional colors used by the default renderer.
-         */
-        palette?: UiControlPalette
-
-        /**
          * Width requested by variable-size control collections.
          */
         width?: number
@@ -126,11 +121,6 @@ namespace ui {
          * Whether default focus selection should prefer this control.
          */
         selected?: boolean
-
-        /**
-         * Whether built-in control drawing should show toggled state.
-         */
-        toggled?: boolean
 
         /**
          * Optional callback invoked when this control is activated.
@@ -195,10 +185,6 @@ namespace _uiControls {
 
     export function isSelected<T>(control: ui.UiControl<T>): boolean {
         return control.selected || false
-    }
-
-    export function isToggled<T>(control: ui.UiControl<T>): boolean {
-        return control.toggled || false
     }
 
     export function isFocusable<T>(control: ui.UiControl<T>): boolean {
@@ -356,8 +342,6 @@ namespace _uiControls {
         controlStyle?: ui.UiButtonStyle,
         labelBounds?: ui.Rect,
     ): void {
-        const toggled = isToggled(control)
-
         buttonView.render(
             surface,
             rect,
@@ -366,13 +350,7 @@ namespace _uiControls {
                 bitmap: controlBitmap(control, assets),
                 text: controlText(control, assets),
             },
-            {
-                toggled,
-                style: control.style || controlStyle,
-                palette: control.palette,
-                labelBounds,
-                focusLabelText: controlFocusLabelText(control, assets),
-            },
+            control.style || controlStyle,
         )
     }
 
@@ -393,14 +371,9 @@ namespace _uiControls {
                 bitmap: controlBitmap(control, assets),
                 text: controlText(control, assets),
             },
-            {
-                focused: true,
-                toggled: isToggled(control),
-                style: control.style || controlStyle,
-                palette: control.palette,
-                labelBounds,
-                focusLabelText: controlFocusLabelText(control, assets),
-            },
+            control.style || controlStyle,
+            labelBounds,
+            controlFocusLabelText(control, assets),
         )
     }
 

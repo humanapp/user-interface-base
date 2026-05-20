@@ -894,7 +894,8 @@ namespace ui {
       2 2
     `
 
-        buttonView.render(surface, rect, { bitmap }, { focused: true })
+        buttonView.render(surface, rect, { bitmap })
+        buttonView.renderFocus(surface, rect, { bitmap })
 
         control.assert(surface.log.indexOf("fill:1;") >= 0, "control fill")
         control.assert(surface.log.indexOf("line:11;") >= 0, "control shadow")
@@ -920,9 +921,7 @@ namespace ui {
             surface,
             rect,
             { bitmap, text: "go" },
-            {
-                style: focusLabelStyle,
-            },
+            focusLabelStyle,
         )
         surface.log = ""
         _uiControls.renderControl(
@@ -951,11 +950,14 @@ namespace ui {
             surface,
             rect,
             { bitmap, text: "go" },
-            {
-                focused: true,
-                style: focusLabelStyle,
-                labelBounds: new Rect(0, 0, 40, 40),
-            },
+            focusLabelStyle,
+        )
+        buttonView.renderFocus(
+            surface,
+            rect,
+            { bitmap, text: "go" },
+            focusLabelStyle,
+            new Rect(0, 0, 40, 40),
         )
         control.assert(
             surface.log.indexOf("fill:15;") >= 0,
@@ -980,11 +982,15 @@ namespace ui {
             surface,
             rect,
             { customContent, text: "in" },
-            {
-                focused: true,
-                focusLabelText: "tip",
-                style: UiButtonStyles.Transparent,
-            },
+            UiButtonStyles.Transparent,
+        )
+        buttonView.renderFocus(
+            surface,
+            rect,
+            { customContent, text: "in" },
+            UiButtonStyles.Transparent,
+            undefined,
+            "tip",
         )
         control.assert(customDrawn, "custom content drawn")
         control.assert(

@@ -116,48 +116,6 @@ namespace ui {
     }
 
     /**
-     * State flags used when rendering a button.
-     */
-    export interface UiButtonState {
-        /**
-         * Whether the button is focused.
-         */
-        focused?: boolean
-
-        /**
-         * Whether the button is toggled on.
-         */
-        toggled?: boolean
-
-    }
-
-    /**
-     * Options for rendering a button.
-     */
-    export interface UiButtonViewRenderOptions extends UiButtonState {
-        /**
-         * Style override for this render call.
-         */
-        style?: UiButtonStyle
-
-        /**
-         * Palette override for button rendering.
-         */
-        palette?: UiButtonStyle
-
-        /**
-         * Bounds used to keep a focus label visible.
-         */
-        labelBounds?: Rect
-
-        /**
-         * Text rendered in the focus label. When omitted, focus-label styles use
-         * button content text.
-         */
-        focusLabelText?: string
-    }
-
-    /**
      * Creates a button style by copying defined fields from each style in order.
      */
     export function buttonStyle(
@@ -208,14 +166,11 @@ namespace ui {
             surface: DrawSurface,
             rect: Rect,
             content: UiButtonContent,
-            options?: UiButtonViewRenderOptions,
+            style?: UiButtonStyle,
         ): void {
-            const style = this.styleFor(options)
-            this.renderFrame(surface, rect, style, options)
-            this.renderContent(surface, rect, content, style, options)
-            if (options && options.focused) {
-                this.renderFocus(surface, rect, content, options)
-            }
+            style = style || this.style_
+            this.renderFrame(surface, rect, style)
+            this.renderContent(surface, rect, content, style)
         }
 
         /**
@@ -225,20 +180,28 @@ namespace ui {
             surface: DrawSurface,
             rect: Rect,
             content: UiButtonContent,
-            options?: UiButtonViewRenderOptions,
+            style?: UiButtonStyle,
+            labelBounds?: Rect,
+            focusLabelText?: string,
         ): void {
-            const style = this.styleFor(options)
+            style = style || this.style_
             drawButtonFocusRing(surface, rect)
-            this.renderFocusLabel(surface, rect, content, style, options)
+            this.renderFocusLabel(
+                surface,
+                rect,
+                content,
+                style,
+                labelBounds,
+                focusLabelText,
+            )
         }
 
         private renderFrame(
             surface: DrawSurface,
             rect: Rect,
             style: UiButtonStyle,
-            options?: UiButtonViewRenderOptions,
         ): void {
-            const background = this.backgroundColor(style, options)
+            const background = style.backgroundColor
             const frame = style.frame || "none"
             if (frame == "roundedShadow") {
                 drawShadowedButtonFrame(
@@ -264,7 +227,6 @@ namespace ui {
             rect: Rect,
             content: UiButtonContent,
             style: UiButtonStyle,
-            options?: UiButtonViewRenderOptions,
         ): void {
             const contentRect = this.scratch_
             this.contentRect(rect, content, style, contentRect)
@@ -272,7 +234,8 @@ namespace ui {
             const bitmap = customContent ? undefined : content.bitmap
             const text = this.contentText(content, style)
             const font = style.font || BUTTON_DEFAULT_FONT
-            const foreground = this.foregroundColor(style, options)
+            const foreground =
+                style.foregroundColor !== undefined ? style.foregroundColor : 15
             const graphicWidth = this.contentWidth(content)
 
             if (customContent) {
@@ -329,9 +292,10 @@ namespace ui {
             rect: Rect,
             content: UiButtonContent,
             style: UiButtonStyle,
-            options?: UiButtonViewRenderOptions,
+            bounds?: Rect,
+            focusLabelText?: string,
         ): void {
-            const text = this.focusLabelText(content, style, options)
+            const text = this.focusLabelText(content, style, focusLabelText)
             if (text.length == 0) return
             const font = style.font || BUTTON_DEFAULT_FONT
             const textWidth = font.charWidth * text.length
@@ -346,7 +310,6 @@ namespace ui {
                 BUTTON_FOCUS_THICKNESS +
                 BUTTON_FOCUS_LABEL_OFFSET +
                 labelGap
-            const bounds = options ? options.labelBounds : undefined
             const minX = bounds ? bounds.x + padding : padding
             const maxX = bounds
                 ? bounds.x + bounds.width - padding - textWidth
@@ -373,33 +336,6 @@ namespace ui {
             })
         }
 
-        private styleFor(options?: UiButtonViewRenderOptions): UiButtonStyle {
-            if (options && options.style) return options.style
-            return this.style_
-        }
-
-        private backgroundColor(
-            style: UiButtonStyle,
-            options?: UiButtonViewRenderOptions,
-        ): number | undefined {
-            const palette = options ? options.palette : undefined
-            if (palette && palette.backgroundColor !== undefined)
-                return palette.backgroundColor
-            return style.backgroundColor
-        }
-
-        private foregroundColor(
-            style: UiButtonStyle,
-            options?: UiButtonViewRenderOptions,
-        ): number {
-            const palette = options ? options.palette : undefined
-            if (palette && palette.foregroundColor !== undefined)
-                return palette.foregroundColor
-            return style.foregroundColor !== undefined
-                ? style.foregroundColor
-                : 15
-        }
-
         private contentText(
             content: UiButtonContent,
             style: UiButtonStyle,
@@ -415,10 +351,9 @@ namespace ui {
         private focusLabelText(
             content: UiButtonContent,
             style: UiButtonStyle,
-            options?: UiButtonViewRenderOptions,
+            focusLabelText?: string,
         ): string {
-            if (options && options.focusLabelText !== undefined)
-                return options.focusLabelText
+            if (focusLabelText !== undefined) return focusLabelText
             if (
                 style.focusLabelGap !== undefined &&
                 style.textPlacement != "content"
