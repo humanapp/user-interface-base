@@ -78,12 +78,6 @@ namespace ui {
         verticalStrategy?: UiFocusVerticalStrategy
     }
 
-    interface UiFocusGridCell {
-        row: number
-        column: number
-        target: UiFocusNavigationTarget
-    }
-
     /**
      * Returns the focus movement result for a ragged grid.
      *
@@ -94,8 +88,12 @@ namespace ui {
     export function moveFocusInRaggedGrid(
         input: UiFocusRaggedGridMoveInput,
     ): UiFocusMoveResult {
-        const current = currentGridCell(input.rows, input.currentTargetId)
-        if (!current)
+        const currentRow = currentGridRow(input.rows, input.currentTargetId)
+        const currentColumn = currentGridColumn(
+            currentRow >= 0 ? input.rows[currentRow] : undefined,
+            input.currentTargetId,
+        )
+        if (currentRow < 0 || currentColumn < 0)
             return {
                 kind: "stayed",
                 scopeId: input.scopeId,
@@ -104,14 +102,35 @@ namespace ui {
             }
         const horizontal =
             input.direction == "left" || input.direction == "right"
-        const destination = horizontal
-            ? horizontalDestination(input, current)
-            : verticalDestination(input, current)
-        if (destination)
+        let destinationRow = -1
+        let destinationColumn = -1
+        if (horizontal) {
+            destinationRow = currentRow
+            destinationColumn = horizontalDestinationColumn(
+                input,
+                currentRow,
+                currentColumn,
+            )
+        } else {
+            const step = input.direction == "up" ? -1 : 1
+            let row = currentRow + step
+            const end = step < 0 ? -1 : input.rows.length
+            while (row != end && destinationColumn < 0) {
+                destinationColumn = verticalDestinationColumn(
+                    input,
+                    currentRow,
+                    currentColumn,
+                    row,
+                )
+                if (destinationColumn >= 0) destinationRow = row
+                row += step
+            }
+        }
+        if (destinationRow >= 0 && destinationColumn >= 0)
             return movedResult(
                 input.scopeId,
-                current.target,
-                destination.target,
+                input.rows[currentRow][currentColumn],
+                input.rows[destinationRow][destinationColumn],
             )
         if (horizontal && input.horizontalWrap)
             return {
@@ -128,86 +147,82 @@ namespace ui {
         }
     }
 
-    function currentGridCell(
+    function currentGridRow(
         rows: UiFocusNavigationTarget[][],
         targetId: UiFocusId,
-    ): UiFocusGridCell {
+    ): number {
         for (let row = 0; row < rows.length; row++) {
             const targets = rows[row]
             for (let column = 0; column < targets.length; column++) {
                 const target = targets[column]
-                if (target.id == targetId && !target.hidden)
-                    return { row, column, target }
+                if (target.id == targetId && !target.hidden) return row
             }
         }
-        return undefined
+        return -1
     }
 
-    function horizontalDestination(
+    function currentGridColumn(
+        row: UiFocusNavigationTarget[],
+        targetId: UiFocusId,
+    ): number {
+        if (!row) return -1
+        for (let column = 0; column < row.length; column++) {
+            const target = row[column]
+            if (target.id == targetId && !target.hidden) return column
+        }
+        return -1
+    }
+
+    function horizontalDestinationColumn(
         input: UiFocusRaggedGridMoveInput,
-        current: UiFocusGridCell,
-    ): UiFocusGridCell {
-        const row = input.rows[current.row]
+        currentRow: number,
+        currentColumn: number,
+    ): number {
+        const row = input.rows[currentRow]
         const step = input.direction == "left" ? -1 : 1
-        let column = current.column + step
+        let column = currentColumn + step
         while (column >= 0 && column < row.length) {
-            if (!row[column].hidden)
-                return { row: current.row, column, target: row[column] }
+            if (!row[column].hidden) return column
             column += step
         }
-        if (!input.horizontalWrap) return undefined
+        if (!input.horizontalWrap) return -1
         column = step < 0 ? row.length - 1 : 0
-        while (column != current.column) {
-            if (!row[column].hidden)
-                return { row: current.row, column, target: row[column] }
+        while (column != currentColumn) {
+            if (!row[column].hidden) return column
             column += step
         }
-        return undefined
+        return -1
     }
 
-    function verticalDestination(
+    function verticalDestinationColumn(
         input: UiFocusRaggedGridMoveInput,
-        current: UiFocusGridCell,
-    ): UiFocusGridCell {
-        const step = input.direction == "up" ? -1 : 1
-        let rowIndex = current.row + step
-        const end = step < 0 ? -1 : input.rows.length
-        while (rowIndex != end) {
-            const found = verticalDestinationInRow(input, current, rowIndex)
-            if (found) return found
-            rowIndex += step
-        }
-        return undefined
-    }
-
-    function verticalDestinationInRow(
-        input: UiFocusRaggedGridMoveInput,
-        current: UiFocusGridCell,
+        currentRow: number,
+        currentColumn: number,
         rowIndex: number,
-    ): UiFocusGridCell {
+    ): number {
         const row = input.rows[rowIndex]
-        if (!row) return undefined
-        const exact = row[current.column]
-        if (exact && !exact.hidden)
-            return { row: rowIndex, column: current.column, target: exact }
-        if (input.verticalStrategy == "exact") return undefined
+        if (!row) return -1
+        const exact = row[currentColumn]
+        if (exact && !exact.hidden) return currentColumn
+        if (input.verticalStrategy == "exact") return -1
 
-        let best: UiFocusGridCell = undefined
+        let bestColumn = -1
         let bestDistance = 0
+        const current = input.rows[currentRow][currentColumn]
         const sourceX =
-            current.target.rect.x + Math.idiv(current.target.rect.width, 2)
+            current.rect.x + Math.idiv(current.rect.width, 2)
         for (let column = 0; column < row.length; column++) {
             const target = row[column]
             if (target.hidden) continue
             const dx = Math.abs(
                 target.rect.x + Math.idiv(target.rect.width, 2) - sourceX,
             )
-            if (!best || dx < bestDistance) {
-                best = { row: rowIndex, column, target }
+            if (bestColumn < 0 || dx < bestDistance) {
+                bestColumn = column
                 bestDistance = dx
             }
         }
-        return best
+        return bestColumn
     }
 
     function movedResult(
