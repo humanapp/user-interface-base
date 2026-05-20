@@ -1,35 +1,33 @@
 namespace ui {
-    class UiSceneInput {
-        private runtime_: UiRuntime
-        private disposed_: boolean
+    interface UiSceneInput {
+        runtime: UiRuntime
+        disposed: boolean
+    }
 
-        constructor(runtime: UiRuntime) {
-            this.runtime_ = runtime
-            this.disposed_ = false
-        }
+    interface UiSceneRecord {
+        screen: UiScreen
+        input: UiSceneInput
+    }
 
-        public dispose(): void {
-            this.disposed_ = true
-        }
-
-        public dispatchAction(
-            action: UiInputAction,
-            source?: UiInputSource,
-            phase?: UiInputPhase,
-        ): void {
-            if (this.disposed_) return
-            this.runtime_.dispatchInput({ action, source, phase })
+    function createSceneInput(runtime: UiRuntime): UiSceneInput {
+        return {
+            runtime,
+            disposed: false,
         }
     }
 
-    class UiScene {
-        public screen: UiScreen
-        public input: UiSceneInput
+    function disposeSceneInput(input: UiSceneInput): void {
+        input.disposed = true
+    }
 
-        constructor(screen: UiScreen, input: UiSceneInput) {
-            this.screen = screen
-            this.input = input
-        }
+    function dispatchSceneInput(
+        input: UiSceneInput,
+        action: UiInputAction,
+        source?: UiInputSource,
+        phase?: UiInputPhase,
+    ): void {
+        if (input.disposed) return
+        input.runtime.dispatchInput({ action, source, phase })
     }
 
     /**
@@ -37,7 +35,7 @@ namespace ui {
      */
     export class UiSceneStack {
         private runtime_: UiRuntime
-        private scenes_: UiScene[]
+        private scenes_: UiSceneRecord[]
 
         constructor(runtime: UiRuntime) {
             this.runtime_ = runtime
@@ -54,10 +52,10 @@ namespace ui {
             if (current) current.screen.deactivate()
 
             context.pushEventContext()
-            const input = new UiSceneInput(this.runtime_)
+            const input = createSceneInput(this.runtime_)
             this.bindDefaultControllerActions(input)
 
-            const record = new UiScene(screen, input)
+            const record: UiSceneRecord = { screen, input }
             this.scenes_.push(record)
 
             screen.enter(this.runtime_)
@@ -76,7 +74,7 @@ namespace ui {
 
             record.screen.deactivate()
             record.screen.exit()
-            record.input.dispose()
+            disposeSceneInput(record.input)
             context.popEventContext()
 
             const current = this.topRecord()
@@ -96,15 +94,15 @@ namespace ui {
             if (replaced) {
                 replaced.screen.deactivate()
                 replaced.screen.exit()
-                replaced.input.dispose()
+                disposeSceneInput(replaced.input)
                 context.popEventContext()
             }
 
             context.pushEventContext()
-            const input = new UiSceneInput(this.runtime_)
+            const input = createSceneInput(this.runtime_)
             this.bindDefaultControllerActions(input)
 
-            const record = new UiScene(screen, input)
+            const record: UiSceneRecord = { screen, input }
             this.scenes_.push(record)
 
             screen.enter(this.runtime_)
@@ -176,7 +174,7 @@ namespace ui {
             this.clearInputQueue(queue)
         }
 
-        private topRecord(): UiScene | undefined {
+        private topRecord(): UiSceneRecord | undefined {
             if (!this.scenes_.length) return undefined
             return this.scenes_[this.scenes_.length - 1]
         }
@@ -205,21 +203,24 @@ namespace ui {
             action: UiInputAction,
         ): void {
             context.onEvent(ControllerButtonEvent.Pressed, buttonId, () => {
-                input.dispatchAction(
+                dispatchSceneInput(
+                    input,
                     action,
                     "displayShieldController",
                     "pressed",
                 )
             })
             context.onEvent(ControllerButtonEvent.Released, buttonId, () => {
-                input.dispatchAction(
+                dispatchSceneInput(
+                    input,
                     action,
                     "displayShieldController",
                     "released",
                 )
             })
             context.onEvent(ControllerButtonEvent.Repeated, buttonId, () => {
-                input.dispatchAction(
+                dispatchSceneInput(
+                    input,
                     action,
                     "displayShieldController",
                     "repeated",

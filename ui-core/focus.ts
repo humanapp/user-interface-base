@@ -235,60 +235,75 @@ namespace ui {
               reason: "missingActiveScope" | "notHandled"
           }
 
-    class UiFocusScopeRecord {
-        public id: UiFocusScopeId
-        public parentScopeId: UiFocusScopeId | undefined
-        public preferredTargetId: UiFocusId | undefined
-        public handlesCancel: boolean
-        public modal: boolean
-        public activeTargetId: UiFocusId | undefined
+    interface UiFocusScopeRecord {
+        id: UiFocusScopeId
+        parentScopeId: UiFocusScopeId | undefined
+        preferredTargetId: UiFocusId | undefined
+        handlesCancel: boolean
+        modal: boolean
+        activeTargetId: UiFocusId | undefined
+    }
 
-        constructor(options: UiFocusScopeOptions) {
-            this.id = options.id
-            this.parentScopeId = options.parentScopeId
-            this.preferredTargetId = options.preferredTargetId
-            this.handlesCancel = options.handlesCancel || false
-            this.modal = options.modal || false
-            this.activeTargetId = undefined
-        }
+    interface UiFocusTargetRecord {
+        id: UiFocusId
+        scopeId: UiFocusScopeId
+        hidden: boolean
+        activatable: boolean
+        scrollOwnerId: UiFocusScrollOwnerId | undefined
+        scrollRect: Rect | undefined
+    }
 
-        public update(options: UiFocusScopeOptions): void {
-            this.parentScopeId = options.parentScopeId
-            this.preferredTargetId = options.preferredTargetId
-            this.handlesCancel = options.handlesCancel || false
-            this.modal = options.modal || false
+    function createFocusScopeRecord(
+        options: UiFocusScopeOptions,
+    ): UiFocusScopeRecord {
+        return {
+            id: options.id,
+            parentScopeId: options.parentScopeId,
+            preferredTargetId: options.preferredTargetId,
+            handlesCancel: options.handlesCancel || false,
+            modal: options.modal || false,
+            activeTargetId: undefined,
         }
     }
 
-    class UiFocusTargetRecord {
-        public id: UiFocusId
-        public scopeId: UiFocusScopeId
-        public hidden: boolean
-        public activatable: boolean
-        public scrollOwnerId: UiFocusScrollOwnerId | undefined
-        public scrollRect: Rect | undefined
+    function updateFocusScopeRecord(
+        scope: UiFocusScopeRecord,
+        options: UiFocusScopeOptions,
+    ): void {
+        scope.parentScopeId = options.parentScopeId
+        scope.preferredTargetId = options.preferredTargetId
+        scope.handlesCancel = options.handlesCancel || false
+        scope.modal = options.modal || false
+    }
 
-        constructor(options: UiFocusTargetOptions) {
-            this.id = options.id
-            this.scopeId = options.scopeId
-            this.hidden = false
-            this.activatable = false
-            this.scrollOwnerId = undefined
-            this.scrollRect = undefined
-            this.update(options)
+    function createFocusTargetRecord(
+        options: UiFocusTargetOptions,
+    ): UiFocusTargetRecord {
+        const target: UiFocusTargetRecord = {
+            id: options.id,
+            scopeId: options.scopeId,
+            hidden: false,
+            activatable: false,
+            scrollOwnerId: undefined,
+            scrollRect: undefined,
         }
+        updateFocusTargetRecord(target, options)
+        return target
+    }
 
-        public update(options: UiFocusTargetOptions): void {
-            this.scopeId = options.scopeId
-            this.hidden = options.hidden || false
-            this.activatable = options.activatable || false
-            this.scrollOwnerId = options.scrollOwnerId
-            if (options.scrollRect) {
-                if (!this.scrollRect) this.scrollRect = new Rect()
-                copyArrangedLayoutRect(this.scrollRect, options.scrollRect)
-            } else {
-                this.scrollRect = undefined
-            }
+    function updateFocusTargetRecord(
+        target: UiFocusTargetRecord,
+        options: UiFocusTargetOptions,
+    ): void {
+        target.scopeId = options.scopeId
+        target.hidden = options.hidden || false
+        target.activatable = options.activatable || false
+        target.scrollOwnerId = options.scrollOwnerId
+        if (options.scrollRect) {
+            if (!target.scrollRect) target.scrollRect = new Rect()
+            copyArrangedLayoutRect(target.scrollRect, options.scrollRect)
+        } else {
+            target.scrollRect = undefined
         }
     }
 
@@ -312,12 +327,12 @@ namespace ui {
         public setScope(options: UiFocusScopeOptions): void {
             const scope = this.findScope(options.id)
             if (scope) {
-                scope.update(options)
+                updateFocusScopeRecord(scope, options)
                 if (!this.isTargetEligible(scope.activeTargetId, scope.id)) {
                     scope.activeTargetId = undefined
                 }
             } else {
-                this.scopes_.push(new UiFocusScopeRecord(options))
+                this.scopes_.push(createFocusScopeRecord(options))
             }
         }
 
@@ -348,9 +363,9 @@ namespace ui {
             const oldScopeId = target ? target.scopeId : undefined
 
             if (target) {
-                target.update(options)
+                updateFocusTargetRecord(target, options)
             } else {
-                this.targets_.push(new UiFocusTargetRecord(options))
+                this.targets_.push(createFocusTargetRecord(options))
             }
 
             if (oldScopeId && oldScopeId != options.scopeId) {

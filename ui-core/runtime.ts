@@ -161,7 +161,7 @@ namespace ui {
             view: UiFocusableView<TResult>,
             placement?: UiPlacement,
         ): UiFocusableView<TResult> {
-            const root = new UiScreenRoot<TResult>(view, placement)
+            const root = createScreenRoot<TResult>(view, placement)
             this.roots_.push(root)
             if (placement && (this.entered_ || this.hasExplicitSize(placement)))
                 this.arrangeRoot(root)
@@ -493,21 +493,26 @@ namespace ui {
         }
     }
 
-    class UiScreenRoot<TResult> {
-        public view: UiFocusableView<TResult>
-        public placement: UiPlacement
-        public rect: Rect
-        public childRect: Rect
-        public constraints: UiLayoutConstraints
-        public measured: UiMeasuredSize
+    interface UiScreenRoot<TResult> {
+        view: UiFocusableView<TResult>
+        placement: UiPlacement
+        rect: Rect
+        childRect: Rect
+        constraints: UiLayoutConstraints
+        measured: UiMeasuredSize
+    }
 
-        constructor(view: UiFocusableView<TResult>, placement?: UiPlacement) {
-            this.view = view
-            this.placement = placement
-            this.rect = new Rect()
-            this.childRect = new Rect()
-            this.constraints = { maxWidth: 0, maxHeight: 0 }
-            this.measured = new UiMeasuredSize()
+    function createScreenRoot<TResult>(
+        view: UiFocusableView<TResult>,
+        placement?: UiPlacement,
+    ): UiScreenRoot<TResult> {
+        return {
+            view,
+            placement,
+            rect: new Rect(),
+            childRect: new Rect(),
+            constraints: { maxWidth: 0, maxHeight: 0 },
+            measured: new UiMeasuredSize(),
         }
     }
 
