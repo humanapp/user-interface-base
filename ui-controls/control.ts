@@ -13,20 +13,6 @@ namespace ui {
          */
         foregroundColor?: number
 
-        /**
-         * Fill color for selected controls.
-         */
-        selectedColor?: number
-
-        /**
-         * Fill color for toggled controls.
-         */
-        toggledColor?: number
-
-        /**
-         * Outline color for the focused control.
-         */
-        focusColor?: number
     }
 
     /**
@@ -137,7 +123,7 @@ namespace ui {
         visible?: boolean
 
         /**
-         * Whether built-in control drawing should show selected state.
+         * Whether default focus selection should prefer this control.
          */
         selected?: boolean
 

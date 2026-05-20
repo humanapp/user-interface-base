@@ -233,11 +233,7 @@ namespace ui {
             const textY =
                 rect.y +
                 Math.max(0, Math.idiv(rect.height - textSize.height, 2))
-            const border =
-                palette && palette.focusColor !== undefined
-                    ? palette.focusColor
-                    : 15
-            surface.drawRoundedRect(rect, border, background)
+            surface.drawRoundedRect(rect, 15, background)
             surface.drawText(this.text_, textX, textY, {
                 color: foreground,
                 font,
@@ -352,13 +348,11 @@ namespace ui {
         backgroundColor: 1,
         borderColor: 7,
         frame: "roundedRect",
-        contentAlignment: "center",
     }
     const UI_NUMERIC_ENTRY_MODAL_DELETE_STYLE: UiButtonStyle = {
         backgroundColor: 1,
         borderColor: 2,
         frame: "roundedRect",
-        contentAlignment: "center",
     }
 
     /**

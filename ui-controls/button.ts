@@ -2,6 +2,8 @@ namespace ui {
     const BUTTON_FOCUS_COLOR = 9
     const BUTTON_FOCUS_THICKNESS = 3
     const BUTTON_FOCUS_LABEL_OFFSET = 1
+    const BUTTON_FOCUS_LABEL_PADDING = 1
+    const BUTTON_CONTENT_GAP = 3
     const BUTTON_DEFAULT_FONT = bitmaps.font8
 
     /**
@@ -14,14 +16,9 @@ namespace ui {
         | "roundedShadow"
 
     /**
-     * Horizontal content placement inside a button rectangle.
-     */
-    export type UiButtonContentAlignment = "start" | "center"
-
-    /**
      * Placement for button text.
      */
-    export type UiButtonTextPlacement = "content" | "focusLabel"
+    export type UiButtonTextPlacement = "content"
 
     /**
      * Visual style used by `UiButtonView`.
@@ -36,16 +33,6 @@ namespace ui {
          * Foreground color used for text.
          */
         foregroundColor?: number
-
-        /**
-         * Fill color used when selected.
-         */
-        selectedColor?: number
-
-        /**
-         * Fill color used when toggled.
-         */
-        toggledColor?: number
 
         /**
          * Frame shape drawn around the button.
@@ -68,54 +55,22 @@ namespace ui {
         shadowColor?: number
 
         /**
-         * Button content alignment.
-         */
-        contentAlignment?: UiButtonContentAlignment
-
-        /**
-         * Horizontal and vertical inset used for start-aligned content.
-         */
-        padding?: number
-
-        /**
-         * Gap between icon and text when both are present.
-         */
-        contentGap?: number
-
-        /**
          * Font used for text content.
          */
         font?: TextFont
 
         /**
-         * Where text is rendered. Defaults to `"content"`.
+         * When set to `"content"`, text is rendered inside the button even when
+         * the style also has focus-label settings.
          */
         textPlacement?: UiButtonTextPlacement
 
         /**
-         * Fill color for focus-label text background.
-         */
-        focusLabelBackgroundColor?: number
-
-        /**
-         * Text color for focus-label text.
-         */
-        focusLabelColor?: number
-
-        /**
-         * Font used for focus-label text.
-         */
-        focusLabelFont?: TextFont
-
-        /**
-         * Extra distance between the focus ring and focus label.
+         * Extra distance between the focus ring and focus label. Defined values
+         * render text as a focus label.
          */
         focusLabelGap?: number
 
-        /**
-         * Background padding around focus-label text.
-         */
-        focusLabelPadding?: number
     }
 
     /**
@@ -326,6 +281,12 @@ namespace ui {
             const graphicWidth = this.contentWidth(content)
 
             if (customContent) {
+                contentRect.set(
+                    contentRect.x,
+                    contentRect.y,
+                    customContent.width,
+                    customContent.height,
+                )
                 customContent.draw(surface, contentRect)
             } else if (bitmap) {
                 surface.drawBitmap(bitmap, contentRect.x, contentRect.y)
@@ -333,7 +294,7 @@ namespace ui {
             if (text.length > 0) {
                 const textX =
                     graphicWidth > 0
-                        ? contentRect.x + graphicWidth + this.contentGap(style)
+                        ? contentRect.x + graphicWidth + BUTTON_CONTENT_GAP
                         : contentRect.x
                 const textY =
                     rect.y +
@@ -360,15 +321,10 @@ namespace ui {
             const contentWidth = this.contentWidth(content)
             const contentHeight = this.contentHeight(content)
             const gap =
-                contentWidth > 0 && text.length > 0 ? this.contentGap(style) : 0
+                contentWidth > 0 && text.length > 0 ? BUTTON_CONTENT_GAP : 0
             const width = contentWidth + gap + textWidth
             const height = Math.max(contentHeight, textHeight)
-            const alignment = style.contentAlignment || "start"
-            const padding = this.padding(style)
-            const x =
-                alignment == "center"
-                    ? rect.x + Math.idiv(rect.width - width, 2)
-                    : rect.x + padding
+            const x = rect.x + Math.idiv(rect.width - width, 2)
             const y = rect.y + Math.max(0, Math.idiv(rect.height - height, 2))
             output.set(x, y, width, height)
         }
@@ -382,14 +338,10 @@ namespace ui {
         ): void {
             const text = this.focusLabelText(content, style, options)
             if (text.length == 0) return
-            const font =
-                style.focusLabelFont || style.font || BUTTON_DEFAULT_FONT
+            const font = style.font || BUTTON_DEFAULT_FONT
             const textWidth = font.charWidth * text.length
             const textHeight = font.charHeight
-            const padding =
-                style.focusLabelPadding !== undefined
-                    ? style.focusLabelPadding
-                    : 1
+            const padding = BUTTON_FOCUS_LABEL_PADDING
             const centerX = rect.x + Math.idiv(rect.width, 2)
             const labelGap =
                 style.focusLabelGap !== undefined ? style.focusLabelGap : 0
@@ -410,14 +362,8 @@ namespace ui {
                 : labelTop
             const x = Math.max(minX, Math.min(maxX, centerX - (textWidth >> 1)))
             const y = Math.max(minY, Math.min(maxY, labelTop))
-            const background =
-                style.focusLabelBackgroundColor !== undefined
-                    ? style.focusLabelBackgroundColor
-                    : 15
-            const color =
-                style.focusLabelColor !== undefined
-                    ? style.focusLabelColor
-                    : this.foregroundColor(style, options)
+            const background = 15
+            const color = 1
 
             this.scratch_.set(
                 x - padding,
@@ -442,20 +388,6 @@ namespace ui {
             options?: UiButtonViewRenderOptions,
         ): number | undefined {
             const palette = options ? options.palette : undefined
-            if (options) {
-                if (options.toggled) {
-                    if (palette && palette.toggledColor !== undefined)
-                        return palette.toggledColor
-                    if (style.toggledColor !== undefined)
-                        return style.toggledColor
-                }
-                if (options.selected) {
-                    if (palette && palette.selectedColor !== undefined)
-                        return palette.selectedColor
-                    if (style.selectedColor !== undefined)
-                        return style.selectedColor
-                }
-            }
             if (palette && palette.backgroundColor !== undefined)
                 return palette.backgroundColor
             return style.backgroundColor
@@ -473,19 +405,15 @@ namespace ui {
                 : 15
         }
 
-        private padding(style: UiButtonStyle): number {
-            return style.padding !== undefined ? style.padding : 2
-        }
-
-        private contentGap(style: UiButtonStyle): number {
-            return style.contentGap !== undefined ? style.contentGap : 3
-        }
-
         private contentText(
             content: UiButtonContent,
             style: UiButtonStyle,
         ): string {
-            if (style.textPlacement == "focusLabel") return ""
+            if (
+                style.focusLabelGap !== undefined &&
+                style.textPlacement != "content"
+            )
+                return ""
             return content.text || ""
         }
 
@@ -496,7 +424,11 @@ namespace ui {
         ): string {
             if (options && options.focusLabelText !== undefined)
                 return options.focusLabelText
-            if (style.textPlacement == "focusLabel") return content.text || ""
+            if (
+                style.focusLabelGap !== undefined &&
+                style.textPlacement != "content"
+            )
+                return content.text || ""
             return ""
         }
 
@@ -521,10 +453,7 @@ namespace ui {
         export const Default: UiButtonStyle = {
             backgroundColor: 0,
             foregroundColor: 15,
-            selectedColor: 5,
-            toggledColor: 6,
             frame: "none",
-            contentAlignment: "start",
         }
 
         /**
@@ -532,17 +461,13 @@ namespace ui {
          */
         export const Transparent: UiButtonStyle = {
             frame: "none",
-            contentAlignment: "center",
         }
 
         /**
          * Draws text as a label while the button is focused.
          */
         export const FocusLabel: UiButtonStyle = {
-            textPlacement: "focusLabel",
-            focusLabelBackgroundColor: 15,
-            focusLabelColor: 1,
-            focusLabelPadding: 1,
+            focusLabelGap: 0,
         }
 
         /**
@@ -560,7 +485,6 @@ namespace ui {
             edgeColor: 1,
             shadowColor: 11,
             frame: "roundedShadow",
-            contentAlignment: "center",
         }
 
         /**
@@ -571,17 +495,6 @@ namespace ui {
             edgeColor: 1,
             shadowColor: 12,
             frame: "roundedShadow",
-            contentAlignment: "center",
-        }
-
-        /**
-         * White button with a one-pixel rectangular frame.
-         */
-        export const FlatWhite: UiButtonStyle = {
-            backgroundColor: 1,
-            borderColor: 1,
-            frame: "rect",
-            contentAlignment: "center",
         }
 
         /**
@@ -591,7 +504,6 @@ namespace ui {
             backgroundColor: 11,
             borderColor: 12,
             frame: "rect",
-            contentAlignment: "center",
         }
 
         /**
@@ -601,7 +513,6 @@ namespace ui {
             backgroundColor: 1,
             borderColor: 2,
             frame: "rect",
-            contentAlignment: "center",
         }
 
         /**
@@ -611,7 +522,6 @@ namespace ui {
             backgroundColor: 1,
             borderColor: 7,
             frame: "rect",
-            contentAlignment: "center",
         }
     }
 
@@ -624,34 +534,17 @@ namespace ui {
             target.backgroundColor = source.backgroundColor
         if (source.foregroundColor !== undefined)
             target.foregroundColor = source.foregroundColor
-        if (source.selectedColor !== undefined)
-            target.selectedColor = source.selectedColor
-        if (source.toggledColor !== undefined)
-            target.toggledColor = source.toggledColor
         if (source.frame !== undefined) target.frame = source.frame
         if (source.borderColor !== undefined)
             target.borderColor = source.borderColor
         if (source.edgeColor !== undefined) target.edgeColor = source.edgeColor
         if (source.shadowColor !== undefined)
             target.shadowColor = source.shadowColor
-        if (source.contentAlignment !== undefined)
-            target.contentAlignment = source.contentAlignment
-        if (source.padding !== undefined) target.padding = source.padding
-        if (source.contentGap !== undefined)
-            target.contentGap = source.contentGap
         if (source.font !== undefined) target.font = source.font
         if (source.textPlacement !== undefined)
             target.textPlacement = source.textPlacement
-        if (source.focusLabelBackgroundColor !== undefined)
-            target.focusLabelBackgroundColor = source.focusLabelBackgroundColor
-        if (source.focusLabelColor !== undefined)
-            target.focusLabelColor = source.focusLabelColor
-        if (source.focusLabelFont !== undefined)
-            target.focusLabelFont = source.focusLabelFont
         if (source.focusLabelGap !== undefined)
             target.focusLabelGap = source.focusLabelGap
-        if (source.focusLabelPadding !== undefined)
-            target.focusLabelPadding = source.focusLabelPadding
     }
 
     function drawShadowedButtonFrame(
