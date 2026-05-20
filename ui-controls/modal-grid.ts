@@ -1,10 +1,5 @@
 namespace ui {
     /**
-     * Border treatment drawn around modal panels.
-     */
-    export type UiModalFrame = "rect" | "roundedRect"
-
-    /**
      * Visual style and spacing used by modal panels.
      */
     export interface UiModalStyle {
@@ -17,11 +12,6 @@ namespace ui {
          * Outline color for the modal panel.
          */
         outlineColor?: number
-
-        /**
-         * Panel frame shape.
-         */
-        frame?: UiModalFrame
 
         /**
          * Text color for the modal title.
@@ -75,7 +65,6 @@ namespace ui {
         export const Default: UiModalStyle = {
             panelColor: 1,
             outlineColor: 15,
-            frame: "roundedRect",
             titleColor: 15,
             contentMargin: 4,
             titleGap: 0,
@@ -288,13 +277,7 @@ namespace ui {
         const resolved = modalStyle(UiModalStyles.Default, style)
         const fill = resolved.panelColor
         const outline = resolved.outlineColor
-        const frame = resolved.frame || "roundedRect"
-        if (frame == "rect") {
-            surface.fillRect(rect, fill)
-            surface.drawRect(rect, outline)
-        } else {
-            surface.drawRoundedRect(rect, outline, fill)
-        }
+        surface.drawRoundedRect(rect, outline, fill)
     }
 
     /**
@@ -746,7 +729,6 @@ namespace ui {
             target.panelColor = source.panelColor
         if (source.outlineColor !== undefined)
             target.outlineColor = source.outlineColor
-        if (source.frame !== undefined) target.frame = source.frame
         if (source.titleColor !== undefined)
             target.titleColor = source.titleColor
         if (source.titleFont !== undefined) target.titleFont = source.titleFont
