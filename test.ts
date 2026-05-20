@@ -921,9 +921,22 @@ namespace ui {
             rect,
             { bitmap, text: "go" },
             {
-                selected: true,
                 style: focusLabelStyle,
             },
+        )
+        surface.log = ""
+        _uiControls.renderControl(
+            surface,
+            new ControlSmokeAssets(),
+            {
+                id: "selected",
+                value: "selected",
+                bitmap,
+                selected: true,
+            },
+            rect,
+            buttonView,
+            UiButtonStyles.LightShadowedWhite,
         )
         control.assert(
             surface.log.indexOf("fill:7;") < 0,

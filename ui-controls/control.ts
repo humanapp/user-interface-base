@@ -356,7 +356,6 @@ namespace _uiControls {
         controlStyle?: ui.UiButtonStyle,
         labelBounds?: ui.Rect,
     ): void {
-        const selected = isSelected(control)
         const toggled = isToggled(control)
 
         buttonView.render(
@@ -368,7 +367,6 @@ namespace _uiControls {
                 text: controlText(control, assets),
             },
             {
-                selected,
                 toggled,
                 style: control.style || controlStyle,
                 palette: control.palette,
@@ -397,7 +395,6 @@ namespace _uiControls {
             },
             {
                 focused: true,
-                selected: isSelected(control),
                 toggled: isToggled(control),
                 style: control.style || controlStyle,
                 palette: control.palette,

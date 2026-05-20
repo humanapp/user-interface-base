@@ -125,11 +125,6 @@ namespace ui {
         focused?: boolean
 
         /**
-         * Whether the button is selected.
-         */
-        selected?: boolean
-
-        /**
          * Whether the button is toggled on.
          */
         toggled?: boolean
