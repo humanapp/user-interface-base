@@ -5,8 +5,8 @@ namespace ui {
     export class DisplayShieldFrameAdapter implements UiDisplayAdapter {
         private surface_: PhysicalBitmapDrawSurface
 
-        constructor(options?: PhysicalDrawSurfaceOptions) {
-            this.surface_ = new PhysicalBitmapDrawSurface(screen(), options)
+        constructor() {
+            this.surface_ = new PhysicalBitmapDrawSurface(screen())
         }
 
         /**
@@ -21,7 +21,8 @@ namespace ui {
          */
         public commit(): Bitmap {
             const frame = this.surface_.bitmap
-            shieldhelpers.updateScreen(frame)
+            control.__screen.stop()
+            control.__screen.update()
             return frame
         }
     }

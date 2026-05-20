@@ -224,7 +224,6 @@ namespace ui {
                     color: foreground,
                     font,
                     transparent: true,
-                    allowDownscale: true,
                 })
             }
         }

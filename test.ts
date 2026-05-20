@@ -2,8 +2,8 @@ namespace ui {
     class TestBitmapDisplayAdapter implements UiDisplayAdapter {
         private surface_: PhysicalBitmapDrawSurface
 
-        constructor(bitmap: Bitmap, options?: PhysicalDrawSurfaceOptions) {
-            this.surface_ = new PhysicalBitmapDrawSurface(bitmap, options)
+        constructor(bitmap: Bitmap) {
+            this.surface_ = new PhysicalBitmapDrawSurface(bitmap)
         }
 
         public get surface(): PhysicalBitmapDrawSurface {
@@ -37,235 +37,64 @@ namespace ui {
     }
 
     /**
-     * Smoke harness for display-profile drawing and scale-mode rendering.
+     * Smoke harness for direct 160x120 viewport rendering.
      */
     export function renderLogicalViewportSmokeTest(fillColor: number): void {
-        const coverAdapter = new DisplayShieldFrameAdapter({
-            scaleMode: "cover",
-            displayProfile: UiDisplayProfileId.HighDensity,
-            designWidth: STANDARD_DISPLAY_WIDTH,
-            designHeight: STANDARD_DISPLAY_HEIGHT,
-        })
-        const coverSurface = coverAdapter.surface
-        const coverRuntime = new UiRuntime({ display: coverAdapter })
-        const coverProfile = coverRuntime.displayProfile
-        const expectedCoverWidth =
-            coverProfile.id == UiDisplayProfileId.HighDensity
-                ? HIGH_DENSITY_DISPLAY_WIDTH
-                : STANDARD_DISPLAY_WIDTH
-        const expectedCoverHeight =
-            coverProfile.id == UiDisplayProfileId.HighDensity
-                ? HIGH_DENSITY_DISPLAY_HEIGHT
-                : STANDARD_DISPLAY_HEIGHT
-        const coverUiWidth =
-            coverProfile.logicalWidth / coverProfile.designToLogicalScaleX
-        const coverUiHeight =
-            coverProfile.logicalHeight / coverProfile.designToLogicalScaleY
-
-        control.assert(
-            coverProfile.logicalWidth == expectedCoverWidth,
-            "cover profile width",
-        )
-        control.assert(
-            coverProfile.logicalHeight == expectedCoverHeight,
-            "cover profile height",
-        )
-        control.assert(
-            coverUiWidth == STANDARD_DISPLAY_WIDTH ||
-                coverUiWidth == HIGH_DENSITY_DISPLAY_WIDTH,
-            "cover ui width",
-        )
-        control.assert(
-            coverUiHeight == STANDARD_DISPLAY_HEIGHT ||
-                coverUiHeight == HIGH_DENSITY_DISPLAY_HEIGHT,
-            "cover ui height",
-        )
-
         const standardBitmap = bitmaps.create(
             STANDARD_DISPLAY_WIDTH,
             STANDARD_DISPLAY_HEIGHT,
         )
         const standardAdapter = new TestBitmapDisplayAdapter(standardBitmap)
-        const standardRuntime = new UiRuntime({ display: standardAdapter })
-        const standardProfile = standardRuntime.displayProfile
+        const point = new Point()
 
         control.assert(
-            standardProfile.id == UiDisplayProfileId.Standard,
-            "standard profile id",
+            standardAdapter.surface.uiPointFromPhysical(159, 119, point),
+            "physical input inside",
+        )
+        control.assert(point.x == 159, "physical input x")
+        control.assert(point.y == 119, "physical input y")
+        control.assert(
+            !standardAdapter.surface.uiPointFromPhysical(160, 119, point),
+            "physical input right outside",
         )
         control.assert(
-            standardProfile.logicalWidth == STANDARD_DISPLAY_WIDTH,
-            "standard profile width",
-        )
-        control.assert(
-            standardProfile.logicalHeight == STANDARD_DISPLAY_HEIGHT,
-            "standard profile height",
-        )
-        control.assert(
-            standardProfile.designToLogicalScaleX == 1,
-            "standard scale x",
-        )
-        control.assert(
-            standardProfile.designToLogicalScaleY == 1,
-            "standard scale y",
+            !standardAdapter.surface.uiPointFromPhysical(159, 120, point),
+            "physical input bottom outside",
         )
 
-        standardAdapter.surface.fillRect(
-            new Rect(0, 74, standardProfile.logicalWidth, 33),
-            2,
-        )
+        standardAdapter.surface.clear(0)
+        standardAdapter.surface.fillRect(new Rect(0, 74, 160, 33), 2)
         control.assert(
             standardBitmap.getPixel(0, 74) == 2,
             "standard ui rect left",
         )
         control.assert(
-            standardBitmap.getPixel(standardProfile.logicalWidth - 1, 106) == 2,
+            standardBitmap.getPixel(159, 106) == 2,
             "standard ui rect right",
         )
-
-        const highBitmap = bitmaps.create(
-            HIGH_DENSITY_DISPLAY_WIDTH,
-            HIGH_DENSITY_DISPLAY_HEIGHT,
-        )
-        const highAdapter = new TestBitmapDisplayAdapter(highBitmap, {
-            displayProfile: UiDisplayProfileId.HighDensity,
-            designWidth: standardProfile.logicalWidth,
-            designHeight: standardProfile.logicalHeight,
-        })
-        const highRuntime = new UiRuntime({ display: highAdapter })
-        const highProfile = highRuntime.displayProfile
-        const highUiWidth =
-            highProfile.logicalWidth / highProfile.designToLogicalScaleX
-        highAdapter.surface.fillRect(new Rect(0, 74, highUiWidth, 33), 3)
         control.assert(
-            highProfile.logicalWidth == HIGH_DENSITY_DISPLAY_WIDTH,
-            "high profile width",
-        )
-        control.assert(
-            highProfile.logicalHeight == HIGH_DENSITY_DISPLAY_HEIGHT,
-            "high profile height",
-        )
-        control.assert(highProfile.designToLogicalScaleX == 2, "high scale x")
-        control.assert(highProfile.designToLogicalScaleY == 2, "high scale y")
-        control.assert(highBitmap.getPixel(0, 148) == 3, "high ui rect left")
-        control.assert(
-            highBitmap.getPixel(highProfile.logicalWidth - 1, 213) == 3,
-            "high ui rect right",
-        )
-        control.assert(
-            highBitmap.getPixel(0, 147) == 0,
-            "high ui rect top clip",
+            standardBitmap.getPixel(159, 107) == 0,
+            "standard ui rect bottom clip",
         )
 
         const measuredStandard = standardAdapter.surface.measureText(
-            "profile",
-            bitmaps.font5,
-        )
-        const measuredHigh = highAdapter.surface.measureText(
-            "profile",
+            "direct",
             bitmaps.font5,
         )
         control.assert(
-            measuredStandard.width == measuredHigh.width,
-            "profile measure width",
-        )
-        control.assert(
-            measuredStandard.height == measuredHigh.height,
-            "profile measure height",
+            measuredStandard.width == "direct".length * bitmaps.font5.charWidth,
+            "direct measure width",
         )
 
-        const highUiBitmap = bitmaps.create(
-            STANDARD_DISPLAY_WIDTH,
-            STANDARD_DISPLAY_HEIGHT,
-        )
-        const highUiSurface = new PhysicalBitmapDrawSurface(highUiBitmap, {
-            displayProfile: UiDisplayProfileId.HighDensity,
-            designWidth: HIGH_DENSITY_DISPLAY_WIDTH,
-            designHeight: HIGH_DENSITY_DISPLAY_HEIGHT,
-        })
-        highUiSurface.drawRect(
-            new Rect(
-                4,
-                4,
-                HIGH_DENSITY_DISPLAY_WIDTH - 8,
-                HIGH_DENSITY_DISPLAY_HEIGHT - 8,
-            ),
-            4,
-        )
-        control.assert(
-            highUiBitmap.getPixel(2, 2) == 4,
-            "downscaled outline top start",
-        )
-        control.assert(
-            highUiBitmap.getPixel(STANDARD_DISPLAY_WIDTH - 3, 60) == 4,
-            "downscaled outline right",
-        )
-        control.assert(
-            highUiBitmap.getPixel(80, STANDARD_DISPLAY_HEIGHT - 3) == 4,
-            "downscaled outline bottom",
-        )
+        const displayAdapter = new DisplayShieldFrameAdapter()
+        const displaySurface = displayAdapter.surface
 
-        const displayBitmap = bitmaps.create(80, 60)
-        const displaySurface = new PhysicalBitmapDrawSurface(displayBitmap, {
-            scaleMode: "cover",
-            displayedWidth: 80,
-            displayedHeight: 67,
-        })
-        displaySurface.fillCircle(80, 60, 36, 3)
-        control.assert(
-            displayBitmap.getPixel(20, 30) == 3,
-            "visual circle horizontal edge",
-        )
-        control.assert(
-            displayBitmap.getPixel(60, 30) == 3,
-            "visual circle opposite horizontal edge",
-        )
-        control.assert(
-            displayBitmap.getPixel(40, 12) == 3,
-            "visual circle vertical edge",
-        )
-        control.assert(
-            displayBitmap.getPixel(40, 48) == 3,
-            "visual circle opposite vertical edge",
-        )
-        control.assert(
-            displayBitmap.getPixel(19, 30) == 0,
-            "visual circle left outside",
-        )
-        control.assert(
-            displayBitmap.getPixel(61, 30) == 0,
-            "visual circle right outside",
-        )
-        control.assert(
-            displayBitmap.getPixel(40, 11) == 0,
-            "visual circle top outside",
-        )
-        control.assert(
-            displayBitmap.getPixel(40, 49) == 0,
-            "visual circle bottom outside",
-        )
-
-        const fitAdapter = new DisplayShieldFrameAdapter({ scaleMode: "fit" })
-        const fitSurface = fitAdapter.surface
-        fitSurface.clear(0)
-        fitSurface.drawRect(new Rect(4, 4, 152, 112), 1)
-        fitSurface.drawText(
-            `fit (${screen().width}x${screen().height})`,
-            12,
-            12,
-            { color: 1 },
-        )
-        fitAdapter.commit()
-
-        coverSurface.clear(0)
-        coverSurface.fillRect(
-            new Rect(0, 0, coverUiWidth, coverUiHeight),
-            fillColor,
-        )
-        coverSurface.drawLine(0, 0, coverUiWidth, coverUiHeight, 6)
-        coverSurface.drawCircle(coverUiWidth >> 1, coverUiHeight >> 1, 18, 10)
-        coverSurface.fillCircle(coverUiWidth >> 1, coverUiHeight >> 1, 6, 5)
-        coverSurface.drawBitmap(
+        displaySurface.clear(0)
+        displaySurface.fillRect(new Rect(0, 0, 160, 120), fillColor)
+        displaySurface.drawLine(0, 0, 159, 119, 6)
+        displaySurface.drawCircle(80, 60, 18, 10)
+        displaySurface.fillCircle(80, 60, 6, 5)
+        displaySurface.drawBitmap(
             bmp`
         9 . . 9 . . 9
         . 9 . 9 . 9 .
@@ -278,7 +107,7 @@ namespace ui {
             72,
             76,
         )
-        coverSurface.drawBitmap(
+        displaySurface.drawBitmap(
             bmp`
         9 9 9 9 9 9 9
         9 9 9 9 9 9 9
@@ -290,23 +119,15 @@ namespace ui {
       `,
             92,
             76,
-            { allowDownscale: true },
         )
-        coverSurface.drawText(
-            `cover (${screen().width}x${screen().height})`,
+        displaySurface.drawText(
+            `direct (${screen().width}x${screen().height})`,
             6,
             6,
             { color: 0 },
         )
-        coverSurface.drawText("downscaled text", 6, 18, {
-            color: 0,
-            allowDownscale: true,
-        })
-        coverSurface.drawRect(
-            new Rect(4, 4, coverUiWidth - 8, coverUiHeight - 8),
-            15,
-        )
-        coverAdapter.commit()
+        displaySurface.drawRect(new Rect(4, 4, 152, 112), 15)
+        displayAdapter.commit()
     }
 
     class RuntimeSmokeDisplayAdapter implements UiDisplayAdapter {
@@ -314,7 +135,7 @@ namespace ui {
         private onCommit_: () => void
 
         constructor(onCommit: () => void) {
-            this.inner_ = new DisplayShieldFrameAdapter({ scaleMode: "cover" })
+            this.inner_ = new DisplayShieldFrameAdapter()
             this.onCommit_ = onCommit
         }
 
@@ -818,18 +639,8 @@ namespace ui {
     }
 
     class PositionSmokeSurface extends ControlSmokeSurface {
-        private displayProfile_: UiDisplayProfile
         public textX: number
         public textY: number
-
-        constructor(displayProfile?: UiDisplayProfile) {
-            super()
-            this.displayProfile_ = displayProfile
-        }
-
-        public get displayProfile(): UiDisplayProfile {
-            return this.displayProfile_
-        }
 
         public drawText(
             text: string,

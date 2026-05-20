@@ -1,48 +1,5 @@
 namespace ui {
     /**
-     * Options for mapping the active display profile into a physical bitmap.
-     */
-    export interface PhysicalDrawSurfaceOptions {
-        /**
-         * Viewport scaling policy. Defaults to `cover`.
-         */
-        scaleMode?: ViewportScaleMode
-
-        /**
-         * Palette color used outside the mapped viewport when `scaleMode` is `fit`.
-         * Defaults to `0`.
-         */
-        backgroundColor?: number
-
-        /**
-         * Width of the rendered bitmap in display pixels. Use with
-         * `displayedHeight` when presentation stretches bitmap pixels.
-         */
-        displayedWidth?: number
-
-        /**
-         * Height of the rendered bitmap in display pixels. Use with
-         * `displayedWidth` when presentation stretches bitmap pixels.
-         */
-        displayedHeight?: number
-
-        /**
-         * Built-in display profile. Omitted values use `Standard`.
-         */
-        displayProfile?: UiDisplayProfileId
-
-        /**
-         * Width of the UI coordinate space. Defaults to `160`.
-         */
-        designWidth?: number
-
-        /**
-         * Height of the UI coordinate space. Defaults to `120`.
-         */
-        designHeight?: number
-    }
-
-    /**
      * Bitmap font metrics and glyph data for text measurement and rendering.
      */
     export interface TextFont {
@@ -81,17 +38,6 @@ namespace ui {
          */
         scale?: number
 
-        /**
-         * Allows source pixels to be sampled below one physical pixel. Defaults to
-         * `false`.
-         */
-        allowDownscale?: boolean
-
-        /**
-         * Allows source pixels to scale above their requested size on larger
-         * physical targets. Defaults to `true`.
-         */
-        allowUpscale?: boolean
     }
 
     /**
@@ -114,28 +60,12 @@ namespace ui {
          */
         transparent?: boolean
 
-        /**
-         * Allows glyph pixels to be sampled below one physical pixel. Defaults to
-         * `false`.
-         */
-        allowDownscale?: boolean
-
-        /**
-         * Allows glyph pixels to scale above their font size on larger physical
-         * targets. Defaults to `true`.
-         */
-        allowUpscale?: boolean
     }
 
     /**
      * Immediate-mode drawing target that accepts UI coordinates.
      */
     export interface DrawSurface {
-        /**
-         * Active immutable display profile when a runtime display adapter provides it.
-         */
-        readonly displayProfile?: UiDisplayProfile
-
         /**
          * Fills the target with a palette color.
          */
@@ -159,7 +89,7 @@ namespace ui {
         drawRoundedRect(rect: Rect, color?: number, fillColor?: number): void
 
         /**
-         * Draws a clipped line with a palette color.
+         * Draws a line with a palette color.
          */
         drawLine(
             x0: number,
@@ -170,12 +100,12 @@ namespace ui {
         ): void
 
         /**
-         * Draws a clipped circle outline with a palette color.
+         * Draws a circle outline with a palette color.
          */
         drawCircle(cx: number, cy: number, radius: number, color: number): void
 
         /**
-         * Fills a clipped circle with a palette color.
+         * Fills a circle with a palette color.
          */
         fillCircle(cx: number, cy: number, radius: number, color: number): void
 
@@ -210,15 +140,9 @@ namespace ui {
     }
 
     /**
-     * Draw surface with the display metrics and input mapping used by a physical
-     * display adapter.
+     * Draw surface with input mapping used by a physical display adapter.
      */
     export interface PhysicalDrawSurface extends DrawSurface {
-        /**
-         * Active immutable display profile for drawing and input mapping.
-         */
-        readonly displayProfile: UiDisplayProfile
-
         /**
          * Maps a physical display point to UI coordinates.
          */

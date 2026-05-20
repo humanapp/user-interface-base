@@ -319,13 +319,11 @@ namespace _uiControls {
         explicitBounds: ui.Rect | undefined,
     ): ui.Rect | undefined {
         if (explicitBounds) return explicitBounds
-        const profile = surface.displayProfile
-        if (!profile) return undefined
         labelBoundsScratch.set(
             0,
             0,
-            Math.round(profile.logicalWidth / profile.designToLogicalScaleX),
-            Math.round(profile.logicalHeight / profile.designToLogicalScaleY),
+            ui.STANDARD_DISPLAY_WIDTH,
+            ui.STANDARD_DISPLAY_HEIGHT,
         )
         return labelBoundsScratch
     }

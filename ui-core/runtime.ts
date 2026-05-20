@@ -465,13 +465,8 @@ namespace ui {
         }
 
         private resolveRootConstraints(runtime: UiRuntime): void {
-            const profile = runtime.displayProfile
-            this.rootConstraints_.maxWidth = Math.round(
-                profile.logicalWidth / profile.designToLogicalScaleX,
-            )
-            this.rootConstraints_.maxHeight = Math.round(
-                profile.logicalHeight / profile.designToLogicalScaleY,
-            )
+            this.rootConstraints_.maxWidth = STANDARD_DISPLAY_WIDTH
+            this.rootConstraints_.maxHeight = STANDARD_DISPLAY_HEIGHT
         }
 
         private resolveModalConstraints(runtime: UiRuntime): void {
@@ -483,13 +478,8 @@ namespace ui {
                 return
             }
 
-            const profile = runtime.displayProfile
-            this.modalConstraints_.maxWidth = Math.round(
-                profile.logicalWidth / profile.designToLogicalScaleX,
-            )
-            this.modalConstraints_.maxHeight = Math.round(
-                profile.logicalHeight / profile.designToLogicalScaleY,
-            )
+            this.modalConstraints_.maxWidth = STANDARD_DISPLAY_WIDTH
+            this.modalConstraints_.maxHeight = STANDARD_DISPLAY_HEIGHT
         }
     }
 
@@ -580,13 +570,6 @@ namespace ui {
          */
         public get scheduler(): UiScheduler {
             return this.scheduler_
-        }
-
-        /**
-         * Active immutable display profile provided by the display adapter.
-         */
-        public get displayProfile(): UiDisplayProfile {
-            return this.display_.surface.displayProfile
         }
 
         /**
