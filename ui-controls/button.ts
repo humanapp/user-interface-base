@@ -1,4 +1,5 @@
 namespace ui {
+    const BUTTON_FOCUS_COLOR = 9
     const BUTTON_FOCUS_THICKNESS = 3
     const BUTTON_FOCUS_LABEL_OFFSET = 1
     const BUTTON_DEFAULT_FONT = bitmaps.font8
@@ -80,11 +81,6 @@ namespace ui {
          * Gap between icon and text when both are present.
          */
         contentGap?: number
-
-        /**
-         * Focus color.
-         */
-        focusColor?: number
 
         /**
          * Font used for text content.
@@ -282,8 +278,7 @@ namespace ui {
             options?: UiButtonViewRenderOptions,
         ): void {
             const style = this.styleFor(options)
-            const focusColor = this.focusColor(style, options)
-            drawButtonFocusRing(surface, rect, focusColor)
+            drawButtonFocusRing(surface, rect)
             this.renderFocusLabel(surface, rect, content, style, options)
         }
 
@@ -478,16 +473,6 @@ namespace ui {
                 : 15
         }
 
-        private focusColor(
-            style: UiButtonStyle,
-            options?: UiButtonViewRenderOptions,
-        ): number {
-            const palette = options ? options.palette : undefined
-            if (palette && palette.focusColor !== undefined)
-                return palette.focusColor
-            return style.focusColor !== undefined ? style.focusColor : 15
-        }
-
         private padding(style: UiButtonStyle): number {
             return style.padding !== undefined ? style.padding : 2
         }
@@ -540,7 +525,6 @@ namespace ui {
             toggledColor: 6,
             frame: "none",
             contentAlignment: "start",
-            focusColor: 15,
         }
 
         /**
@@ -549,7 +533,6 @@ namespace ui {
         export const Transparent: UiButtonStyle = {
             frame: "none",
             contentAlignment: "center",
-            focusColor: 9,
         }
 
         /**
@@ -578,7 +561,6 @@ namespace ui {
             shadowColor: 11,
             frame: "roundedShadow",
             contentAlignment: "center",
-            focusColor: 9,
         }
 
         /**
@@ -590,7 +572,6 @@ namespace ui {
             shadowColor: 12,
             frame: "roundedShadow",
             contentAlignment: "center",
-            focusColor: 9,
         }
 
         /**
@@ -601,7 +582,6 @@ namespace ui {
             borderColor: 1,
             frame: "rect",
             contentAlignment: "center",
-            focusColor: 9,
         }
 
         /**
@@ -612,7 +592,6 @@ namespace ui {
             borderColor: 12,
             frame: "rect",
             contentAlignment: "center",
-            focusColor: 9,
         }
 
         /**
@@ -623,7 +602,6 @@ namespace ui {
             borderColor: 2,
             frame: "rect",
             contentAlignment: "center",
-            focusColor: 9,
         }
 
         /**
@@ -634,7 +612,6 @@ namespace ui {
             borderColor: 7,
             frame: "rect",
             contentAlignment: "center",
-            focusColor: 9,
         }
     }
 
@@ -662,8 +639,6 @@ namespace ui {
         if (source.padding !== undefined) target.padding = source.padding
         if (source.contentGap !== undefined)
             target.contentGap = source.contentGap
-        if (source.focusColor !== undefined)
-            target.focusColor = source.focusColor
         if (source.font !== undefined) target.font = source.font
         if (source.textPlacement !== undefined)
             target.textPlacement = source.textPlacement
@@ -737,12 +712,8 @@ namespace ui {
         )
     }
 
-    function drawButtonFocusRing(
-        surface: DrawSurface,
-        rect: Rect,
-        color?: number,
-    ): void {
-        const focusColor = color !== undefined ? color : 9
+    function drawButtonFocusRing(surface: DrawSurface, rect: Rect): void {
+        const focusColor = BUTTON_FOCUS_COLOR
         const left = rect.x
         const top = rect.y
         const right = rect.x + rect.width - 1

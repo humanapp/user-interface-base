@@ -5629,16 +5629,11 @@ namespace ui {
             UiButtonStyles.Transparent,
             UiButtonStyles.FocusLabel,
             {
-                focusColor: 4,
                 focusLabelBackgroundColor: 7,
                 focusLabelColor: 3,
                 focusLabelFont: bitmaps.font5,
                 focusLabelGap: 2,
             },
-        )
-        control.assert(
-            focusLabelStyle.focusColor == 4,
-            "control style override",
         )
         control.assert(
             UiButtonStyles.GreenBorderedWhite.borderColor == 7,

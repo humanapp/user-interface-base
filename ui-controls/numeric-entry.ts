@@ -353,14 +353,12 @@ namespace ui {
         borderColor: 7,
         frame: "roundedRect",
         contentAlignment: "center",
-        focusColor: 9,
     }
     const UI_NUMERIC_ENTRY_MODAL_DELETE_STYLE: UiButtonStyle = {
         backgroundColor: 1,
         borderColor: 2,
         frame: "roundedRect",
         contentAlignment: "center",
-        focusColor: 9,
     }
 
     /**
