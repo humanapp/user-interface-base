@@ -54,10 +54,10 @@ namespace ui {
          * Draws a rectangle outline.
          */
         public drawRect(rect: Rect, color: number): void {
-            const x = this.roundPixel(rect.x)
-            const y = this.roundPixel(rect.y)
-            const width = this.roundPixel(rect.width)
-            const height = this.roundPixel(rect.height)
+            const x = rect.x
+            const y = rect.y
+            const width = rect.width
+            const height = rect.height
             if (width <= 0 || height <= 0) return
 
             this.bitmap_.drawRect(x, y, width, height, color)
@@ -142,10 +142,10 @@ namespace ui {
             color: number,
         ): void {
             this.bitmap_.drawLine(
-                this.roundPixel(x0),
-                this.roundPixel(y0),
-                this.roundPixel(x1),
-                this.roundPixel(y1),
+                x0,
+                y0,
+                x1,
+                y1,
                 color,
             )
         }
@@ -159,14 +159,9 @@ namespace ui {
             radius: number,
             color: number,
         ): void {
-            const r = this.roundPixel(radius)
+            const r = radius
             if (r <= 0) return
-            this.bitmap_.drawCircle(
-                this.roundPixel(cx),
-                this.roundPixel(cy),
-                r,
-                color,
-            )
+            this.bitmap_.drawCircle(cx, cy, r, color)
         }
 
         /**
@@ -178,14 +173,9 @@ namespace ui {
             radius: number,
             color: number,
         ): void {
-            const r = this.roundPixel(radius)
+            const r = radius
             if (r <= 0) return
-            this.bitmap_.fillCircle(
-                this.roundPixel(cx),
-                this.roundPixel(cy),
-                r,
-                color,
-            )
+            this.bitmap_.fillCircle(cx, cy, r, color)
         }
 
         /**
@@ -197,30 +187,10 @@ namespace ui {
             y: number,
             options?: DrawBitmapOptions,
         ): void {
-            const destX = this.roundPixel(x)
-            const destY = this.roundPixel(y)
             const transparent = !options || options.transparent !== false
-            const scale = this.bitmapScale(options)
-            if (scale == 1) {
-                if (transparent)
-                    this.bitmap_.drawTransparentBitmap(bitmap, destX, destY)
-                else this.bitmap_.drawBitmap(bitmap, destX, destY)
-                return
-            }
-
-            this.bitmap_.blit(
-                destX,
-                destY,
-                bitmap.width * scale,
-                bitmap.height * scale,
-                bitmap,
-                0,
-                0,
-                bitmap.width,
-                bitmap.height,
-                transparent,
-                false,
-            )
+            if (transparent)
+                this.bitmap_.drawTransparentBitmap(bitmap, x, y)
+            else this.bitmap_.drawBitmap(bitmap, x, y)
         }
 
         /**
@@ -237,8 +207,8 @@ namespace ui {
                 options && options.color !== undefined ? options.color : 15
             this.bitmap_.print(
                 text,
-                this.roundPixel(x),
-                this.roundPixel(y),
+                x,
+                y,
                 color,
                 <any>font,
             )
@@ -284,35 +254,18 @@ namespace ui {
             height: number,
             color: number,
         ): void {
-            const x0 = Math.max(0, this.roundPixel(x))
-            const y0 = Math.max(0, this.roundPixel(y))
-            const x1 = Math.min(
-                STANDARD_DISPLAY_WIDTH,
-                this.roundPixel(x + width),
-            )
-            const y1 = Math.min(
-                STANDARD_DISPLAY_HEIGHT,
-                this.roundPixel(y + height),
-            )
+            const x0 = Math.max(0, x)
+            const y0 = Math.max(0, y)
+            const x1 = Math.min(STANDARD_DISPLAY_WIDTH, x + width)
+            const y1 = Math.min(STANDARD_DISPLAY_HEIGHT, y + height)
             if (x0 >= x1 || y0 >= y1) return
 
             this.bitmap_.fillRect(x0, y0, x1 - x0, y1 - y0, color)
         }
 
-        private bitmapScale(options?: DrawBitmapOptions): number {
-            if (!options || options.scale === undefined) return 1
-            const scale = options.scale | 0
-            if (scale <= 0 || scale != options.scale) return 1
-            return scale
-        }
-
         private textFont(text: string, font?: TextFont): TextFont {
             if (font) return font
             return bitmaps.getFontForText(text)
-        }
-
-        private roundPixel(value: number): number {
-            return Math.round(value)
         }
     }
 }

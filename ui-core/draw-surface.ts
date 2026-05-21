@@ -33,11 +33,6 @@ namespace ui {
          */
         transparent?: boolean
 
-        /**
-         * Positive integer source pixel scale. Invalid values are treated as `1`.
-         */
-        scale?: number
-
     }
 
     /**

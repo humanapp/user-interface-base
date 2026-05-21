@@ -447,7 +447,6 @@ namespace ui {
             const kind = (<any>result).kind
             switch (kind) {
                 case "activated":
-                case "keepOpen":
                 case "cancelled":
                 case "closed":
                 case "deleted":

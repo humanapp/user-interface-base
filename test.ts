@@ -691,6 +691,221 @@ namespace ui {
         }
     }
 
+    class ControlSmokeRoot implements UiFocusableView<{ kind: "activated" }> {
+        public readonly layoutSpec: UiLayoutSpec
+        public readonly finalRect: Rect
+        public layoutDirty: boolean
+        private scopeId_: UiFocusScopeId
+        private width_: number
+        private height_: number
+        private gap_: number
+        private selectedIndex_: number
+        private rects_: Rect[]
+        private onActivate_: (value: string) => void
+
+        constructor(
+            scopeId: UiFocusScopeId,
+            width: number,
+            height: number,
+            gap: number,
+            selectedIndex: number,
+            onActivate?: (value: string) => void,
+        ) {
+            this.scopeId_ = scopeId
+            this.width_ = width
+            this.height_ = height
+            this.gap_ = gap
+            this.selectedIndex_ = selectedIndex
+            this.onActivate_ = onActivate
+            this.layoutSpec = {
+                width: { mode: "content" },
+                height: { mode: "content" },
+            }
+            this.finalRect = new Rect()
+            this.layoutDirty = true
+            this.rects_ = [new Rect(), new Rect()]
+        }
+
+        public measure(
+            constraints: UiLayoutConstraints,
+            output: UiMeasuredSize,
+        ): void {
+            const width = this.width_ * 2 + this.gap_
+            output.set(width, this.height_, width, this.height_)
+            this.clearLayoutInvalidation()
+        }
+
+        public arrange(rect: Rect): void {
+            this.finalRect.copyFrom(rect)
+            this.rects_[0].set(rect.x, rect.y, this.width_, this.height_)
+            this.rects_[1].set(
+                rect.x + this.width_ + this.gap_,
+                rect.y,
+                this.width_,
+                this.height_,
+            )
+            this.clearLayoutInvalidation()
+        }
+
+        public invalidateLayout(): void {
+            this.layoutDirty = true
+        }
+
+        public clearLayoutInvalidation(): void {
+            this.layoutDirty = false
+        }
+
+        public getControlRect(controlId: string, output: Rect): boolean {
+            const index = controlId == "a" ? 0 : controlId == "b" ? 1 : -1
+            if (index < 0) return false
+            output.copyFrom(this.rects_[index])
+            return true
+        }
+
+        public registerFocusTargets(focus: UiFocusState): void {
+            focus.setScope({
+                id: this.scopeId_,
+                preferredTargetId: this.scopeId_ + "/" + this.controlId(1),
+            })
+            for (let i = 0; i < 2; i++)
+                focus.setTarget({
+                    id: this.scopeId_ + "/" + this.controlId(i),
+                    scopeId: this.scopeId_,
+                    rect: this.rects_[i],
+                    activatable: true,
+                })
+        }
+
+        public registerNavigation(controller: UiFocusInputController): void {
+            controller.setNavigation(this.scopeId_, {
+                kind: "row",
+                targets: [
+                    {
+                        id: this.scopeId_ + "/a",
+                        rect: this.rects_[0],
+                    },
+                    {
+                        id: this.scopeId_ + "/b",
+                        rect: this.rects_[1],
+                    },
+                ],
+            })
+        }
+
+        public focusDefault(focus: UiFocusState): UiFocusSetResult {
+            return focus.setActiveTarget(
+                this.scopeId_,
+                this.scopeId_ + "/" + this.controlId(
+                    this.selectedIndex_,
+                ),
+            )
+        }
+
+        public handleFocusInput(
+            result: UiFocusInputResult,
+        ): { kind: "activated" } {
+            if (result.kind != "activated" || result.scopeId != this.scopeId_)
+                return undefined
+            if (this.onActivate_) this.onActivate_(this.value(result.targetId))
+            return { kind: "activated" }
+        }
+
+        public render(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            surface.fillRect(this.finalRect, 1)
+        }
+
+        private controlId(index: number): string {
+            return index == 0 ? "a" : "b"
+        }
+
+        private value(targetId: UiFocusId): string {
+            return targetId == this.scopeId_ + "/a" ? "A" : "B"
+        }
+    }
+
+    class ControlSmokeModal
+        implements UiModal<{ kind: "cancelled"; modalScopeId: UiFocusScopeId }>
+    {
+        public readonly layoutSpec: UiLayoutSpec
+        public readonly finalRect: Rect
+        public layoutDirty: boolean
+        private modalScopeId_: UiFocusScopeId
+        private onCancel_: () => void
+
+        constructor(modalScopeId: UiFocusScopeId, onCancel?: () => void) {
+            this.modalScopeId_ = modalScopeId
+            this.onCancel_ = onCancel
+            this.layoutSpec = {
+                width: { mode: "content" },
+                height: { mode: "content" },
+            }
+            this.finalRect = new Rect()
+            this.layoutDirty = true
+        }
+
+        public get modalScopeId(): UiFocusScopeId {
+            return this.modalScopeId_
+        }
+
+        public measure(
+            constraints: UiLayoutConstraints,
+            output: UiMeasuredSize,
+        ): void {
+            output.set(32, 40, 32, 40)
+            this.clearLayoutInvalidation()
+        }
+
+        public arrange(rect: Rect): void {
+            this.finalRect.copyFrom(rect)
+            this.clearLayoutInvalidation()
+        }
+
+        public invalidateLayout(): void {
+            this.layoutDirty = true
+        }
+
+        public clearLayoutInvalidation(): void {
+            this.layoutDirty = false
+        }
+
+        public open(
+            focus: UiFocusState,
+            controller?: UiFocusInputController,
+        ): UiFocusSetResult {
+            focus.setScope({
+                id: this.modalScopeId_,
+                parentScopeId: focus.getActiveScopeId(),
+                handlesCancel: true,
+                modal: true,
+            })
+            return focus.setActiveScope(this.modalScopeId_)
+        }
+
+        public close(focus: UiFocusState): UiFocusSetResult {
+            return focus.closeModalScope(this.modalScopeId_)
+        }
+
+        public handleFocusInput(
+            result: UiFocusInputResult,
+        ): { kind: "cancelled"; modalScopeId: UiFocusScopeId } {
+            if (result.kind != "cancelled") return undefined
+            if (this.onCancel_) this.onCancel_()
+            return { kind: "cancelled", modalScopeId: this.modalScopeId_ }
+        }
+
+        public render(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            surface.fillRect(this.finalRect, 1)
+        }
+    }
+
     /**
      * Smoke harness for reusable control visuals.
      */
@@ -796,27 +1011,24 @@ namespace ui {
             display: new RuntimeSmokeDisplayAdapter(() => {}),
             assets: new ControlSmokeAssets(),
         })
-        const screenRow = new UiRow<string>({
-            scopeId: "screen-row",
-            controls: [
-                { id: "a", value: "A" },
-                { id: "b", value: "B", selected: true },
-            ],
-            onActivate: value => {
+        const screenRow = new ControlSmokeRoot(
+            "screen-row",
+            24,
+            20,
+            0,
+            1,
+            value => {
                 screenLog += value + ";"
             },
-        })
+        )
         screen.addCentered(screenRow, 15, 100, 20)
-        const autoRow = new UiRow<string>({
-            scopeId: "screen-auto-row",
-            controls: [
-                { id: "a", value: "A" },
-                { id: "b", value: "B" },
-            ],
-            controlWidth: 10,
-            controlHeight: 6,
-            gap: 3,
-        })
+        const autoRow = new ControlSmokeRoot(
+            "screen-auto-row",
+            10,
+            6,
+            3,
+            0,
+        )
         screen.add(autoRow, {
             x: 7,
             y: 32,
@@ -877,12 +1089,8 @@ namespace ui {
             "screen controller renders roots",
         )
 
-        const screenModal = new UiPicker<string>({
-            modalScopeId: "screen-modal",
-            controls: [{ id: "modal", value: "M" }],
-            onCancel: () => {
+        const screenModal = new ControlSmokeModal("screen-modal", () => {
                 screenLog += "modal-cancel;"
-            },
         })
         screen.openModal(screenModal)
         assertLayoutRect(
@@ -1125,9 +1333,7 @@ namespace ui {
             modalScopeId: "numeric-modal",
             mode: "positiveInteger",
             initialText: "0",
-            modalStyle: modalStyle(UiModalStyles.Titleless, {
-                contentMargin: 5,
-            }),
+            contentMargin: 5,
             onResult: result => {
                 modalResult = result
             },

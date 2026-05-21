@@ -355,9 +355,14 @@ namespace ui {
         modalScopeId: UiFocusScopeId
 
         /**
-         * Panel, frame, and spacing style for the modal.
+         * Fill color for the modal panel.
          */
-        modalStyle?: UiModalStyle
+        panelColor?: number
+
+        /**
+         * Inset between the modal panel and keypad content.
+         */
+        contentMargin?: number
 
         /**
          * Style applied to keypad buttons.
@@ -386,14 +391,14 @@ namespace ui {
         public layoutDirty: boolean
         private modalScopeId_: UiFocusScopeId
         private entry_: UiNumericEntry
-        private controls_: UiControl<UiNumericEntryModalKeyValue>[]
-        private rows_: number[]
+        private keyValues_: UiNumericEntryModalKeyValue[]
         private controlRects_: Rect[]
         private keyStyle_: UiButtonStyle
         private keyView_: UiButtonView
+        private keyContent_: UiButtonContent
         private displayRect_: Rect
         private gridRect_: Rect
-        private modalStyle_: UiModalStyle
+        private panelColor_: number
         private contentMargin_: number
         private deleteEnabled_: boolean
         private deleteIcon_: UiNumericEntryKeyIcon
@@ -402,16 +407,17 @@ namespace ui {
         constructor(options: UiNumericEntryModalOptions) {
             this.modalScopeId_ = options.modalScopeId
             this.entry_ = this.createEntry(options)
-            this.modalStyle_ = options.modalStyle
-            this.contentMargin_ = this.contentMargin(options.modalStyle)
+            this.panelColor_ =
+                options.panelColor === undefined ? 1 : options.panelColor
+            this.contentMargin_ = this.contentMargin(options.contentMargin)
             this.deleteEnabled_ = options.deleteEnabled || false
             this.deleteIcon_ = options.deleteIcon
-            this.controls_ = this.createControls(options.mode)
-            this.rows_ = this.rows()
+            this.keyValues_ = this.createKeyValues(options.mode)
             this.controlRects_ = []
             this.keyStyle_ =
                 options.keyStyle || UiButtonStyles.LightShadowedWhite
             this.keyView_ = new UiButtonView({ style: this.keyStyle_ })
+            this.keyContent_ = {}
             this.layoutSpec = {
                 width: { mode: "content" },
                 height: { mode: "content" },
@@ -437,12 +443,18 @@ namespace ui {
             constraints: UiLayoutConstraints,
             output: UiMeasuredSize,
         ): void {
-            const width = this.gridWidth() + this.contentMargin_ * 2
+            const gridWidth =
+                UI_NUMERIC_ENTRY_MODAL_KEY_SIZE * 4 +
+                UI_NUMERIC_ENTRY_MODAL_KEY_GAP * 3
+            const gridHeight =
+                UI_NUMERIC_ENTRY_MODAL_KEY_SIZE * 4 +
+                UI_NUMERIC_ENTRY_MODAL_KEY_GAP * 3
+            const width = gridWidth + this.contentMargin_ * 2
             const height =
                 this.contentMargin_ * 2 +
                 UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT +
                 UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP +
-                this.gridHeight()
+                gridHeight
             output.set(width, height, width, height)
             this.clearLayoutInvalidation()
         }
@@ -498,10 +510,7 @@ namespace ui {
             focus.setScope({
                 id: this.modalScopeId_,
                 parentScopeId: focus.getActiveScopeId(),
-                preferredTargetId: _uiControls.targetId(
-                    this.modalScopeId_,
-                    "digit-1",
-                ),
+                preferredTargetId: this.targetIdForKey(1),
                 handlesCancel: true,
                 modal: true,
             })
@@ -525,13 +534,12 @@ namespace ui {
         ): UiNumericEntryResult {
             let entryResult: UiNumericEntryResult = undefined
             if (result.kind == "activated") {
-                const control = _uiControls.findControlByTargetId(
-                    this.modalScopeId_,
-                    this.controls_,
-                    result.targetId,
+                const key = this.keyValueForTargetId(result.targetId)
+                if (
+                    key != UI_NUMERIC_ENTRY_KEY_SPACER &&
+                    result.scopeId == this.modalScopeId_
                 )
-                if (control && result.scopeId == this.modalScopeId_)
-                    entryResult = this.applyKey(control.value)
+                    entryResult = this.applyKey(key)
             } else if (result.kind == "cancelled") {
                 entryResult = this.entry_.cancel()
             }
@@ -541,14 +549,114 @@ namespace ui {
         }
 
         public move(request: UiFocusNavigationRequest): UiFocusMoveResult {
-            return moveFocusInRaggedGrid({
+            const currentIndex = this.keyIndexForTargetId(
+                request.currentTargetId,
+            )
+            if (currentIndex < 0)
+                return {
+                    kind: "stayed",
+                    scopeId: this.modalScopeId_,
+                    targetId: request.currentTargetId,
+                    reason: "missingActive",
+                }
+
+            let currentRow = -1
+            let currentColumn = -1
+            let rowStart = 0
+            for (let row = 0; row < 4; row++) {
+                const rowLength = this.rowLength(row)
+                let navigationColumn = 0
+                for (let i = 0; i < rowLength; i++) {
+                    const index = rowStart + i
+                    if (this.keyValues_[index] != UI_NUMERIC_ENTRY_KEY_SPACER) {
+                        if (index == currentIndex) {
+                            currentRow = row
+                            currentColumn = navigationColumn
+                        }
+                        navigationColumn++
+                    }
+                }
+                rowStart += rowLength
+            }
+            let destinationIndex = -1
+
+            if (request.direction == "left" || request.direction == "right") {
+                const start = this.rowStart(currentRow)
+                const length = this.rowLength(currentRow)
+                let visibleLength = 0
+                for (let i = 0; i < length; i++) {
+                    if (
+                        this.keyValues_[start + i] !=
+                        UI_NUMERIC_ENTRY_KEY_SPACER
+                    )
+                        visibleLength++
+                }
+                if (visibleLength > 1) {
+                    let column =
+                        currentColumn +
+                        (request.direction == "left" ? -1 : 1)
+                    if (column < 0) column = visibleLength - 1
+                    else if (column >= visibleLength) column = 0
+                    let navigationColumn = 0
+                    for (let i = 0; i < length; i++) {
+                        const index = start + i
+                        if (
+                            this.keyValues_[index] !=
+                            UI_NUMERIC_ENTRY_KEY_SPACER
+                        ) {
+                            if (navigationColumn == column)
+                                destinationIndex = index
+                            navigationColumn++
+                        }
+                    }
+                }
+            } else {
+                const step = request.direction == "up" ? -1 : 1
+                let row = currentRow + step
+                while (row >= 0 && row < 4 && destinationIndex < 0) {
+                    const start = this.rowStart(row)
+                    const length = this.rowLength(row)
+                    let navigationColumn = 0
+                    for (let i = 0; i < length; i++) {
+                        const index = start + i
+                        if (
+                            this.keyValues_[index] !=
+                            UI_NUMERIC_ENTRY_KEY_SPACER
+                        ) {
+                            if (navigationColumn == currentColumn)
+                                destinationIndex = index
+                            navigationColumn++
+                        }
+                    }
+                    row += step
+                }
+            }
+
+            if (destinationIndex >= 0)
+                return {
+                    kind: "moved",
+                    fromScopeId: this.modalScopeId_,
+                    fromTargetId: request.currentTargetId,
+                    toScopeId: this.modalScopeId_,
+                    toTargetId: this.targetIdForKey(
+                        this.keyValues_[destinationIndex],
+                    ),
+                }
+
+            if (request.direction == "left" || request.direction == "right")
+                return {
+                    kind: "stayed",
+                    scopeId: this.modalScopeId_,
+                    targetId: request.currentTargetId,
+                    reason: "boundary",
+                }
+
+            return {
+                kind: "exited",
                 scopeId: this.modalScopeId_,
-                currentTargetId: request.currentTargetId,
+                targetId: request.currentTargetId,
                 direction: request.direction,
-                rows: this.navigationRows(),
-                horizontalWrap: true,
-                verticalStrategy: "exact",
-            })
+            }
         }
 
         /**
@@ -562,9 +670,7 @@ namespace ui {
             surface.drawRoundedRect(
                 this.finalRect,
                 15,
-                this.modalStyle_ && this.modalStyle_.panelColor !== undefined
-                    ? this.modalStyle_.panelColor
-                    : 1,
+                this.panelColor_,
             )
             this.entry_.render(surface, this.displayRect_)
             this.renderKeys(surface, assets)
@@ -574,10 +680,11 @@ namespace ui {
         private arrangeKeys(): void {
             this.ensureKeyRects()
             let index = 0
-            for (let row = 0; row < this.rows_.length; row++) {
+            for (let row = 0; row < 4; row++) {
+                const rowLength = this.rowLength(row)
                 for (
                     let column = 0;
-                    column < this.rows_[row] && index < this.controls_.length;
+                    column < rowLength && index < this.keyValues_.length;
                     column++
                 ) {
                     this.controlRects_[index].set(
@@ -599,15 +706,11 @@ namespace ui {
 
         private registerTargets(focus: UiFocusState): void {
             this.ensureKeyRects()
-            for (let i = 0; i < this.controls_.length; i++) {
-                const control = this.controls_[i]
-                if (
-                    !_uiControls.isVisible(control) ||
-                    !_uiControls.isFocusable(control)
-                )
-                    continue
+            for (let i = 0; i < this.keyValues_.length; i++) {
+                const key = this.keyValues_[i]
+                if (key == UI_NUMERIC_ENTRY_KEY_SPACER) continue
                 focus.setTarget({
-                    id: _uiControls.targetId(this.modalScopeId_, control.id),
+                    id: this.targetIdForKey(key),
                     scopeId: this.modalScopeId_,
                     rect: this.controlRects_[i],
                     activatable: true,
@@ -615,50 +718,19 @@ namespace ui {
             }
         }
 
-        private navigationRows(): UiFocusNavigationTarget[][] {
-            const rows: UiFocusNavigationTarget[][] = []
-            let index = 0
-            for (let row = 0; row < this.rows_.length; row++) {
-                const rowTargets: UiFocusNavigationTarget[] = []
-                for (
-                    let column = 0;
-                    column < this.rows_[row] && index < this.controls_.length;
-                    column++
-                ) {
-                    const control = this.controls_[index]
-                    if (
-                        _uiControls.isVisible(control) &&
-                        _uiControls.isFocusable(control)
-                    )
-                        rowTargets.push({
-                            id: _uiControls.targetId(
-                                this.modalScopeId_,
-                                control.id,
-                            ),
-                            rect: this.controlRects_[index],
-                            hidden: !_uiControls.isVisible(control),
-                        })
-                    index++
-                }
-                if (rowTargets.length) rows.push(rowTargets)
-            }
-            return rows
-        }
-
         private renderKeys(
             surface: DrawSurface,
             assets: UiAssetResolver,
         ): void {
-            for (let i = 0; i < this.controls_.length; i++) {
-                const control = this.controls_[i]
-                if (!_uiControls.isVisible(control)) continue
-                _uiControls.renderControl(
+            for (let i = 0; i < this.keyValues_.length; i++) {
+                const key = this.keyValues_[i]
+                if (key == UI_NUMERIC_ENTRY_KEY_SPACER) continue
+                this.prepareKeyContent(key, assets)
+                this.keyView_.render(
                     surface,
-                    assets,
-                    control,
                     this.controlRects_[i],
-                    this.keyView_,
-                    this.keyStyle_,
+                    this.keyContent_,
+                    this.keyStyleForKey(key),
                 )
             }
         }
@@ -668,54 +740,28 @@ namespace ui {
             assets: UiAssetResolver,
             focus: UiFocusState,
         ): void {
-            const activeTargetId = _uiControls.activeTargetIdForScope(
-                focus,
-                this.modalScopeId_,
-            )
-            const index = _uiControls.focusedControlOverlayIndex(
-                this.modalScopeId_,
-                this.controls_,
-                activeTargetId,
-            )
+            const activeTargetId =
+                focus && focus.getActiveScopeId() == this.modalScopeId_
+                    ? focus.getActiveTargetId(this.modalScopeId_)
+                    : undefined
+            const index = this.keyIndexForTargetId(activeTargetId)
             if (index < 0) return
-            _uiControls.renderControl(
+            const key = this.keyValues_[index]
+            this.prepareKeyContent(key, assets)
+            this.keyView_.renderFocus(
                 surface,
-                assets,
-                this.controls_[index],
                 this.controlRects_[index],
-                this.keyView_,
-                this.keyStyle_,
+                this.keyContent_,
+                this.keyStyleForKey(key),
                 undefined,
-                true,
             )
         }
 
         private ensureKeyRects(): void {
-            while (this.controlRects_.length < this.controls_.length)
+            while (this.controlRects_.length < this.keyValues_.length)
                 this.controlRects_.push(new Rect())
-            while (this.controlRects_.length > this.controls_.length)
+            while (this.controlRects_.length > this.keyValues_.length)
                 this.controlRects_.pop()
-        }
-
-        private gridWidth(): number {
-            return (
-                this.maxRowLength() * UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
-                (this.maxRowLength() - 1) * UI_NUMERIC_ENTRY_MODAL_KEY_GAP
-            )
-        }
-
-        private gridHeight(): number {
-            return (
-                this.rows_.length * UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
-                (this.rows_.length - 1) * UI_NUMERIC_ENTRY_MODAL_KEY_GAP
-            )
-        }
-
-        private maxRowLength(): number {
-            let max = 0
-            for (let i = 0; i < this.rows_.length; i++)
-                max = Math.max(max, this.rows_[i])
-            return max
         }
 
         private applyKey(
@@ -739,50 +785,30 @@ namespace ui {
             return undefined
         }
 
-        private createControls(
+        private createKeyValues(
             mode: UiNumericEntryMode,
-        ): UiControl<UiNumericEntryModalKeyValue>[] {
-            const controls: UiControl<UiNumericEntryModalKeyValue>[] = []
-            this.pushDigitControl(controls, 1)
-            this.pushDigitControl(controls, 2)
-            this.pushDigitControl(controls, 3)
-            controls.push(
-                this.keyControl(
-                    UI_NUMERIC_ENTRY_KEY_BACKSPACE,
-                    "<-",
-                    "backspace",
-                ),
-            )
-            this.pushDigitControl(controls, 4)
-            this.pushDigitControl(controls, 5)
-            this.pushDigitControl(controls, 6)
-            this.pushDigitControl(controls, 7)
-            this.pushDigitControl(controls, 8)
-            this.pushDigitControl(controls, 9)
-            if (this.deleteEnabled_) controls.push(this.deleteControl())
+        ): UiNumericEntryModalKeyValue[] {
+            const keys: UiNumericEntryModalKeyValue[] = []
+            keys.push(1)
+            keys.push(2)
+            keys.push(3)
+            keys.push(UI_NUMERIC_ENTRY_KEY_BACKSPACE)
+            keys.push(4)
+            keys.push(5)
+            keys.push(6)
+            keys.push(7)
+            keys.push(8)
+            keys.push(9)
+            if (this.deleteEnabled_) keys.push(UI_NUMERIC_ENTRY_KEY_DELETE)
             if (mode == "decimal")
-                controls.push(
-                    this.keyControl(
-                        UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT,
-                        ".",
-                        "decimalPoint",
-                    ),
-                )
-            else controls.push(this.spacerControl("spacer-zero-left"))
-            this.pushDigitControl(controls, 0)
+                keys.push(UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT)
+            else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
+            keys.push(0)
             if (mode == "decimal")
-                controls.push(
-                    this.keyControl(
-                        UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN,
-                        "+/-",
-                        "toggleSign",
-                    ),
-                )
-            else controls.push(this.spacerControl("spacer-zero-right"))
-            controls.push(
-                this.keyControl(UI_NUMERIC_ENTRY_KEY_ENTER, "OK", "enter"),
-            )
-            return controls
+                keys.push(UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN)
+            else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
+            keys.push(UI_NUMERIC_ENTRY_KEY_ENTER)
+            return keys
         }
 
         private createEntry(
@@ -798,66 +824,91 @@ namespace ui {
             })
         }
 
-        private rows(): number[] {
-            return this.deleteEnabled_ ? [4, 3, 4, 4] : [4, 3, 3, 4]
+        private rowLength(row: number): number {
+            if (row == 0 || row == 3) return 4
+            if (row == 1) return 3
+            return this.deleteEnabled_ ? 4 : 3
         }
 
-        private pushDigitControl(
-            controls: UiControl<UiNumericEntryModalKeyValue>[],
-            digit: number,
-        ): void {
-            controls.push({
-                id: "digit-" + digit,
-                value: digit,
-                text: "" + digit,
-            })
+        private rowStart(row: number): number {
+            if (row == 0) return 0
+            if (row == 1) return 4
+            if (row == 2) return 7
+            return this.deleteEnabled_ ? 11 : 10
         }
 
-        private keyControl(
+        private targetIdForKey(key: UiNumericEntryModalKeyValue): UiFocusId {
+            return this.modalScopeId_ + "/" + this.keyIdForKey(key)
+        }
+
+        private keyIndexForTargetId(targetId: UiFocusId): number {
+            if (targetId === undefined) return -1
+            for (let i = 0; i < this.keyValues_.length; i++) {
+                const key = this.keyValues_[i]
+                if (
+                    key != UI_NUMERIC_ENTRY_KEY_SPACER &&
+                    targetId == this.targetIdForKey(key)
+                )
+                    return i
+            }
+            return -1
+        }
+
+        private keyValueForTargetId(
+            targetId: UiFocusId,
+        ): UiNumericEntryModalKeyValue {
+            const index = this.keyIndexForTargetId(targetId)
+            return index < 0
+                ? UI_NUMERIC_ENTRY_KEY_SPACER
+                : this.keyValues_[index]
+        }
+
+        private keyIdForKey(key: UiNumericEntryModalKeyValue): string {
+            if (key >= 0 && key <= 9) return "digit-" + key
+            if (key == UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT) return "decimalPoint"
+            if (key == UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN) return "toggleSign"
+            if (key == UI_NUMERIC_ENTRY_KEY_BACKSPACE) return "backspace"
+            if (key == UI_NUMERIC_ENTRY_KEY_DELETE) return "delete"
+            return "enter"
+        }
+
+        private keyStyleForKey(
             key: UiNumericEntryModalKeyValue,
-            text: string,
-            id: string,
-        ): UiControl<UiNumericEntryModalKeyValue> {
-            return {
-                id,
-                value: key,
-                text,
-                style:
-                    key == UI_NUMERIC_ENTRY_KEY_ENTER
-                        ? UI_NUMERIC_ENTRY_MODAL_ENTER_STYLE
-                        : key == UI_NUMERIC_ENTRY_KEY_DELETE
-                          ? UI_NUMERIC_ENTRY_MODAL_DELETE_STYLE
-                          : undefined,
+        ): UiButtonStyle {
+            if (key == UI_NUMERIC_ENTRY_KEY_ENTER)
+                return UI_NUMERIC_ENTRY_MODAL_ENTER_STYLE
+            if (key == UI_NUMERIC_ENTRY_KEY_DELETE)
+                return UI_NUMERIC_ENTRY_MODAL_DELETE_STYLE
+            return this.keyStyle_
+        }
+
+        private prepareKeyContent(
+            key: UiNumericEntryModalKeyValue,
+            assets: UiAssetResolver,
+        ): void {
+            this.keyContent_.bitmap = undefined
+            if (
+                key == UI_NUMERIC_ENTRY_KEY_DELETE &&
+                this.deleteIcon_ !== undefined
+            ) {
+                this.keyContent_.text = ""
+                this.keyContent_.bitmap = assets.getBitmap(this.deleteIcon_)
+            } else {
+                this.keyContent_.text = this.keyTextForKey(key)
             }
         }
 
-        private deleteControl(): UiControl<UiNumericEntryModalKeyValue> {
-            const control = this.keyControl(
-                UI_NUMERIC_ENTRY_KEY_DELETE,
-                "DEL",
-                "delete",
-            )
-            if (this.deleteIcon_ !== undefined) {
-                control.text = undefined
-                control.bitmapId = this.deleteIcon_
-            }
-            return control
+        private keyTextForKey(key: UiNumericEntryModalKeyValue): string {
+            if (key >= 0 && key <= 9) return "" + key
+            if (key == UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT) return "."
+            if (key == UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN) return "+/-"
+            if (key == UI_NUMERIC_ENTRY_KEY_BACKSPACE) return "<-"
+            if (key == UI_NUMERIC_ENTRY_KEY_DELETE) return "DEL"
+            return "OK"
         }
 
-        private spacerControl(
-            id: string,
-        ): UiControl<UiNumericEntryModalKeyValue> {
-            return {
-                id,
-                value: UI_NUMERIC_ENTRY_KEY_SPACER,
-                focusable: false,
-                visible: false,
-            }
-        }
-
-        private contentMargin(style: UiModalStyle): number {
-            if (style && style.contentMargin !== undefined)
-                return Math.max(0, style.contentMargin)
+        private contentMargin(value: number): number {
+            if (value !== undefined) return Math.max(0, value)
             return 4
         }
     }
