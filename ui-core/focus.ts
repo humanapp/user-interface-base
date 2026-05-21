@@ -312,12 +312,16 @@ namespace ui {
      */
     export class UiFocusState {
         private scopes_: UiFocusScopeRecord[]
+        private scopeById_: { [key: string]: UiFocusScopeRecord }
         private targets_: UiFocusTargetRecord[]
+        private targetById_: { [key: string]: UiFocusTargetRecord }
         private activeScopeId_: UiFocusScopeId | undefined
 
         constructor() {
             this.scopes_ = []
+            this.scopeById_ = {}
             this.targets_ = []
+            this.targetById_ = {}
             this.activeScopeId_ = undefined
         }
 
@@ -332,7 +336,9 @@ namespace ui {
                     scope.activeTargetId = undefined
                 }
             } else {
-                this.scopes_.push(createFocusScopeRecord(options))
+                const created = createFocusScopeRecord(options)
+                this.scopes_.push(created)
+                this.scopeById_[created.id] = created
             }
         }
 
@@ -343,9 +349,14 @@ namespace ui {
             const scopeIndex = this.findScopeIndex(id)
             if (scopeIndex < 0) return
 
+            const scope = this.scopes_[scopeIndex]
+            this.scopeById_[scope.id] = undefined
             this.scopes_.removeAt(scopeIndex)
             for (let i = this.targets_.length - 1; i >= 0; i--) {
-                if (this.targets_[i].scopeId == id) this.targets_.removeAt(i)
+                if (this.targets_[i].scopeId == id) {
+                    this.targetById_[this.targets_[i].id] = undefined
+                    this.targets_.removeAt(i)
+                }
             }
 
             if (this.activeScopeId_ == id) {
@@ -365,7 +376,9 @@ namespace ui {
             if (target) {
                 updateFocusTargetRecord(target, options)
             } else {
-                this.targets_.push(createFocusTargetRecord(options))
+                const created = createFocusTargetRecord(options)
+                this.targets_.push(created)
+                this.targetById_[created.id] = created
             }
 
             if (oldScopeId && oldScopeId != options.scopeId) {
@@ -579,8 +592,7 @@ namespace ui {
         private findScope(
             id: UiFocusScopeId | undefined,
         ): UiFocusScopeRecord | undefined {
-            const index = this.findScopeIndex(id)
-            return index >= 0 ? this.scopes_[index] : undefined
+            return id === undefined ? undefined : this.scopeById_[id]
         }
 
         private findScopeIndex(id: UiFocusScopeId | undefined): number {
@@ -594,16 +606,7 @@ namespace ui {
         private findTarget(
             id: UiFocusId | undefined,
         ): UiFocusTargetRecord | undefined {
-            const index = this.findTargetIndex(id)
-            return index >= 0 ? this.targets_[index] : undefined
-        }
-
-        private findTargetIndex(id: UiFocusId | undefined): number {
-            if (id === undefined) return -1
-            for (let i = 0; i < this.targets_.length; i++) {
-                if (this.targets_[i].id == id) return i
-            }
-            return -1
+            return id === undefined ? undefined : this.targetById_[id]
         }
 
         private isTargetEligible(

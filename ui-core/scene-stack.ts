@@ -30,16 +30,28 @@ namespace ui {
         input.runtime.dispatchInput({ action, source, phase })
     }
 
+    function releaseDefaultControllerButtons(): void {
+        controller.up.setPressed(false)
+        controller.down.setPressed(false)
+        controller.left.setPressed(false)
+        controller.right.setPressed(false)
+        controller.A.setPressed(false)
+        controller.B.setPressed(false)
+        controller.menu.setPressed(false)
+    }
+
     /**
      * Stack that owns screen lifecycle and input routing.
      */
     export class UiSceneStack {
         private runtime_: UiRuntime
         private scenes_: UiSceneRecord[]
+        private contextActive_: boolean
 
         constructor(runtime: UiRuntime) {
             this.runtime_ = runtime
             this.scenes_ = []
+            this.contextActive_ = false
         }
 
         /**
@@ -51,8 +63,9 @@ namespace ui {
             const current = this.topRecord()
             if (current) current.screen.deactivate()
 
-            context.pushEventContext()
+            this.ensureEventContext()
             const input = createSceneInput(this.runtime_)
+            releaseDefaultControllerButtons()
             this.bindDefaultControllerActions(input)
 
             const record: UiSceneRecord = { screen, input }
@@ -75,10 +88,15 @@ namespace ui {
             record.screen.deactivate()
             record.screen.exit()
             disposeSceneInput(record.input)
-            context.popEventContext()
+            releaseDefaultControllerButtons()
 
             const current = this.topRecord()
-            if (current) current.screen.activate()
+            if (current) {
+                this.bindDefaultControllerActions(current.input)
+                current.screen.activate()
+            } else {
+                this.popEventContext()
+            }
 
             return record.screen
         }
@@ -95,11 +113,11 @@ namespace ui {
                 replaced.screen.deactivate()
                 replaced.screen.exit()
                 disposeSceneInput(replaced.input)
-                context.popEventContext()
             }
 
-            context.pushEventContext()
+            this.ensureEventContext()
             const input = createSceneInput(this.runtime_)
+            releaseDefaultControllerButtons()
             this.bindDefaultControllerActions(input)
 
             const record: UiSceneRecord = { screen, input }
@@ -181,6 +199,18 @@ namespace ui {
 
         private clearInputQueue(queue: UiInputEvent[]): void {
             while (queue.length) queue.pop()
+        }
+
+        private ensureEventContext(): void {
+            if (this.contextActive_) return
+            context.pushEventContext()
+            this.contextActive_ = true
+        }
+
+        private popEventContext(): void {
+            if (!this.contextActive_) return
+            context.popEventContext()
+            this.contextActive_ = false
         }
 
         private bindDefaultControllerActions(input: UiSceneInput): void {
