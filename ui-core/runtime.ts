@@ -2,6 +2,7 @@
 namespace ui {
     const UI_CONTROLLER_REPEAT_DELAY_MS = 250
     const UI_CONTROLLER_REPEAT_INTERVAL_MS = 30
+    const UI_RUNTIME_FRAME_PRIORITY = 30
 
     /**
      * Display target that exposes a draw surface and presents frames.
@@ -110,6 +111,10 @@ namespace ui {
         private clearColor_: number
         private stack_: UiScreenStack
         private inputQueue_: UiInputEvent[]
+        private lastControllerUpdateMs_: number
+        private running_: boolean
+        private frameContext_: context.EventContext
+        private frameCallback_: context.FrameCallback
 
         constructor(options: UiRuntimeServices) {
             this.display_ = options.display
@@ -119,6 +124,8 @@ namespace ui {
                 options.clearColor !== undefined ? options.clearColor : 0
             this.inputQueue_ = []
             this.stack_ = new UiScreenStack(this)
+            this.lastControllerUpdateMs_ = control.millis()
+            this.running_ = false
             controller.setRepeatDefault(
                 UI_CONTROLLER_REPEAT_DELAY_MS,
                 UI_CONTROLLER_REPEAT_INTERVAL_MS,
@@ -158,6 +165,7 @@ namespace ui {
          */
         public push(screen: UiScreen): void {
             this.stack_.push(screen)
+            this.bindFrameHandler()
         }
 
         /**
@@ -165,7 +173,9 @@ namespace ui {
          * `undefined` when the stack is empty.
          */
         public pop(): UiScreen | undefined {
-            return this.stack_.pop()
+            const screen = this.stack_.pop()
+            this.bindFrameHandler()
+            return screen
         }
 
         /**
@@ -173,7 +183,9 @@ namespace ui {
          * Returns `undefined` when the stack is empty.
          */
         public replace(screen: UiScreen): UiScreen | undefined {
-            return this.stack_.replace(screen)
+            const replaced = this.stack_.replace(screen)
+            this.bindFrameHandler()
+            return replaced
         }
 
         /**
@@ -205,6 +217,22 @@ namespace ui {
         }
 
         /**
+         * Runs the UI from the current event context's frame callback.
+         */
+        public start(): void {
+            this.running_ = true
+            this.bindFrameHandler()
+        }
+
+        /**
+         * Stops the runtime-owned frame callback.
+         */
+        public stop(): void {
+            this.running_ = false
+            this.unbindFrameHandler()
+        }
+
+        /**
          * Updates controller repeat, delivers queued input, updates, renders, and
          * commits the active screen.
          */
@@ -218,14 +246,45 @@ namespace ui {
         }
 
         private updateDefaultControllerButtons(): void {
-            const eventContext = context.eventContext()
-            if (!eventContext) return
-
-            const dtms = (eventContext.deltaTime * 1000) | 0
+            const now = control.millis()
+            let dtms = now - this.lastControllerUpdateMs_
+            this.lastControllerUpdateMs_ = now
+            if (dtms < 0) dtms = 0
             controller.left.__update(dtms)
             controller.right.__update(dtms)
             controller.up.__update(dtms)
             controller.down.__update(dtms)
+        }
+
+        private bindFrameHandler(): void {
+            if (!this.running_) return
+            const eventContext = context.eventContext()
+            if (!eventContext || !this.top()) {
+                this.unbindFrameHandler()
+                return
+            }
+
+            if (
+                this.frameContext_ == eventContext &&
+                this.frameCallback_ !== undefined
+            )
+                return
+
+            this.unbindFrameHandler()
+            this.frameContext_ = eventContext
+            this.lastControllerUpdateMs_ = control.millis()
+            this.frameCallback_ = eventContext.registerFrameHandler(
+                UI_RUNTIME_FRAME_PRIORITY,
+                () => this.runFrame(),
+            )
+        }
+
+        private unbindFrameHandler(): void {
+            if (this.frameContext_ && this.frameCallback_) {
+                this.frameContext_.unregisterFrameHandler(this.frameCallback_)
+            }
+            this.frameContext_ = undefined
+            this.frameCallback_ = undefined
         }
     }
 }

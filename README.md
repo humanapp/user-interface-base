@@ -10,8 +10,8 @@ micro:bit apps UI gives an app a small screen runtime:
 - Put each app page in a `UiScreen`.
 - Push screens onto one `UiRuntime`.
 - Queue semantic input events such as `up`, `down`, `activate`, and `cancel`.
-- Let `runFrame()` deliver input, update the active screen, render it, and commit
-  the frame to the Display Shield.
+- Start the runtime to deliver input, update the active screen, render it, and
+  commit frames to the Display Shield.
 
 You can draw directly in a screen, add screen-owned focusable views, or open
 modal UI such as the built-in numeric keypad.
@@ -38,7 +38,8 @@ passed to `render()`.
 
 ## 2. Start A Runtime
 
-A typical app creates one runtime, pushes the first screen, and runs a frame loop.
+A typical app creates one runtime, pushes the first screen, and starts the
+runtime.
 
 ```ts
 const runtime = new ui.UiRuntime({
@@ -47,15 +48,13 @@ const runtime = new ui.UiRuntime({
 })
 
 runtime.push(new HelloScreen())
-
-basic.forever(function () {
-    runtime.runFrame()
-})
+runtime.start()
 ```
 
-`runFrame()` is the main loop for micro:bit apps UI. It delivers queued input to
-the active screen, calls the screen's `update()`, calls `render()`, and commits
-the frame.
+`start()` hooks a Display Shield frame callback that drives micro:bit apps UI. It
+updates controller repeat, delivers queued input to the active screen, calls the
+screen's `update()`, calls `render()`, and commits the frame. Call `stop()` when
+the app should stop drawing UI frames.
 
 ## 3. Make A Screen Own App State
 
