@@ -6,11 +6,13 @@ namespace ui {
         /**
          * Horizontal extent in pixels.
          */
+        //% blockCombine block="width" callInDebugger
         public width: number
 
         /**
          * Vertical extent in pixels.
          */
+        //% blockCombine block="height" callInDebugger
         public height: number
 
         constructor(width = 0, height = 0) {
