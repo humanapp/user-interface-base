@@ -10,7 +10,7 @@ namespace ui {
     export type UiLayoutAlignment = "start" | "center" | "end" | "stretch"
 
     /**
-     * Size request for one layout axis in UI units.
+     * Size request for one layout axis in pixels.
      */
     export interface UiLayoutAxisSpec {
         /**
@@ -40,18 +40,18 @@ namespace ui {
      */
     export interface UiLayoutSpec {
         /**
-         * Width sizing request in UI units.
+         * Width sizing request in pixels.
          */
         width: UiLayoutAxisSpec
 
         /**
-         * Height sizing request in UI units.
+         * Height sizing request in pixels.
          */
         height: UiLayoutAxisSpec
     }
 
     /**
-     * Parent-supplied measurement limits in UI units.
+     * Parent-supplied measurement limits in pixels.
      */
     export interface UiLayoutConstraints {
         /**
@@ -66,7 +66,7 @@ namespace ui {
     }
 
     /**
-     * Insets in UI units.
+     * Insets in pixels.
      */
     export interface UiLayoutEdgeInsets {
         /**
@@ -115,22 +115,22 @@ namespace ui {
      */
     export class UiMeasuredSize {
         /**
-         * Smallest measured width in UI units.
+         * Smallest measured width in pixels.
          */
         public minWidth: number
 
         /**
-         * Smallest measured height in UI units.
+         * Smallest measured height in pixels.
          */
         public minHeight: number
 
         /**
-         * Preferred measured width in UI units.
+         * Preferred measured width in pixels.
          */
         public preferredWidth: number
 
         /**
-         * Preferred measured height in UI units.
+         * Preferred measured height in pixels.
          */
         public preferredHeight: number
 
@@ -180,7 +180,7 @@ namespace ui {
         readonly layoutSpec: UiLayoutSpec
 
         /**
-         * Last arranged rectangle in UI coordinates.
+         * Last arranged rectangle in pixel coordinates.
          */
         readonly finalRect: Rect
 

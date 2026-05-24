@@ -3,16 +3,16 @@ namespace ui {
      * Adapter for display-shield's physical bitmap update path.
      */
     export class DisplayShieldFrameAdapter implements UiDisplayAdapter {
-        private surface_: PhysicalBitmapDrawSurface
+        private surface_: BitmapDrawSurface
 
         constructor() {
-            this.surface_ = new PhysicalBitmapDrawSurface(screen())
+            this.surface_ = new BitmapDrawSurface(screen())
         }
 
         /**
          * Draw surface backed by the current physical screen bitmap.
          */
-        public get surface(): PhysicalBitmapDrawSurface {
+        public get surface(): BitmapDrawSurface {
             return this.surface_
         }
 

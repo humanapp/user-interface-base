@@ -1,12 +1,12 @@
 namespace ui {
     class TestBitmapDisplayAdapter implements UiDisplayAdapter {
-        private surface_: PhysicalBitmapDrawSurface
+        private surface_: BitmapDrawSurface
 
         constructor(bitmap: Bitmap) {
-            this.surface_ = new PhysicalBitmapDrawSurface(bitmap)
+            this.surface_ = new BitmapDrawSurface(bitmap)
         }
 
-        public get surface(): PhysicalBitmapDrawSurface {
+        public get surface(): BitmapDrawSurface {
             return this.surface_
         }
 
@@ -45,22 +45,6 @@ namespace ui {
             STANDARD_DISPLAY_HEIGHT,
         )
         const standardAdapter = new TestBitmapDisplayAdapter(standardBitmap)
-        const point = new Point()
-
-        control.assert(
-            standardAdapter.surface.uiPointFromPhysical(159, 119, point),
-            "physical input inside",
-        )
-        control.assert(point.x == 159, "physical input x")
-        control.assert(point.y == 119, "physical input y")
-        control.assert(
-            !standardAdapter.surface.uiPointFromPhysical(160, 119, point),
-            "physical input right outside",
-        )
-        control.assert(
-            !standardAdapter.surface.uiPointFromPhysical(159, 120, point),
-            "physical input bottom outside",
-        )
 
         standardAdapter.surface.clear(0)
         standardAdapter.surface.fillRect(new Rect(0, 74, 160, 33), 2)
@@ -139,7 +123,7 @@ namespace ui {
             this.onCommit_ = onCommit
         }
 
-        public get surface(): PhysicalDrawSurface {
+        public get surface(): DrawSurface {
             return this.inner_.surface
         }
 

@@ -1,15 +1,15 @@
 namespace ui {
     /**
-     * Point in UI coordinates.
+     * Point in pixel coordinates.
      */
     export class Point {
         /**
-         * Horizontal coordinate in UI units.
+         * Horizontal coordinate in pixels.
          */
         public x: number
 
         /**
-         * Vertical coordinate in UI units.
+         * Vertical coordinate in pixels.
          */
         public y: number
 
@@ -45,16 +45,16 @@ namespace ui {
     }
 
     /**
-     * Width and height in UI units.
+     * Width and height in pixels.
      */
     export class Size {
         /**
-         * Horizontal extent in UI units.
+         * Horizontal extent in pixels.
          */
         public width: number
 
         /**
-         * Vertical extent in UI units.
+         * Vertical extent in pixels.
          */
         public height: number
 
@@ -90,29 +90,29 @@ namespace ui {
     }
 
     /**
-     * Rectangle in UI coordinates.
+     * Rectangle in pixel coordinates.
      *
      * Hit testing uses the half-open interval
      * `x <= px < right` and `y <= py < bottom`.
      */
     export class Rect {
         /**
-         * Left coordinate in UI units.
+         * Left coordinate in pixels.
          */
         public x: number
 
         /**
-         * Top coordinate in UI units.
+         * Top coordinate in pixels.
          */
         public y: number
 
         /**
-         * Horizontal extent in UI units.
+         * Horizontal extent in pixels.
          */
         public width: number
 
         /**
-         * Vertical extent in UI units.
+         * Vertical extent in pixels.
          */
         public height: number
 
@@ -160,7 +160,7 @@ namespace ui {
         }
 
         /**
-         * Expands each edge by `amount` UI units and returns this rectangle.
+         * Expands each edge by `amount` pixels and returns this rectangle.
          */
         public inflate(amount: number): Rect {
             this.x -= amount

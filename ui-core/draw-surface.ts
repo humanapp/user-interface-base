@@ -4,12 +4,12 @@ namespace ui {
      */
     export interface TextFont {
         /**
-         * Advance width for one character in UI units.
+         * Advance width for one character in pixels.
          */
         charWidth: number
 
         /**
-         * Glyph height in UI units.
+         * Glyph height in pixels.
          */
         charHeight: number
 
@@ -56,7 +56,7 @@ namespace ui {
     }
 
     /**
-     * Immediate-mode drawing target that accepts UI coordinates.
+     * Immediate-mode drawing target that accepts pixel coordinates.
      */
     export interface DrawSurface {
         /**
@@ -103,7 +103,7 @@ namespace ui {
         fillCircle(cx: number, cy: number, radius: number, color: number): void
 
         /**
-         * Draws a bitmap at upper-left coordinates in UI units.
+         * Draws a bitmap at upper-left pixel coordinates.
          */
         drawBitmap(
             bitmap: Bitmap,
@@ -113,7 +113,7 @@ namespace ui {
         ): void
 
         /**
-         * Draws text at upper-left coordinates in UI units.
+         * Draws text at upper-left pixel coordinates.
          */
         drawText(
             text: string,
@@ -123,22 +123,12 @@ namespace ui {
         ): void
 
         /**
-         * Measures text in UI units without mutating the surface.
+         * Measures text in pixels without mutating the surface.
          */
         measureText(
             text: string,
             font?: TextFont,
             options?: DrawTextOptions,
         ): Size
-    }
-
-    /**
-     * Draw surface with input mapping used by a physical display adapter.
-     */
-    export interface PhysicalDrawSurface extends DrawSurface {
-        /**
-         * Maps a physical display point to UI coordinates.
-         */
-        uiPointFromPhysical(x: number, y: number, output: Point): boolean
     }
 }

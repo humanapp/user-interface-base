@@ -83,7 +83,7 @@ namespace ui {
         scopeId: UiFocusScopeId
 
         /**
-         * Final target rectangle in UI coordinates.
+         * Final target rectangle in pixel coordinates.
          */
         rect: Rect
 

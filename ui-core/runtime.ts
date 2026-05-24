@@ -7,7 +7,7 @@ namespace ui {
         /**
          * Physical display surface for the next committed frame.
          */
-        surface: PhysicalDrawSurface
+        surface: DrawSurface
 
         /**
          * Presents the current frame and returns the physical bitmap that was sent.

@@ -1,8 +1,8 @@
 namespace ui {
     /**
-     * Draw surface backed by a bitmap using 160x120 UI coordinates.
+     * Draw surface backed by a bitmap using 160x120 pixels.
      */
-    export class PhysicalBitmapDrawSurface implements PhysicalDrawSurface {
+    export class BitmapDrawSurface implements DrawSurface {
         private bitmap_: Bitmap
 
         constructor(bitmap: Bitmap) {
@@ -17,26 +17,6 @@ namespace ui {
         }
 
         /**
-         * Maps a physical bitmap point to UI coordinates.
-         */
-        public uiPointFromPhysical(
-            physicalX: number,
-            physicalY: number,
-            output: Point,
-        ): boolean {
-            if (
-                physicalX < 0 ||
-                physicalX >= STANDARD_DISPLAY_WIDTH ||
-                physicalY < 0 ||
-                physicalY >= STANDARD_DISPLAY_HEIGHT
-            )
-                return false
-
-            output.set(physicalX, physicalY)
-            return true
-        }
-
-        /**
          * Fills the bitmap with a palette color.
          */
         public clear(color: number): void {
@@ -44,7 +24,7 @@ namespace ui {
         }
 
         /**
-         * Fills a rectangle after clipping it to the UI viewport.
+         * Fills a rectangle after clipping it to the display bounds.
          */
         public fillRect(rect: Rect, color: number): void {
             this.fillClippedRect(rect.x, rect.y, rect.width, rect.height, color)
@@ -173,7 +153,7 @@ namespace ui {
         }
 
         /**
-         * Draws a bitmap at upper-left coordinates in UI units.
+         * Draws a bitmap at upper-left pixel coordinates.
          */
         public drawBitmap(
             bitmap: Bitmap,
@@ -187,7 +167,7 @@ namespace ui {
         }
 
         /**
-         * Draws text at upper-left coordinates in UI units.
+         * Draws text at upper-left pixel coordinates.
          */
         public drawText(
             text: string,
@@ -202,7 +182,7 @@ namespace ui {
         }
 
         /**
-         * Measures text in UI units for the selected font.
+         * Measures text in pixels for the selected font.
          */
         public measureText(
             text: string,

@@ -60,7 +60,7 @@ namespace ui {
 
         /**
          * Bounds used to keep control focus labels visible. Omitted values use the
-         * active display surface's UI coordinate bounds when available.
+         * active display surface's pixel bounds when available.
          */
         labelBounds?: Rect
 
