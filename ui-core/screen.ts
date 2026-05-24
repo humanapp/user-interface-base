@@ -667,11 +667,7 @@ namespace ui {
             this.bindControllerAction(input, controller.up.id, "up")
             this.bindControllerAction(input, controller.down.id, "down")
             this.bindControllerAction(input, controller.left.id, "left")
-            this.bindControllerAction(
-                input,
-                controller.right.id,
-                "right",
-            )
+            this.bindControllerAction(input, controller.right.id, "right")
             this.bindControllerAction(input, controller.A.id, "activate")
             this.bindControllerAction(input, controller.B.id, "cancel")
             this.bindControllerAction(input, controller.menu.id, "menu")
