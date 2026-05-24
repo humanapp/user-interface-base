@@ -1,146 +1,353 @@
-# user-interface-base
+# micro:bit apps UI (user-interface-base)
 
-`user-interface-base` provides a small UI core for MakeCode projects that need
-structured screens, layout, input, focus, and rendering on constrained devices.
-It is designed around immediate-mode drawing into a display adapter.
+**micro:bit apps UI** is a small UI toolkit for building [micro:bit apps](https://microbit-apps.org/); apps that run on the [BBC micro:bit](https://microbit.org/) + [Display Shield](https://microbit-apps.org/getting-started/display-shields/).
 
-The core pieces are:
+## The Short Version
 
-- `UiRuntime`: owns the screen stack, input queue, frame lifecycle, and display
-  adapter.
-- `UiScreen`: the app-owned screen contract for lifecycle, input, update, and
-  render callbacks.
-- `DrawSurface`: the drawing API used by screens and controls.
-- `PhysicalDrawSurface`: a draw surface backed by a physical bitmap.
-- Layout nodes such as rows, columns, grids, padding, alignment, stacks,
-  absolute positioning, and scroll viewports.
-- Focus and input helpers for controller, pointer, and wheel-driven UI.
+micro:bit apps UI gives an app a small screen runtime:
 
-## Coordinate Systems
+- Draw in a fixed `160x120` pixel coordinate space.
+- Put each app page in a `UiScreen`.
+- Push screens onto one `UiRuntime`.
+- Queue semantic input events such as `up`, `down`, `activate`, and `cancel`.
+- Let `runFrame()` deliver input, update the active screen, render it, and commit
+  the frame to the Display Shield.
 
-The library uses a fixed `160x120` coordinate space for rendering, layout,
-focus targets, and input.
+You can draw directly in a screen, add screen-owned focusable views, or open
+modal UI such as the built-in numeric keypad.
 
-### UI Units
+## 1. Think In Display Pixels
 
-UI units are the coordinates used by app code. Screens, layout, focus targets,
-input events, and draw calls all use UI units.
-
-For example, these values are UI units:
+The Display Shield is `160x120` pixels. micro:bit apps UI uses that same
+coordinate space, with `(0, 0)` at the top-left corner.
 
 ```ts
-surface.fillRect(new ui.Rect(0, 0, 80, 20), 2)
-surface.drawText("Hello", 6, 6)
-runtime.dispatchInput({ action: "pointerClick", source: "pointer", x: 24, y: 12 })
-```
-
-The UI coordinate space is `160x120`.
-
-```ts
-const display = new ui.DisplayShieldFrameAdapter()
-```
-
-### Physical Bitmap Pixels
-
-Physical bitmap pixels are the pixels in the bitmap that receives rendering.
-`PhysicalBitmapDrawSurface` draws UI units directly into the physical bitmap.
-
-Most app code should not work in physical bitmap pixels directly. They matter
-when writing a display adapter or when testing exact raster output.
-
-## Rendering
-
-Screens render through a `DrawSurface`. Draw calls use UI units:
-
-```ts
-class HomeScreen implements ui.UiScreen {
-  render(surface: ui.DrawSurface): void {
-    surface.clear(0)
-    surface.drawText("Home", 6, 6, { color: 15 })
-    surface.drawRect(new ui.Rect(4, 4, 72, 24), 1)
-  }
+class HelloScreen extends ui.UiScreen {
+    public render(surface: ui.DrawSurface): void {
+        surface.drawText("Hello", 8, 8, { color: 15 })
+        surface.drawRect(new ui.Rect(4, 4, 60, 22), 1)
+    }
 }
 ```
 
-`DrawSurface` supports rectangles, lines, circles, bitmaps, text, and text
-measurement. Draw calls use the fixed UI coordinate space directly.
+All drawing methods use palette colors. Text, bitmaps, rectangles, lines, and
+circles are drawn through the `DrawSurface` passed to `render()`.
 
-## Runtime And Screens
+## 2. Start A Runtime
 
-`UiRuntime` owns screen lifecycle and frame execution:
+A typical app creates one runtime, pushes the first screen, and runs a frame loop.
 
 ```ts
 const runtime = new ui.UiRuntime({
-  display: new ui.DisplayShieldFrameAdapter()
+    display: new ui.DisplayShieldFrameAdapter(),
+    clearColor: 0,
 })
 
-runtime.push(new HomeScreen())
-runtime.runFrame()
+runtime.push(new HelloScreen())
+
+basic.forever(function () {
+    runtime.runFrame()
+})
 ```
 
-A screen can implement:
+`runFrame()` is the main loop for micro:bit apps UI. It delivers queued input to
+the active screen, calls the screen's `update()`, calls `render()`, and commits
+the frame.
 
-- `enter(runtime, input)`: register input handlers and initialize screen state.
-- `exit()`: release screen-owned state.
-- `activate()` and `deactivate()`: react to stack visibility changes.
-- `handleInput(event)`: handle unconsumed input.
-- `update()`: update state before rendering.
-- `render(surface)`: draw the current frame.
+## 3. Make A Screen Own App State
 
-Input delivered through `UiRuntime.dispatchInput()` is normalized into UI units
-before it reaches screen handlers.
-
-## Layout
-
-Layout is measured and arranged in UI units. A layout node receives measurement
-constraints, reports measured sizes, and then receives a final rectangle.
-
-Useful layout containers include:
-
-- `UiRowLayout` and `UiColumnLayout`
-- `UiGridLayout` and `UiRaggedGridLayout`
-- `UiPaddingLayout`
-- `UiAlignLayout`
-- `UiStackLayout`
-- `UiAbsoluteLayout`
-- `UiScrollViewportLayout`
-
-`UiLayoutOwner` retains the root layout rectangle and handles repeated
-measure-arrange passes when the layout becomes dirty.
-
-## Focus And Input
-
-Focus state is separate from rendering. `UiFocusState` stores scopes, targets,
-and the active target. Focus targets use rectangles in UI coordinates.
-
-`UiFocusInputController` connects semantic input actions to focus behavior. It
-can handle:
-
-- directional movement
-- activation
-- cancellation
-- pointer hit testing
-- wheel scrolling
-
-The runtime binds display-shield controller events to semantic actions such as
-`up`, `down`, `left`, `right`, `activate`, `cancel`, and `menu`.
-
-## Display Adapters
-
-A display adapter provides a `PhysicalDrawSurface` and commits the physical
-bitmap:
+Screens are the normal place to keep page state and respond to input. Use
+`handleScreenInput()` when the screen wants first chance at an event.
 
 ```ts
-export interface UiDisplayAdapter {
-  surface: ui.PhysicalDrawSurface
-  commit(): Bitmap
+class CounterScreen extends ui.UiScreen {
+    private count: number
+
+    constructor() {
+        super()
+        this.count = 0
+        this.backgroundColor = 0
+    }
+
+    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+        if (event.phase == "released") return undefined
+
+        if (event.action == "activate") {
+            this.count += 1
+            return true
+        }
+
+        if (event.action == "cancel") {
+            this.count = 0
+            return true
+        }
+
+        return undefined
+    }
+
+    public render(surface: ui.DrawSurface): void {
+        surface.drawText("Count", 8, 8, { color: 15 })
+        surface.drawText("" + this.count, 8, 24, { color: 7 })
+    }
 }
 ```
 
-`DisplayShieldFrameAdapter` is the built-in adapter for display-shield. Custom
-adapters should keep the UI coordinate dimensions fixed for the lifetime of the
-adapter.
+Returning `true` means the screen handled the event. Returning `undefined` lets
+micro:bit apps UI try the screen's modal and focus routing.
 
-## Testing
+## 4. Queue Input Events
 
-Unit test suite in test.ts
+The runtime works with semantic actions, not specific buttons. Your app maps
+hardware input into actions.
+
+```ts
+input.onButtonPressed(Button.A, function () {
+    runtime.dispatchInput({
+        action: "activate",
+        source: "microbitButton",
+    })
+})
+
+input.onButtonPressed(Button.B, function () {
+    runtime.dispatchInput({
+        action: "cancel",
+        source: "microbitButton",
+    })
+})
+```
+
+The action names are `up`, `down`, `left`, `right`, `activate`, `cancel`, and
+`menu`. Directional actions are useful when a screen has focusable controls.
+
+## 5. Draw Buttons When You Need Button UI
+
+`UiButtonView` draws button frames, labels, icons, and focus treatment. It is a
+renderer, so a screen can use it directly for simple button-looking UI.
+
+```ts
+class StartScreen extends ui.UiScreen {
+    private buttonView: ui.UiButtonView
+    private buttonRect: ui.Rect
+
+    constructor() {
+        super()
+        this.buttonView = new ui.UiButtonView({
+            style: ui.UiButtonStyles.LightShadowedWhite,
+        })
+        this.buttonRect = new ui.Rect(48, 48, 64, 24)
+    }
+
+    public render(surface: ui.DrawSurface): void {
+        this.buttonView.render(surface, this.buttonRect, { text: "Start" })
+        this.buttonView.renderFocus(surface, this.buttonRect, { text: "Start" })
+    }
+}
+```
+
+For reusable app controls, implement a `UiFocusableView` and add it to a screen
+with `add()` or `addCentered()`. The screen will arrange it, register its focus
+targets, route input to it, and render it each frame.
+
+## 6. Open A Numeric Keypad
+
+micro:bit apps UI includes a modal keypad for number entry. Open it from a
+screen, then handle the result in `onResult`.
+
+```ts
+class SettingsScreen extends ui.UiScreen {
+    private speed: number
+
+    constructor() {
+        super()
+        this.speed = 5
+    }
+
+    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+        if (event.action == "activate" && event.phase != "released") {
+            this.openSpeedEditor()
+            return true
+        }
+
+        return undefined
+    }
+
+    public render(surface: ui.DrawSurface): void {
+        surface.drawText("Speed", 8, 8, { color: 15 })
+        surface.drawText("" + this.speed, 8, 24, { color: 7 })
+    }
+
+    private openSpeedEditor(): void {
+        const modal = new ui.UiNumericEntryModal({
+            modalScopeId: "speed-editor",
+            mode: "positiveInteger",
+            initialText: "" + this.speed,
+            maxLength: 3,
+            cancelEnabled: true,
+            onResult: result => {
+                if (result.kind == "completed") {
+                    this.speed = result.value
+                }
+            },
+        })
+
+        this.openModal(modal)
+    }
+}
+```
+
+While a modal is open, the screen routes input to the modal first. The numeric
+keypad uses the same semantic input actions as the rest of the runtime.
+
+## 7. Use Assets When UI Refers To App-Owned Bitmaps Or Text
+
+Controls can refer to bitmaps and labels by id. Provide an asset resolver when
+the runtime is created.
+
+```ts
+class AppAssets implements ui.UiAssetResolver {
+    public getBitmap(
+        id: string | number,
+        nullIfMissing?: boolean,
+    ): Bitmap | undefined {
+        if (id == "start") {
+            return bmp`
+                . 7 .
+                7 7 7
+                . 7 .
+            `
+        }
+
+        if (nullIfMissing) return undefined
+        return bmp`.`
+    }
+
+    public getText(id: string): string {
+        if (id == "startLabel") return "Start"
+        return ""
+    }
+}
+
+const runtime = new ui.UiRuntime({
+    display: new ui.DisplayShieldFrameAdapter(),
+    assets: new AppAssets(),
+})
+```
+
+Direct screens can also keep bitmaps and strings as fields. Asset resolvers are
+most useful when controls need stable ids instead of direct values.
+
+## A Few Working Rules
+
+- Keep layout, focus, and drawing coordinates in pixels.
+- Prefer semantic input events inside screens instead of checking physical
+  buttons in every screen.
+- Keep one runtime for the app and push, pop, or replace screens as the user
+  moves through the app.
+- Reuse `Rect`, `Size`, and `UiMeasuredSize` objects in frame code when practical.
+- Use screen modals for short blocking tasks such as number entry.
+
+## Getting Started
+
+micro:bit apps UI is a MakeCode extension. The public package name is
+`user-interface-base`, and the TypeScript namespace is `ui`.
+
+There are two normal ways to use it:
+
+- Work in the MakeCode Editor when you want the browser-based project workflow.
+- Work in VS Code when you want files on disk, source control, and command-line
+  builds.
+
+Both workflows use MakeCode's extension system. This library depends on
+`display-shield`; MakeCode installs that dependency from this package's
+`pxt.json`.
+
+### Workflow 1: MakeCode Editor
+
+Use this workflow when you want to build in the browser and let MakeCode manage
+the project.
+
+You need:
+
+- The MakeCode editor for micro:bit.
+- A BBC micro:bit and Display Shield when you want to run on hardware.
+
+To add micro:bit apps UI:
+
+1. Open `https://makecode.microbit.org/beta` and create or open a project.
+2. Open the Extensions window from the toolbox.
+3. Paste this repository URL into the extension search box:
+
+   ```text
+   https://github.com/microbit-apps/user-interface-base
+   ```
+
+4. Select the extension when MakeCode finds it.
+5. Switch to JavaScript view and use the `ui` namespace.
+6. The extension's drawer will be labeled `micro:bit apps UI`.
+
+
+### Workflow 2: VS Code
+
+Use this workflow when you want a local project folder that can be edited in
+VS Code and built from the command line.
+
+You need:
+
+- VS Code or another local editor.
+- Node.js and npm.
+- The
+  [Microsoft MakeCode Arcade VS Code extension](https://marketplace.visualstudio.com/items?itemName=ms-edu.pxt-vscode-web).
+  Despite the name, it also works for micro:bit projects and is especially
+  useful for running the MakeCode simulator from VS Code.
+- The MakeCode command-line tool:
+
+  ```sh
+  npm install -g makecode
+  ```
+
+- A BBC micro:bit and Display Shield when you want to run on hardware.
+
+To create a new local micro:bit project:
+
+```sh
+mkc init microbit
+mkc add https://github.com/microbit-apps/user-interface-base user-interface-base
+mkc build
+```
+
+Then open the folder in VS Code. Use the MakeCode icon in the activity bar to
+open the MakeCode Asset Explorer. From there you can install project
+dependencies, add extensions by GitHub URL, start the MakeCode simulator, and
+build for hardware.
+
+To add micro:bit apps UI to an existing local project, run this from the project
+folder:
+
+```sh
+mkc add https://github.com/microbit-apps/user-interface-base user-interface-base
+mkc build
+```
+
+If you add the extension from VS Code instead, use the MakeCode Asset Explorer's
+Add an Extension command and paste:
+
+```text
+https://github.com/microbit-apps/user-interface-base
+```
+
+You can also edit the app's `pxt.json` directly:
+
+```json
+{
+    "dependencies": {
+        "user-interface-base": "github:microbit-apps/user-interface-base#v0.0.35"
+    }
+}
+```
+
+After editing `pxt.json` by hand, download dependencies and build:
+
+```sh
+mkc install
+mkc build
+```
