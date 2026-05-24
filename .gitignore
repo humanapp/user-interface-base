@@ -1,3 +1,6 @@
+.pxt
 pxt_modules
 built
 compile_commands.json
+generated-docs/*
+node_modules
