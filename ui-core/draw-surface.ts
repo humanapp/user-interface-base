@@ -32,7 +32,6 @@ namespace ui {
          * Whether source color `0` is skipped. Defaults to `true`.
          */
         transparent?: boolean
-
     }
 
     /**
@@ -54,7 +53,6 @@ namespace ui {
          * emits glyph pixels only.
          */
         transparent?: boolean
-
     }
 
     /**

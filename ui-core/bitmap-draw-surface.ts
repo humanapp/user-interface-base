@@ -141,13 +141,7 @@ namespace ui {
             y1: number,
             color: number,
         ): void {
-            this.bitmap_.drawLine(
-                x0,
-                y0,
-                x1,
-                y1,
-                color,
-            )
+            this.bitmap_.drawLine(x0, y0, x1, y1, color)
         }
 
         /**
@@ -188,8 +182,7 @@ namespace ui {
             options?: DrawBitmapOptions,
         ): void {
             const transparent = !options || options.transparent !== false
-            if (transparent)
-                this.bitmap_.drawTransparentBitmap(bitmap, x, y)
+            if (transparent) this.bitmap_.drawTransparentBitmap(bitmap, x, y)
             else this.bitmap_.drawBitmap(bitmap, x, y)
         }
 
@@ -205,13 +198,7 @@ namespace ui {
             const font = this.textFont(text, options ? options.font : undefined)
             const color =
                 options && options.color !== undefined ? options.color : 15
-            this.bitmap_.print(
-                text,
-                x,
-                y,
-                color,
-                <any>font,
-            )
+            this.bitmap_.print(text, x, y, color, <any>font)
         }
 
         /**

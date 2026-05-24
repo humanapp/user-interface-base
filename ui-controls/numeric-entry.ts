@@ -593,8 +593,7 @@ namespace ui {
                 }
                 if (visibleLength > 1) {
                     let column =
-                        currentColumn +
-                        (request.direction == "left" ? -1 : 1)
+                        currentColumn + (request.direction == "left" ? -1 : 1)
                     if (column < 0) column = visibleLength - 1
                     else if (column >= visibleLength) column = 0
                     let navigationColumn = 0
@@ -667,11 +666,7 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
-            surface.drawRoundedRect(
-                this.finalRect,
-                15,
-                this.panelColor_,
-            )
+            surface.drawRoundedRect(this.finalRect, 15, this.panelColor_)
             this.entry_.render(surface, this.displayRect_)
             this.renderKeys(surface, assets)
             this.renderFocus(surface, assets, focus)
@@ -789,23 +784,21 @@ namespace ui {
             mode: UiNumericEntryMode,
         ): UiNumericEntryModalKeyValue[] {
             const keys: UiNumericEntryModalKeyValue[] = []
-            keys.push(1)
-            keys.push(2)
-            keys.push(3)
+            keys.push(7)
+            keys.push(8)
+            keys.push(9)
             keys.push(UI_NUMERIC_ENTRY_KEY_BACKSPACE)
             keys.push(4)
             keys.push(5)
             keys.push(6)
-            keys.push(7)
-            keys.push(8)
-            keys.push(9)
+            keys.push(1)
+            keys.push(2)
+            keys.push(3)
             if (this.deleteEnabled_) keys.push(UI_NUMERIC_ENTRY_KEY_DELETE)
-            if (mode == "decimal")
-                keys.push(UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT)
+            if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT)
             else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
             keys.push(0)
-            if (mode == "decimal")
-                keys.push(UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN)
+            if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN)
             else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
             keys.push(UI_NUMERIC_ENTRY_KEY_ENTER)
             return keys

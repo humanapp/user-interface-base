@@ -111,7 +111,7 @@ namespace ui {
      */
     export interface UiButtonViewOptions {
         /**
-         * Default style used by later render calls.
+         * Default style used by subsequent render calls.
          */
         style?: UiButtonStyle
     }

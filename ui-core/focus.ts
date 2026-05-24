@@ -128,11 +128,6 @@ namespace ui {
         preferredTargetId?: UiFocusId
 
         /**
-         * Whether directional focus movement may wrap inside this scope.
-         */
-        wrap?: boolean
-
-        /**
          * Whether `cancel()` returns a handled result for this scope.
          */
         handlesCancel?: boolean

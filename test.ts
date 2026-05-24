@@ -795,15 +795,13 @@ namespace ui {
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
             return focus.setActiveTarget(
                 this.scopeId_,
-                this.scopeId_ + "/" + this.controlId(
-                    this.selectedIndex_,
-                ),
+                this.scopeId_ + "/" + this.controlId(this.selectedIndex_),
             )
         }
 
-        public handleFocusInput(
-            result: UiFocusInputResult,
-        ): { kind: "activated" } {
+        public handleFocusInput(result: UiFocusInputResult): {
+            kind: "activated"
+        } {
             if (result.kind != "activated" || result.scopeId != this.scopeId_)
                 return undefined
             if (this.onActivate_) this.onActivate_(this.value(result.targetId))
@@ -827,9 +825,10 @@ namespace ui {
         }
     }
 
-    class ControlSmokeModal
-        implements UiModal<{ kind: "cancelled"; modalScopeId: UiFocusScopeId }>
-    {
+    class ControlSmokeModal implements UiModal<{
+        kind: "cancelled"
+        modalScopeId: UiFocusScopeId
+    }> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -889,9 +888,10 @@ namespace ui {
             return focus.closeModalScope(this.modalScopeId_)
         }
 
-        public handleFocusInput(
-            result: UiFocusInputResult,
-        ): { kind: "cancelled"; modalScopeId: UiFocusScopeId } {
+        public handleFocusInput(result: UiFocusInputResult): {
+            kind: "cancelled"
+            modalScopeId: UiFocusScopeId
+        } {
             if (result.kind != "cancelled") return undefined
             if (this.onCancel_) this.onCancel_()
             return { kind: "cancelled", modalScopeId: this.modalScopeId_ }
@@ -1022,13 +1022,7 @@ namespace ui {
             },
         )
         screen.addCentered(screenRow, 15, 100, 20)
-        const autoRow = new ControlSmokeRoot(
-            "screen-auto-row",
-            10,
-            6,
-            3,
-            0,
-        )
+        const autoRow = new ControlSmokeRoot("screen-auto-row", 10, 6, 3, 0)
         screen.add(autoRow, {
             x: 7,
             y: 32,
@@ -1070,6 +1064,22 @@ namespace ui {
         )
         control.assert(screenLog == "B;", "screen controller root callback")
         control.assert(
+            screen.handleInput({ action: "left" }),
+            "screen controller row navigation handled",
+        )
+        control.assert(
+            screen.focus.getActiveTargetId("screen-row") == "screen-row/a",
+            "screen controller row navigation focus",
+        )
+        control.assert(
+            screen.handleInput({ action: "activate" }),
+            "screen controller second activation handled",
+        )
+        control.assert(
+            screenLog == "B;A;",
+            "screen controller row navigation callback",
+        )
+        control.assert(
             screen.handleInput({ action: "cancel" }),
             "screen controller root cancel handled",
         )
@@ -1090,7 +1100,7 @@ namespace ui {
         )
 
         const screenModal = new ControlSmokeModal("screen-modal", () => {
-                screenLog += "modal-cancel;"
+            screenLog += "modal-cancel;"
         })
         screen.openModal(screenModal)
         assertLayoutRect(
@@ -1107,7 +1117,7 @@ namespace ui {
             "screen controller modal input handled",
         )
         control.assert(
-            screenLog == "B;root-cancel;modal-cancel;",
+            screenLog == "B;A;root-cancel;modal-cancel;",
             "screen controller modal-first input",
         )
         control.assert(
@@ -1361,6 +1371,18 @@ namespace ui {
             modalFocus.getActiveScopeId() == "numeric-modal",
             "numeric modal active scope",
         )
+        modalController.handleInput({ action: "up" })
+        control.assert(
+            modalFocus.getActiveTargetId("numeric-modal") ==
+                "numeric-modal/digit-4",
+            "numeric modal one row above one",
+        )
+        modalController.handleInput({ action: "up" })
+        control.assert(
+            modalFocus.getActiveTargetId("numeric-modal") ==
+                "numeric-modal/digit-7",
+            "numeric modal top row starts with seven",
+        )
         const modalCancel = modal.handleFocusInput(
             modalController.handleInput({ action: "cancel" }),
         )
@@ -1450,7 +1472,7 @@ ui.runControlButtonSmokeTest()
 ui.runScreenControllerSmokeTest()
 ui.runNumericEntrySmokeTest()
 
-// run display-profile test again as it produces something visual
+// Render the display-profile smoke image after nonvisual checks.
 ui.renderLogicalViewportSmokeTest(7)
 
 control.__log(1, "All tests passed!")

@@ -42,7 +42,7 @@ namespace ui {
      */
     export interface UiScheduler {
         /**
-         * Requests that a frame handler run later.
+         * Requests that a frame handler run on a scheduled frame.
          */
         requestFrame(handler: () => void): void
     }
@@ -200,8 +200,8 @@ namespace ui {
             this.focusInput_ = this.createFocusInputController()
             this.assets_ = runtime.assets
             this.entered_ = true
-            this.resolveRootConstraints(runtime)
-            this.resolveModalConstraints(runtime)
+            this.resolveRootConstraints()
+            this.resolveModalConstraints()
             for (let i = 0; i < this.roots_.length; i++) {
                 const root = this.roots_[i]
                 if (root.placement) this.arrangeRoot(root)
@@ -463,12 +463,12 @@ namespace ui {
             })
         }
 
-        private resolveRootConstraints(runtime: UiRuntime): void {
+        private resolveRootConstraints(): void {
             this.rootConstraints_.maxWidth = STANDARD_DISPLAY_WIDTH
             this.rootConstraints_.maxHeight = STANDARD_DISPLAY_HEIGHT
         }
 
-        private resolveModalConstraints(runtime: UiRuntime): void {
+        private resolveModalConstraints(): void {
             if (this.options_.modalConstraints) {
                 this.modalConstraints_.maxWidth =
                     this.options_.modalConstraints.maxWidth

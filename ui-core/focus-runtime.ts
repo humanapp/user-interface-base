@@ -42,7 +42,7 @@ namespace ui {
         rows: UiFocusNavigationTarget[][]
 
         /**
-         * Whether movement wraps inside the ragged grid.
+         * Default left/right wrapping used when `horizontalWrap` is omitted.
          */
         wrap?: boolean
 
@@ -285,13 +285,15 @@ namespace ui {
             }
 
             const currentTargetId = this.focus_.getActiveTargetId(activeScopeId)
-            const moveResult = (<UiFocusNavigationProvider>(
-                this.navigationValues_[navigationIndex]
-            )).move({
+            const request: UiFocusNavigationRequest = {
                 scopeId: activeScopeId,
                 direction,
                 currentTargetId,
-            })
+            }
+            const moveResult = this.moveNavigation(
+                this.navigationValues_[navigationIndex],
+                request,
+            )
             if (!moveResult) {
                 return {
                     action: event.action,
@@ -397,6 +399,130 @@ namespace ui {
                         : "notCancelled",
                 scopeId: cancelResult.scopeId,
             }
+        }
+
+        private moveNavigation(
+            navigation: UiFocusNavigation,
+            request: UiFocusNavigationRequest,
+        ): UiFocusMoveResult | undefined {
+            const kind = (<any>navigation).kind
+            if (kind == "row") {
+                return this.moveRow(<UiRowFocusNavigation>navigation, request)
+            }
+            if (kind == "raggedGrid") {
+                const grid = <UiRaggedGridFocusNavigation>navigation
+                return moveFocusInRaggedGrid({
+                    scopeId: request.scopeId,
+                    currentTargetId: request.currentTargetId,
+                    direction: request.direction,
+                    horizontalWrap:
+                        grid.horizontalWrap !== undefined
+                            ? grid.horizontalWrap
+                            : grid.wrap,
+                    columnIntent: grid.columnIntent,
+                    rows: grid.rows,
+                    verticalStrategy: grid.verticalStrategy,
+                })
+            }
+            return (<UiFocusNavigationProvider>navigation).move(request)
+        }
+
+        private moveRow(
+            navigation: UiRowFocusNavigation,
+            request: UiFocusNavigationRequest,
+        ): UiFocusMoveResult {
+            if (request.direction == "up" || request.direction == "down") {
+                return {
+                    kind: "exited",
+                    scopeId: request.scopeId,
+                    targetId: request.currentTargetId,
+                    direction: request.direction,
+                }
+            }
+
+            const targets = navigation.targets
+            const currentIndex = this.rowTargetIndex(
+                targets,
+                request.currentTargetId,
+            )
+            if (currentIndex < 0)
+                return {
+                    kind: "stayed",
+                    scopeId: request.scopeId,
+                    targetId: request.currentTargetId,
+                    reason: "missingActive",
+                }
+
+            const step = request.direction == "left" ? -1 : 1
+            let index = currentIndex + step
+            while (index >= 0 && index < targets.length) {
+                if (!targets[index].hidden)
+                    return this.rowMovedResult(
+                        request.scopeId,
+                        targets[currentIndex],
+                        targets[index],
+                    )
+                index += step
+            }
+
+            if (navigation.wrap) {
+                index = step < 0 ? targets.length - 1 : 0
+                while (index != currentIndex) {
+                    if (!targets[index].hidden)
+                        return this.rowMovedResult(
+                            request.scopeId,
+                            targets[currentIndex],
+                            targets[index],
+                        )
+                    index += step
+                }
+                return {
+                    kind: "stayed",
+                    scopeId: request.scopeId,
+                    targetId: request.currentTargetId,
+                    reason: "boundary",
+                }
+            }
+
+            return {
+                kind: "exited",
+                scopeId: request.scopeId,
+                targetId: request.currentTargetId,
+                direction: request.direction,
+            }
+        }
+
+        private rowTargetIndex(
+            targets: UiFocusNavigationTarget[],
+            targetId: UiFocusId,
+        ): number {
+            for (let i = 0; i < targets.length; i++) {
+                if (targets[i].id == targetId && !targets[i].hidden) return i
+            }
+            return -1
+        }
+
+        private rowMovedResult(
+            scopeId: UiFocusScopeId,
+            fromTarget: UiFocusNavigationTarget,
+            toTarget: UiFocusNavigationTarget,
+        ): UiFocusMoveResult {
+            const result: UiFocusMoveResult = {
+                kind: "moved",
+                fromScopeId: scopeId,
+                fromTargetId: fromTarget.id,
+                toScopeId: scopeId,
+                toTargetId: toTarget.id,
+            }
+            if (toTarget.scrollOwnerId !== undefined)
+                result.scrollRequest = {
+                    scopeId,
+                    targetId: toTarget.id,
+                    scrollOwnerId: toTarget.scrollOwnerId,
+                    targetRect: (toTarget.scrollRect || toTarget.rect).clone(),
+                    reason: "focus",
+                }
+            return result
         }
 
         private navigationIndex(scopeId: UiFocusScopeId): number {

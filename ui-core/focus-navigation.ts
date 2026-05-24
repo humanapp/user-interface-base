@@ -68,6 +68,11 @@ namespace ui {
         horizontalWrap?: boolean
 
         /**
+         * Preferred column used before nearest-target fallback on vertical moves.
+         */
+        columnIntent?: number
+
+        /**
          * Rows in movement order.
          */
         rows: UiFocusNavigationTarget[][]
@@ -120,6 +125,9 @@ namespace ui {
                     input,
                     currentRow,
                     currentColumn,
+                    input.columnIntent !== undefined
+                        ? input.columnIntent
+                        : currentColumn,
                     row,
                 )
                 if (destinationColumn >= 0) destinationRow = row
@@ -198,19 +206,20 @@ namespace ui {
         input: UiFocusRaggedGridMoveInput,
         currentRow: number,
         currentColumn: number,
+        targetColumn: number,
         rowIndex: number,
     ): number {
         const row = input.rows[rowIndex]
         if (!row) return -1
-        const exact = row[currentColumn]
-        if (exact && !exact.hidden) return currentColumn
+        targetColumn = _uiLayout.sanitizeCoordinate(targetColumn)
+        const exact = row[targetColumn]
+        if (exact && !exact.hidden) return targetColumn
         if (input.verticalStrategy == "exact") return -1
 
         let bestColumn = -1
         let bestDistance = 0
         const current = input.rows[currentRow][currentColumn]
-        const sourceX =
-            current.rect.x + Math.idiv(current.rect.width, 2)
+        const sourceX = current.rect.x + Math.idiv(current.rect.width, 2)
         for (let column = 0; column < row.length; column++) {
             const target = row[column]
             if (target.hidden) continue
