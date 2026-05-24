@@ -1,5 +1,8 @@
 //% block="micro:bit apps UI" weight=100 color="#AA00AA" icon="\uf26c"
 namespace ui {
+    const UI_CONTROLLER_REPEAT_DELAY_MS = 250
+    const UI_CONTROLLER_REPEAT_INTERVAL_MS = 30
+
     /**
      * Display target that exposes a draw surface and presents frames.
      */
@@ -116,6 +119,10 @@ namespace ui {
                 options.clearColor !== undefined ? options.clearColor : 0
             this.inputQueue_ = []
             this.stack_ = new UiScreenStack(this)
+            controller.setRepeatDefault(
+                UI_CONTROLLER_REPEAT_DELAY_MS,
+                UI_CONTROLLER_REPEAT_INTERVAL_MS,
+            )
         }
 
         /**
@@ -198,14 +205,27 @@ namespace ui {
         }
 
         /**
-         * Delivers queued input, updates, renders, and commits the active screen.
+         * Updates controller repeat, delivers queued input, updates, renders, and
+         * commits the active screen.
          */
         public runFrame(): void {
+            this.updateDefaultControllerButtons()
             this.stack_.runFrame(
                 this.inputQueue_,
                 this.display_,
                 this.clearColor_,
             )
+        }
+
+        private updateDefaultControllerButtons(): void {
+            const eventContext = context.eventContext()
+            if (!eventContext) return
+
+            const dtms = (eventContext.deltaTime * 1000) | 0
+            controller.left.__update(dtms)
+            controller.right.__update(dtms)
+            controller.up.__update(dtms)
+            controller.down.__update(dtms)
         }
     }
 }

@@ -1430,6 +1430,20 @@ namespace ui {
                 "numeric-modal/digit-7",
             "numeric modal top row starts with seven",
         )
+        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/digit-7")
+        modalController.handleInput({ action: "down" })
+        control.assert(
+            modalFocus.getActiveTargetId("numeric-modal") ==
+                "numeric-modal/digit-0",
+            "numeric modal down skips left spacer",
+        )
+        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/digit-9")
+        modalController.handleInput({ action: "down" })
+        control.assert(
+            modalFocus.getActiveTargetId("numeric-modal") ==
+                "numeric-modal/enter",
+            "numeric modal down skips right spacer",
+        )
         const modalCancel = modal.handleFocusInput(
             modalController.handleInput({ action: "cancel" }),
         )

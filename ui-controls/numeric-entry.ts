@@ -561,6 +561,7 @@ namespace ui {
 
             let currentRow = -1
             let currentColumn = -1
+            let currentPhysicalColumn = -1
             let rowStart = 0
             for (let row = 0; row < 4; row++) {
                 const rowLength = this.rowLength(row)
@@ -571,6 +572,7 @@ namespace ui {
                         if (index == currentIndex) {
                             currentRow = row
                             currentColumn = navigationColumn
+                            currentPhysicalColumn = i
                         }
                         navigationColumn++
                     }
@@ -612,20 +614,10 @@ namespace ui {
                 const step = request.direction == "up" ? -1 : 1
                 let row = currentRow + step
                 while (row >= 0 && row < 4 && destinationIndex < 0) {
-                    const start = this.rowStart(row)
-                    const length = this.rowLength(row)
-                    let navigationColumn = 0
-                    for (let i = 0; i < length; i++) {
-                        const index = start + i
-                        if (
-                            this.keyValues_[index] !=
-                            UI_NUMERIC_ENTRY_KEY_SPACER
-                        ) {
-                            if (navigationColumn == currentColumn)
-                                destinationIndex = index
-                            navigationColumn++
-                        }
-                    }
+                    destinationIndex = this.nearestVerticalKeyIndex(
+                        row,
+                        currentPhysicalColumn,
+                    )
                     row += step
                 }
             }
@@ -655,6 +647,35 @@ namespace ui {
                 targetId: request.currentTargetId,
                 direction: request.direction,
             }
+        }
+
+        private nearestVerticalKeyIndex(
+            row: number,
+            physicalColumn: number,
+        ): number {
+            const start = this.rowStart(row)
+            const length = this.rowLength(row)
+            let bestIndex = -1
+            let bestColumn = -1
+            let bestDistance = 0
+            for (let i = 0; i < length; i++) {
+                const index = start + i
+                if (this.keyValues_[index] == UI_NUMERIC_ENTRY_KEY_SPACER)
+                    continue
+                const distance = Math.abs(i - physicalColumn)
+                if (
+                    bestIndex < 0 ||
+                    distance < bestDistance ||
+                    (distance == bestDistance &&
+                        i >= physicalColumn &&
+                        bestColumn < physicalColumn)
+                ) {
+                    bestIndex = index
+                    bestColumn = i
+                    bestDistance = distance
+                }
+            }
+            return bestIndex
         }
 
         /**
