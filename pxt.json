@@ -19,6 +19,8 @@
         "ui-core/modal.ts",
         "ui-controls/button.ts",
         "ui-controls/control.ts",
+        "ui-controls/modal-style.ts",
+        "ui-controls/modal-grid.ts",
         "ui-controls/numeric-entry.ts"
     ],
     "yotta": {

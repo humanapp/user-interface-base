@@ -364,6 +364,144 @@ mkc install
 mkc build
 ```
 
+## More Examples
+
+These examples show small patterns you can copy into an app. They start with
+reusable controls, then move into custom drawing for app-specific screens.
+
+### Confirmation Dialog
+
+Use `UiPicker` for simple modal choices. It owns modal focus, button layout,
+directional navigation, rendering, activation, and cancel handling.
+
+```ts
+type ConfirmChoice = "cancel" | "ok"
+
+class SaveScreen extends ui.UiScreen {
+    private status: string
+
+    constructor() {
+        super()
+        this.status = "Not saved"
+        this.backgroundColor = 8
+    }
+
+    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+        if (event.action == "activate" && event.phase != "released") {
+            this.openConfirmDialog()
+            return true
+        }
+
+        return undefined
+    }
+
+    public render(surface: ui.DrawSurface): void {
+        surface.drawText(`Status: ${this.status}`, 8, 8, { color: 7 })
+        surface.drawText("Press A to save", 8, 18, { color: 1 })
+        super.render(surface)
+    }
+
+    private openConfirmDialog(): void {
+        const modal = new ui.UiPicker<ConfirmChoice>({
+            modalScopeId: "save-dialog",
+            title: "Save changes?",
+            controls: [
+                { id: "cancel", value: "cancel", text: "Cancel" },
+                { id: "ok", value: "ok", text: "OK", selected: true },
+            ],
+            defaultControlId: "ok",
+            columnCount: 2,
+            controlWidth: 44,
+            controlHeight: 18,
+            columnGap: 4,
+            controlStyle: ui.UiButtonStyles.LightShadowedWhite,
+            modalStyle: ui.modalStyle(ui.UiModalStyles.Default),
+            onActivate: choice => {
+                this.status = choice == "ok" ? "Saved" : "Cancelled"
+            },
+            onCancel: () => {
+                this.status = "Cancelled"
+            },
+        })
+
+        this.openModal(modal)
+    }
+}
+```
+
+### Animated Data Graph
+
+For custom visualization, keep the data in the screen, update it over time, and
+draw directly to the `DrawSurface`.
+
+```ts
+class DataGraphScreen extends ui.UiScreen {
+    private values: number[]
+    private tick: number
+    private graphRect: ui.Rect
+
+    constructor() {
+        super()
+        this.backgroundColor = 0
+        this.tick = 0
+        this.graphRect = new ui.Rect(8, 22, 144, 70)
+        this.values = [
+            24, 28, 35, 40, 46, 52, 58, 63, 68, 72, 70, 66, 60, 54, 48, 42, 36,
+            31, 27, 25,
+        ]
+    }
+
+    public update(): void {
+        this.tick += 1
+        if (this.tick % 6 != 0) return
+
+        const phase = Math.idiv(this.tick, 6) % 20
+        const wave = phase < 10 ? phase : 20 - phase
+        this.values.removeAt(0)
+        this.values.push(25 + wave * 6)
+    }
+
+    public render(surface: ui.DrawSurface): void {
+        surface.drawText("Signal", 8, 6, { color: 1 })
+        surface.drawText("" + this.values[this.values.length - 1], 128, 6, {
+            color: 7,
+        })
+
+        surface.drawRect(this.graphRect, 1)
+        surface.drawLine(
+            this.graphRect.x + 1,
+            this.graphRect.y + Math.idiv(this.graphRect.height, 2),
+            this.graphRect.x + this.graphRect.width - 2,
+            this.graphRect.y + Math.idiv(this.graphRect.height, 2),
+            13,
+        )
+
+        let previousX = 0
+        let previousY = 0
+        for (let i = 0; i < this.values.length; i++) {
+            const x =
+                this.graphRect.x +
+                2 +
+                Math.idiv(
+                    i * (this.graphRect.width - 4),
+                    this.values.length - 1,
+                )
+            const y =
+                this.graphRect.y +
+                this.graphRect.height -
+                3 -
+                Math.idiv(this.values[i] * (this.graphRect.height - 6), 100)
+
+            if (i > 0) surface.drawLine(previousX, previousY, x, y, 7)
+            previousX = x
+            previousY = y
+        }
+
+        super.render(surface)
+    }
+}
+```
+
 ## Existing Projects
 
 These micro:bit apps projects use user-interface-base and are useful references

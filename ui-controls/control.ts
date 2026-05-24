@@ -221,7 +221,7 @@ namespace _uiControls {
         controls: ui.UiControl<T>[],
         controlId: string | undefined,
     ): ui.UiControl<T> {
-        if (controlId === undefined) return undefined
+        if (!controls || controlId === undefined) return undefined
         for (let i = 0; i < controls.length; i++) {
             if (controls[i].id == controlId) return controls[i]
         }
@@ -244,6 +244,8 @@ namespace _uiControls {
         controls: ui.UiControl<T>[],
         defaultControlId: string | undefined,
     ): string | undefined {
+        if (!controls) return undefined
+
         const explicit = findControlById(controls, defaultControlId)
         if (explicit && isVisible(explicit) && isFocusable(explicit))
             return targetId(scopeId, explicit.id)

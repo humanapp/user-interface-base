@@ -257,11 +257,17 @@ namespace ui {
             const contentMargin = this.contentMargin()
             const minWidth = Math.max(
                 contentWidth,
-                this.titleControlContentWidth(),
+                Math.max(
+                    this.titleBandContentWidth(),
+                    this.titleControlContentWidth(),
+                ),
             )
             const preferredWidth = Math.max(
                 contentWidth,
-                this.titleControlContentWidth(),
+                Math.max(
+                    this.titleBandContentWidth(),
+                    this.titleControlContentWidth(),
+                ),
             )
             output.set(
                 minWidth + contentMargin * 2,
@@ -776,6 +782,21 @@ namespace ui {
                 this.titleControls_.length * this.titleControlWidth_ +
                 (this.titleControls_.length - 1) * this.titleControlGap_
             )
+        }
+
+        private titleBandContentWidth(): number {
+            let width = this.titleTextWidth()
+            if (this.titleBitmap_ && typeof this.titleBitmap_ != "string") {
+                if (width > 0) width += 2
+                width += this.titleBitmap_.width
+            }
+            if (width > 0 && this.hasTitleControls()) width += 2
+            return width + this.titleControlContentWidth()
+        }
+
+        private titleTextWidth(): number {
+            if (this.title_ === undefined) return 0
+            return this.title_.length * bitmaps.font8.charWidth
         }
     }
 }
