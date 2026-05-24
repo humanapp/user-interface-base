@@ -1,4 +1,3 @@
-//% block="micro:bit apps UI" weight=100 color="#AA00AA" icon="\uf26c"
 namespace ui {
     const UI_CONTROLLER_REPEAT_DELAY_MS = 250
     const UI_CONTROLLER_REPEAT_INTERVAL_MS = 30
@@ -111,7 +110,6 @@ namespace ui {
         private clearColor_: number
         private stack_: UiScreenStack
         private inputQueue_: UiInputEvent[]
-        private lastControllerUpdateMs_: number
         private running_: boolean
         private frameContext_: context.EventContext
         private frameCallback_: context.FrameCallback
@@ -124,7 +122,6 @@ namespace ui {
                 options.clearColor !== undefined ? options.clearColor : 0
             this.inputQueue_ = []
             this.stack_ = new UiScreenStack(this)
-            this.lastControllerUpdateMs_ = control.millis()
             this.running_ = false
             controller.setRepeatDefault(
                 UI_CONTROLLER_REPEAT_DELAY_MS,
@@ -237,7 +234,7 @@ namespace ui {
          * commits the active screen.
          */
         public runFrame(): void {
-            this.updateDefaultControllerButtons()
+            this.updateControllerButtons()
             this.stack_.runFrame(
                 this.inputQueue_,
                 this.display_,
@@ -245,11 +242,9 @@ namespace ui {
             )
         }
 
-        private updateDefaultControllerButtons(): void {
+        private updateControllerButtons(): void {
             const now = control.millis()
-            let dtms = now - this.lastControllerUpdateMs_
-            this.lastControllerUpdateMs_ = now
-            if (dtms < 0) dtms = 0
+            const dtms = (context.eventContext().deltaTime * 1000) | 0
             controller.left.__update(dtms)
             controller.right.__update(dtms)
             controller.up.__update(dtms)
@@ -272,7 +267,6 @@ namespace ui {
 
             this.unbindFrameHandler()
             this.frameContext_ = eventContext
-            this.lastControllerUpdateMs_ = control.millis()
             this.frameCallback_ = eventContext.registerFrameHandler(
                 UI_RUNTIME_FRAME_PRIORITY,
                 () => this.runFrame(),

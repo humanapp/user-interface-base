@@ -480,7 +480,7 @@ namespace ui {
         input.runtime.dispatchInput({ action, source, phase })
     }
 
-    function releaseDefaultControllerButtons(): void {
+    function releaseControllerButtons(): void {
         controller.up.setPressed(false)
         controller.down.setPressed(false)
         controller.left.setPressed(false)
@@ -515,8 +515,8 @@ namespace ui {
 
             this.ensureEventContext()
             const input = createScreenInput(this.runtime_)
-            releaseDefaultControllerButtons()
-            this.bindDefaultControllerActions(input)
+            releaseControllerButtons()
+            this.bindControllerActions(input)
 
             const record: UiScreenRecord = { screen, input }
             this.screens_.push(record)
@@ -538,11 +538,11 @@ namespace ui {
             record.screen.deactivate()
             record.screen.exit()
             disposeScreenInput(record.input)
-            releaseDefaultControllerButtons()
+            releaseControllerButtons()
 
             const current = this.topRecord()
             if (current) {
-                this.bindDefaultControllerActions(current.input)
+                this.bindControllerActions(current.input)
                 current.screen.activate()
             } else {
                 this.popEventContext()
@@ -567,8 +567,8 @@ namespace ui {
 
             this.ensureEventContext()
             const input = createScreenInput(this.runtime_)
-            releaseDefaultControllerButtons()
-            this.bindDefaultControllerActions(input)
+            releaseControllerButtons()
+            this.bindControllerActions(input)
 
             const record: UiScreenRecord = { screen, input }
             this.screens_.push(record)
@@ -663,21 +663,21 @@ namespace ui {
             this.contextActive_ = false
         }
 
-        private bindDefaultControllerActions(input: UiScreenInput): void {
-            this.bindDefaultControllerAction(input, controller.up.id, "up")
-            this.bindDefaultControllerAction(input, controller.down.id, "down")
-            this.bindDefaultControllerAction(input, controller.left.id, "left")
-            this.bindDefaultControllerAction(
+        private bindControllerActions(input: UiScreenInput): void {
+            this.bindControllerAction(input, controller.up.id, "up")
+            this.bindControllerAction(input, controller.down.id, "down")
+            this.bindControllerAction(input, controller.left.id, "left")
+            this.bindControllerAction(
                 input,
                 controller.right.id,
                 "right",
             )
-            this.bindDefaultControllerAction(input, controller.A.id, "activate")
-            this.bindDefaultControllerAction(input, controller.B.id, "cancel")
-            this.bindDefaultControllerAction(input, controller.menu.id, "menu")
+            this.bindControllerAction(input, controller.A.id, "activate")
+            this.bindControllerAction(input, controller.B.id, "cancel")
+            this.bindControllerAction(input, controller.menu.id, "menu")
         }
 
-        private bindDefaultControllerAction(
+        private bindControllerAction(
             input: UiScreenInput,
             buttonId: number,
             action: UiInputAction,

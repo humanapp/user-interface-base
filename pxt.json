@@ -2,6 +2,7 @@
     "name": "user-interface-base",
     "version": "0.0.39",
     "files": [
+        "ns.ts",
         "ui-core/geometry.ts",
         "ui-core/viewport.ts",
         "ui-core/draw-surface.ts",

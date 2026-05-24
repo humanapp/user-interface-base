@@ -296,7 +296,7 @@ To add micro:bit apps UI:
 
 4. Select the extension when MakeCode finds it.
 5. Switch to JavaScript view and use the `ui` namespace.
-6. The extension's toolbox category will be labeled `micro:bit apps UI`.
+6. The extension's toolbox category will be labeled `Microbit Apps UI`.
 
 ### Workflow 2: VS Code
 
