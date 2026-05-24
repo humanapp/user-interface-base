@@ -47,12 +47,6 @@ namespace ui {
          * Bitmap font used for measurement and drawing.
          */
         font?: TextFont
-
-        /**
-         * Whether text drawing should avoid filling background pixels. Text drawing
-         * emits glyph pixels only.
-         */
-        transparent?: boolean
     }
 
     /**

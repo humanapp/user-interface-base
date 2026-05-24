@@ -223,7 +223,6 @@ namespace ui {
                 surface.drawText(text, textX, textY, {
                     color: foreground,
                     font,
-                    transparent: true,
                 })
             }
         }
