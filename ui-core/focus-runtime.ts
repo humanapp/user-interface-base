@@ -115,7 +115,7 @@ namespace ui {
     }
 
     /**
-     * High-level result kind returned by focus input handling.
+     * Result kind returned by focus input handling.
      */
     export type UiFocusInputKind =
         | "ignored"
@@ -128,7 +128,7 @@ namespace ui {
         | "notCancelled"
 
     /**
-     * Machine-readable reason for an ignored, rejected, or unhandled focus input.
+     * Reason for an ignored, rejected, or unhandled focus input.
      */
     export type UiFocusInputReason =
         | "unsupportedAction"

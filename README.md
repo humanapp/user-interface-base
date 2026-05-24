@@ -24,8 +24,9 @@ coordinate space, with `(0, 0)` at the top-left corner.
 ```ts
 class HelloScreen extends ui.UiScreen {
     public render(surface: ui.DrawSurface): void {
-        surface.drawText("Hello", 8, 8, { color: 15 })
-        surface.drawRect(new ui.Rect(4, 4, 60, 22), 1)
+        surface.drawText("Hello", 19, 11, { color: 3 })
+        surface.drawRect(new ui.Rect(4, 4, 60, 22), 7)
+        super.render(surface)
     }
 }
 ```
@@ -42,7 +43,7 @@ A typical app creates one runtime, pushes the first screen, and runs a frame loo
 ```ts
 const runtime = new ui.UiRuntime({
     display: new ui.DisplayShieldFrameAdapter(),
-    clearColor: 0,
+    clearColor: 1,
 })
 
 runtime.push(new HelloScreen())
@@ -88,8 +89,9 @@ class CounterScreen extends ui.UiScreen {
     }
 
     public render(surface: ui.DrawSurface): void {
-        surface.drawText("Count", 8, 8, { color: 15 })
+        surface.drawText("Count:", 8, 8, { color: 1 })
         surface.drawText("" + this.count, 8, 24, { color: 7 })
+        super.render(surface)
     }
 }
 ```
@@ -97,7 +99,11 @@ class CounterScreen extends ui.UiScreen {
 Returning `true` means the screen handled the event. Returning `undefined` lets
 micro:bit apps UI try the screen's modal and focus routing.
 
-## 4. Queue Input Events
+## 4. Input
+
+The runtime works with semantic actions, not specific buttons.
+
+## 4. micro:bit Input Events
 
 The runtime works with semantic actions, not specific buttons. Your app maps
 hardware input into actions.
@@ -142,6 +148,7 @@ class StartScreen extends ui.UiScreen {
     public render(surface: ui.DrawSurface): void {
         this.buttonView.render(surface, this.buttonRect, { text: "Start" })
         this.buttonView.renderFocus(surface, this.buttonRect, { text: "Start" })
+        super.render(surface)
     }
 }
 ```
@@ -162,6 +169,7 @@ class SettingsScreen extends ui.UiScreen {
     constructor() {
         super()
         this.speed = 5
+        this.backgroundColor = 8
     }
 
     public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
@@ -174,8 +182,9 @@ class SettingsScreen extends ui.UiScreen {
     }
 
     public render(surface: ui.DrawSurface): void {
-        surface.drawText("Speed", 8, 8, { color: 15 })
+        surface.drawText("Speed", 8, 8, { color: 1 })
         surface.drawText("" + this.speed, 8, 24, { color: 7 })
+        super.render(surface)
     }
 
     private openSpeedEditor(): void {
@@ -185,6 +194,7 @@ class SettingsScreen extends ui.UiScreen {
             initialText: "" + this.speed,
             maxLength: 3,
             cancelEnabled: true,
+            panelColor: 10,
             onResult: result => {
                 if (result.kind == "completed") {
                     this.speed = result.value
@@ -198,7 +208,11 @@ class SettingsScreen extends ui.UiScreen {
 ```
 
 While a modal is open, the screen routes input to the modal first. The numeric
-keypad uses the same semantic input actions as the rest of the runtime.
+keypad uses the same semantic input actions as the rest of the runtime. OK emits
+a `completed` result and closes the modal automatically. If a screen overrides
+`render()`, call `super.render(surface)` after drawing the screen background and
+content. The base render method draws screen-owned views and the active modal on
+top of the screen.
 
 ## 7. Use Assets When UI Refers To App-Owned Bitmaps Or Text
 

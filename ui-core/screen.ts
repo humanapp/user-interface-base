@@ -1,0 +1,711 @@
+namespace ui {
+    /**
+     * Options for a screen with view-managed focus and modal routing.
+     */
+    export interface UiScreenOptions {
+        /**
+         * Optional scroll request sink used by focus movement.
+         */
+        scroll?: UiFocusScrollHandler
+
+        /**
+         * Default measurement limits used when opening modals without options.
+         */
+        modalConstraints?: UiLayoutConstraints
+    }
+
+    /**
+     * Screen that can be pushed onto a runtime stack.
+     */
+    export class UiScreen {
+        /**
+         * Palette color used to clear before rendering. Omitted screens use the
+         * runtime clear color.
+         */
+        public backgroundColor: number
+        private options_: UiScreenOptions
+        private focus_: UiFocusState
+        private focusInput_: UiFocusInputController
+        private roots_: UiScreenRoot<any>[]
+        private assets_: UiAssetResolver
+        private activeModal_: UiModal<any>
+        private modalConstraints_: UiLayoutConstraints
+        private rootConstraints_: UiLayoutConstraints
+        private defaultModalOptions_: UiModalOpenOptions
+        private modalRect_: Rect
+        private modalSize_: UiMeasuredSize
+        private entered_: boolean
+
+        constructor(options?: UiScreenOptions) {
+            this.options_ = options || {}
+            this.backgroundColor = undefined
+            this.focus_ = new UiFocusState()
+            this.focusInput_ = this.createFocusInputController()
+            this.roots_ = []
+            this.assets_ = undefined
+            this.activeModal_ = undefined
+            this.modalConstraints_ = {
+                maxWidth: 0,
+                maxHeight: 0,
+            }
+            this.rootConstraints_ = {
+                maxWidth: 0,
+                maxHeight: 0,
+            }
+            this.defaultModalOptions_ = {
+                constraints: this.modalConstraints_,
+            }
+            this.modalRect_ = new Rect()
+            this.modalSize_ = new UiMeasuredSize()
+            this.entered_ = false
+        }
+
+        /**
+         * Asset resolver from the active runtime.
+         */
+        public get assets(): UiAssetResolver {
+            return this.assets_
+        }
+
+        /**
+         * Focus state owned by this screen.
+         */
+        public get focus(): UiFocusState {
+            return this.focus_
+        }
+
+        /**
+         * Whether this screen currently owns an open modal.
+         */
+        public get hasModal(): boolean {
+            return !!this.activeModal_
+        }
+
+        /**
+         * Adds a root view rendered and routed by this screen.
+         */
+        public add<TResult>(
+            view: UiFocusableView<TResult>,
+            placement?: UiPlacement,
+        ): UiFocusableView<TResult> {
+            const root = createScreenRoot<TResult>(view, placement)
+            this.roots_.push(root)
+            if (placement && (this.entered_ || this.hasExplicitSize(placement)))
+                this.arrangeRoot(root)
+            if (this.entered_) {
+                this.registerRoot(root)
+                if (this.roots_.length == 1) view.focusDefault(this.focus_)
+            }
+            return view
+        }
+
+        /**
+         * Adds a root view in a horizontally centered band.
+         */
+        public addCentered<TResult>(
+            view: UiFocusableView<TResult>,
+            centerY: number,
+            width: number,
+            height: number,
+        ): UiFocusableView<TResult> {
+            return this.add(view, {
+                x: 0,
+                centerY,
+                width,
+                height,
+                horizontalAlignment: "center",
+                verticalAlignment: "center",
+            })
+        }
+
+        /**
+         * Called after the screen has been pushed onto a runtime stack.
+         */
+        public enter(runtime: UiRuntime): void {
+            this.closeModal()
+            this.focus_ = new UiFocusState()
+            this.focusInput_ = this.createFocusInputController()
+            this.assets_ = runtime.assets
+            this.entered_ = true
+            this.resolveRootConstraints()
+            this.resolveModalConstraints()
+            for (let i = 0; i < this.roots_.length; i++) {
+                const root = this.roots_[i]
+                if (root.placement) this.arrangeRoot(root)
+                this.registerRoot(root)
+            }
+            if (this.roots_.length > 0)
+                this.roots_[0].view.focusDefault(this.focus_)
+        }
+
+        /**
+         * Called after the screen is removed from the stack.
+         */
+        public exit(): void {
+            this.closeModal()
+            this.assets_ = undefined
+            this.entered_ = false
+            this.focus_ = new UiFocusState()
+            this.focusInput_ = this.createFocusInputController()
+        }
+
+        /**
+         * Called when the screen becomes the active top screen.
+         */
+        public activate(): void {}
+
+        /**
+         * Called before another screen becomes active over this screen.
+         */
+        public deactivate(): void {}
+
+        /**
+         * Handles one input event.
+         */
+        public handleInput(event: UiInputEvent): boolean {
+            if (this.activeModal_) return this.handleModalInput(event)
+            const screenHandled = this.handleScreenInput(event)
+            if (screenHandled !== undefined) return screenHandled
+            const result = this.focusInput_.handleInput(event)
+            const handled = this.handleRootFocusInput(result)
+            return handled !== undefined ? handled : result.handled
+        }
+
+        /**
+         * Updates state after input delivery and before rendering.
+         */
+        public update(): void {}
+
+        /**
+         * Renders this screen's views and active modal.
+         */
+        public render(surface: DrawSurface): void {
+            this.renderViews(surface)
+        }
+
+        /**
+         * Opens a modal using screen-sized constraints by default.
+         */
+        public openModal<TResult>(
+            modal: UiModal<TResult>,
+            options?: UiModalOpenOptions,
+        ): UiFocusSetResult {
+            if (this.activeModal_) this.closeModal()
+            this.arrangeModal(modal, options || this.defaultModalOptions_)
+            this.activeModal_ = modal
+            return modal.open(this.focus_, this.focusInput_)
+        }
+
+        /**
+         * Closes the active modal.
+         */
+        public closeModal<TResult>(
+            modal?: UiModal<TResult>,
+        ): UiFocusSetResult | undefined {
+            const target = modal || this.activeModal_
+            if (!target) return undefined
+            const modalScopeId = target.modalScopeId
+            const result = target.close(this.focus_)
+            this.focusInput_.clearNavigation(modalScopeId)
+            this.focus_.removeScope(modalScopeId)
+            if (
+                this.activeModal_ &&
+                this.activeModal_.modalScopeId == modalScopeId
+            )
+                this.activeModal_ = undefined
+            return result
+        }
+
+        /**
+         * Handles screen-level input before root views receive it.
+         */
+        public handleScreenInput(event: UiInputEvent): boolean | undefined {
+            return undefined
+        }
+
+        private renderViews(surface: DrawSurface): void {
+            if (!this.assets_) return
+            for (let i = 0; i < this.roots_.length; i++) {
+                this.roots_[i].view.render(surface, this.assets_, this.focus_)
+            }
+            if (this.activeModal_)
+                this.activeModal_.render(surface, this.assets_, this.focus_)
+        }
+
+        private registerRoot<TResult>(root: UiScreenRoot<TResult>): void {
+            root.view.registerFocusTargets(this.focus_)
+            root.view.registerNavigation(this.focusInput_)
+        }
+
+        private arrangeRoot<TResult>(root: UiScreenRoot<TResult>): void {
+            const placement = root.placement
+            const hasWidth = placement.width !== undefined
+            const hasHeight = placement.height !== undefined
+            let width = hasWidth
+                ? _uiLayout.sanitizeDimension(placement.width)
+                : this.rootConstraints_.maxWidth
+            let height = hasHeight
+                ? _uiLayout.sanitizeDimension(placement.height)
+                : this.rootConstraints_.maxHeight
+            root.constraints.maxWidth = width
+            root.constraints.maxHeight = height
+            root.view.measure(root.constraints, root.measured)
+            if (!hasWidth) width = root.measured.preferredWidth
+            if (!hasHeight) height = root.measured.preferredHeight
+            root.rect.set(
+                this.placementX(placement, width),
+                this.placementY(placement, height),
+                width,
+                height,
+            )
+            root.constraints.maxWidth = width
+            root.constraints.maxHeight = height
+            const horizontal = placement.horizontalAlignment || "start"
+            const vertical = placement.verticalAlignment || "start"
+            const childWidth = _uiLayout.alignedSize(
+                width,
+                root.measured.preferredWidth,
+                horizontal,
+            )
+            const childHeight = _uiLayout.alignedSize(
+                height,
+                root.measured.preferredHeight,
+                vertical,
+            )
+            root.childRect.set(
+                _uiLayout.alignedOffset(
+                    root.rect.x,
+                    width,
+                    childWidth,
+                    horizontal,
+                ),
+                _uiLayout.alignedOffset(
+                    root.rect.y,
+                    height,
+                    childHeight,
+                    vertical,
+                ),
+                childWidth,
+                childHeight,
+            )
+            root.view.arrange(root.childRect)
+        }
+
+        private hasExplicitSize(placement: UiPlacement): boolean {
+            return (
+                placement.width !== undefined && placement.height !== undefined
+            )
+        }
+
+        private placementX(placement: UiPlacement, width: number): number {
+            if (placement.x !== undefined)
+                return _uiLayout.sanitizeCoordinate(placement.x)
+            if (placement.centerX !== undefined)
+                return (
+                    _uiLayout.sanitizeCoordinate(placement.centerX) -
+                    Math.idiv(width, 2)
+                )
+            return 0
+        }
+
+        private placementY(placement: UiPlacement, height: number): number {
+            if (placement.y !== undefined)
+                return _uiLayout.sanitizeCoordinate(placement.y)
+            if (placement.centerY !== undefined)
+                return (
+                    _uiLayout.sanitizeCoordinate(placement.centerY) -
+                    Math.idiv(height, 2)
+                )
+            return 0
+        }
+
+        private arrangeModal<TResult>(
+            modal: UiModal<TResult>,
+            options: UiModalOpenOptions,
+        ): void {
+            if (options.rect) {
+                modal.arrange(options.rect)
+                return
+            }
+            if (!options.constraints) return
+
+            modal.measure(options.constraints, this.modalSize_)
+            this.modalRect_.set(
+                Math.idiv(
+                    options.constraints.maxWidth -
+                        this.modalSize_.preferredWidth,
+                    2,
+                ),
+                Math.idiv(
+                    options.constraints.maxHeight -
+                        this.modalSize_.preferredHeight,
+                    2,
+                ),
+                this.modalSize_.preferredWidth,
+                this.modalSize_.preferredHeight,
+            )
+            modal.arrange(this.modalRect_)
+        }
+
+        private handleModalInput(event: UiInputEvent): boolean {
+            const result = this.focusInput_.handleInput(event)
+            const modal = this.activeModal_
+            const modalResult = modal.handleFocusInput(result)
+            if (modalResult) {
+                if (
+                    this.activeModal_ == modal &&
+                    this.shouldCloseModalForResult(modalResult)
+                )
+                    this.closeModal(modal)
+                const handled = this.defaultHandled(modalResult)
+                return handled !== undefined ? handled : result.handled
+            }
+            return result.handled
+        }
+
+        private handleRootFocusInput(
+            result: UiFocusInputResult,
+        ): boolean | undefined {
+            for (let i = 0; i < this.roots_.length; i++) {
+                const viewResult = this.roots_[i].view.handleFocusInput(result)
+                if (viewResult) return this.defaultHandled(viewResult)
+            }
+            return undefined
+        }
+
+        private defaultHandled<TResult>(result: TResult): boolean | undefined {
+            const kind = (<any>result).kind
+            switch (kind) {
+                case "activated":
+                case "cancelled":
+                case "closed":
+                case "deleted":
+                case "completed":
+                    return true
+            }
+            return undefined
+        }
+
+        private shouldCloseModalForResult<TResult>(result: TResult): boolean {
+            const kind = (<any>result).kind
+            switch (kind) {
+                case "cancelled":
+                case "closed":
+                case "deleted":
+                case "completed":
+                    return true
+                case "activated":
+                    return (<any>result).close === true
+            }
+            return false
+        }
+
+        private createFocusInputController(): UiFocusInputController {
+            return new UiFocusInputController({
+                focus: this.focus_,
+                scroll: this.options_.scroll,
+            })
+        }
+
+        private resolveRootConstraints(): void {
+            this.rootConstraints_.maxWidth = STANDARD_DISPLAY_WIDTH
+            this.rootConstraints_.maxHeight = STANDARD_DISPLAY_HEIGHT
+        }
+
+        private resolveModalConstraints(): void {
+            if (this.options_.modalConstraints) {
+                this.modalConstraints_.maxWidth =
+                    this.options_.modalConstraints.maxWidth
+                this.modalConstraints_.maxHeight =
+                    this.options_.modalConstraints.maxHeight
+                return
+            }
+
+            this.modalConstraints_.maxWidth = STANDARD_DISPLAY_WIDTH
+            this.modalConstraints_.maxHeight = STANDARD_DISPLAY_HEIGHT
+        }
+    }
+
+    interface UiScreenRoot<TResult> {
+        view: UiFocusableView<TResult>
+        placement: UiPlacement
+        rect: Rect
+        childRect: Rect
+        constraints: UiLayoutConstraints
+        measured: UiMeasuredSize
+    }
+
+    function createScreenRoot<TResult>(
+        view: UiFocusableView<TResult>,
+        placement?: UiPlacement,
+    ): UiScreenRoot<TResult> {
+        return {
+            view,
+            placement,
+            rect: new Rect(),
+            childRect: new Rect(),
+            constraints: { maxWidth: 0, maxHeight: 0 },
+            measured: new UiMeasuredSize(),
+        }
+    }
+
+    interface UiScreenInput {
+        runtime: UiRuntime
+        disposed: boolean
+    }
+
+    interface UiScreenRecord {
+        screen: UiScreen
+        input: UiScreenInput
+    }
+
+    function createScreenInput(runtime: UiRuntime): UiScreenInput {
+        return {
+            runtime,
+            disposed: false,
+        }
+    }
+
+    function disposeScreenInput(input: UiScreenInput): void {
+        input.disposed = true
+    }
+
+    function dispatchScreenInput(
+        input: UiScreenInput,
+        action: UiInputAction,
+        source?: UiInputSource,
+        phase?: UiInputPhase,
+    ): void {
+        if (input.disposed) return
+        input.runtime.dispatchInput({ action, source, phase })
+    }
+
+    function releaseDefaultControllerButtons(): void {
+        controller.up.setPressed(false)
+        controller.down.setPressed(false)
+        controller.left.setPressed(false)
+        controller.right.setPressed(false)
+        controller.A.setPressed(false)
+        controller.B.setPressed(false)
+        controller.menu.setPressed(false)
+    }
+
+    /**
+     * Stack that owns screen lifecycle and input routing.
+     */
+    export class UiScreenStack {
+        private runtime_: UiRuntime
+        private screens_: UiScreenRecord[]
+        private contextActive_: boolean
+
+        constructor(runtime: UiRuntime) {
+            this.runtime_ = runtime
+            this.screens_ = []
+            this.contextActive_ = false
+        }
+
+        /**
+         * Pushes a screen and makes it active.
+         */
+        public push(screen: UiScreen): void {
+            this.runtime_.clearInputQueue()
+
+            const current = this.topRecord()
+            if (current) current.screen.deactivate()
+
+            this.ensureEventContext()
+            const input = createScreenInput(this.runtime_)
+            releaseDefaultControllerButtons()
+            this.bindDefaultControllerActions(input)
+
+            const record: UiScreenRecord = { screen, input }
+            this.screens_.push(record)
+
+            screen.enter(this.runtime_)
+            screen.activate()
+        }
+
+        /**
+         * Removes the active screen and reactivates the screen below it. Returns
+         * `undefined` when the stack is empty.
+         */
+        public pop(): UiScreen | undefined {
+            this.runtime_.clearInputQueue()
+
+            const record = this.screens_.pop()
+            if (!record) return undefined
+
+            record.screen.deactivate()
+            record.screen.exit()
+            disposeScreenInput(record.input)
+            releaseDefaultControllerButtons()
+
+            const current = this.topRecord()
+            if (current) {
+                this.bindDefaultControllerActions(current.input)
+                current.screen.activate()
+            } else {
+                this.popEventContext()
+            }
+
+            return record.screen
+        }
+
+        /**
+         * Replaces the active screen without reactivating the screen below it.
+         * Returns `undefined` when the stack is empty.
+         */
+        public replace(screen: UiScreen): UiScreen | undefined {
+            this.runtime_.clearInputQueue()
+
+            const replaced = this.screens_.pop()
+            if (replaced) {
+                replaced.screen.deactivate()
+                replaced.screen.exit()
+                disposeScreenInput(replaced.input)
+            }
+
+            this.ensureEventContext()
+            const input = createScreenInput(this.runtime_)
+            releaseDefaultControllerButtons()
+            this.bindDefaultControllerActions(input)
+
+            const record: UiScreenRecord = { screen, input }
+            this.screens_.push(record)
+
+            screen.enter(this.runtime_)
+            screen.activate()
+
+            return replaced ? replaced.screen : undefined
+        }
+
+        /**
+         * Returns the active screen, or `undefined` when the stack is empty.
+         */
+        public top(): UiScreen | undefined {
+            const record = this.topRecord()
+            return record ? record.screen : undefined
+        }
+
+        /**
+         * Returns the number of screens in the stack.
+         */
+        public depth(): number {
+            return this.screens_.length
+        }
+
+        /**
+         * Delivers queued input, updates, renders, and commits the active screen.
+         */
+        public runFrame(
+            queue: UiInputEvent[],
+            display: UiDisplayAdapter,
+            clearColor: number,
+        ): void {
+            if (!this.topRecord()) {
+                this.clearInputQueue(queue)
+                return
+            }
+
+            this.deliverQueuedInput(queue)
+
+            const active = this.topRecord()
+            if (!active) {
+                this.clearInputQueue(queue)
+                return
+            }
+
+            active.screen.update()
+
+            const color =
+                active.screen.backgroundColor !== undefined
+                    ? active.screen.backgroundColor
+                    : clearColor
+            display.surface.clear(color)
+            active.screen.render(display.surface)
+            display.commit()
+        }
+
+        private deliverQueuedInput(queue: UiInputEvent[]): void {
+            const record = this.topRecord()
+            if (!record) {
+                this.clearInputQueue(queue)
+                return
+            }
+
+            let index = 0
+            while (index < queue.length && this.topRecord() == record) {
+                const event = queue[index++]
+                record.screen.handleInput(event)
+            }
+
+            this.clearInputQueue(queue)
+        }
+
+        private topRecord(): UiScreenRecord | undefined {
+            if (!this.screens_.length) return undefined
+            return this.screens_[this.screens_.length - 1]
+        }
+
+        private clearInputQueue(queue: UiInputEvent[]): void {
+            while (queue.length) queue.pop()
+        }
+
+        private ensureEventContext(): void {
+            if (this.contextActive_) return
+            context.pushEventContext()
+            this.contextActive_ = true
+        }
+
+        private popEventContext(): void {
+            if (!this.contextActive_) return
+            context.popEventContext()
+            this.contextActive_ = false
+        }
+
+        private bindDefaultControllerActions(input: UiScreenInput): void {
+            this.bindDefaultControllerAction(input, controller.up.id, "up")
+            this.bindDefaultControllerAction(input, controller.down.id, "down")
+            this.bindDefaultControllerAction(input, controller.left.id, "left")
+            this.bindDefaultControllerAction(
+                input,
+                controller.right.id,
+                "right",
+            )
+            this.bindDefaultControllerAction(input, controller.A.id, "activate")
+            this.bindDefaultControllerAction(input, controller.B.id, "cancel")
+            this.bindDefaultControllerAction(input, controller.menu.id, "menu")
+        }
+
+        private bindDefaultControllerAction(
+            input: UiScreenInput,
+            buttonId: number,
+            action: UiInputAction,
+        ): void {
+            context.onEvent(ControllerButtonEvent.Pressed, buttonId, () => {
+                dispatchScreenInput(
+                    input,
+                    action,
+                    "displayShieldController",
+                    "pressed",
+                )
+            })
+            context.onEvent(ControllerButtonEvent.Released, buttonId, () => {
+                dispatchScreenInput(
+                    input,
+                    action,
+                    "displayShieldController",
+                    "released",
+                )
+            })
+            context.onEvent(ControllerButtonEvent.Repeated, buttonId, () => {
+                dispatchScreenInput(
+                    input,
+                    action,
+                    "displayShieldController",
+                    "repeated",
+                )
+            })
+        }
+    }
+}

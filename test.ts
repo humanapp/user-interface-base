@@ -836,6 +836,108 @@ namespace ui {
         }
     }
 
+    type ControlSmokeActionModalResult =
+        | { kind: "completed"; modalScopeId: UiFocusScopeId }
+        | { kind: "keepOpen"; modalScopeId: UiFocusScopeId }
+
+    class ControlSmokeActionModal implements UiModal<ControlSmokeActionModalResult> {
+        public readonly layoutSpec: UiLayoutSpec
+        public readonly finalRect: Rect
+        public layoutDirty: boolean
+        private modalScopeId_: UiFocusScopeId
+        private resultKind_: string
+        private targetRect_: Rect
+
+        constructor(modalScopeId: UiFocusScopeId, resultKind: string) {
+            this.modalScopeId_ = modalScopeId
+            this.resultKind_ = resultKind
+            this.layoutSpec = {
+                width: { mode: "content" },
+                height: { mode: "content" },
+            }
+            this.finalRect = new Rect()
+            this.layoutDirty = true
+            this.targetRect_ = new Rect()
+        }
+
+        public get modalScopeId(): UiFocusScopeId {
+            return this.modalScopeId_
+        }
+
+        public measure(
+            constraints: UiLayoutConstraints,
+            output: UiMeasuredSize,
+        ): void {
+            output.set(24, 24, 24, 24)
+            this.clearLayoutInvalidation()
+        }
+
+        public arrange(rect: Rect): void {
+            this.finalRect.copyFrom(rect)
+            this.targetRect_.copyFrom(rect)
+            this.clearLayoutInvalidation()
+        }
+
+        public invalidateLayout(): void {
+            this.layoutDirty = true
+        }
+
+        public clearLayoutInvalidation(): void {
+            this.layoutDirty = false
+        }
+
+        public open(
+            focus: UiFocusState,
+            controller?: UiFocusInputController,
+        ): UiFocusSetResult {
+            const targetId = this.targetId()
+            focus.setScope({
+                id: this.modalScopeId_,
+                parentScopeId: focus.getActiveScopeId(),
+                preferredTargetId: targetId,
+                handlesCancel: true,
+                modal: true,
+            })
+            focus.setTarget({
+                id: targetId,
+                scopeId: this.modalScopeId_,
+                rect: this.targetRect_,
+                activatable: true,
+            })
+            return focus.setActiveScope(this.modalScopeId_)
+        }
+
+        public close(focus: UiFocusState): UiFocusSetResult {
+            return focus.closeModalScope(this.modalScopeId_)
+        }
+
+        public handleFocusInput(
+            result: UiFocusInputResult,
+        ): ControlSmokeActionModalResult {
+            if (
+                result.kind != "activated" ||
+                result.scopeId != this.modalScopeId_
+            )
+                return undefined
+            return <ControlSmokeActionModalResult>{
+                kind: this.resultKind_,
+                modalScopeId: this.modalScopeId_,
+            }
+        }
+
+        public render(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            surface.fillRect(this.finalRect, 1)
+        }
+
+        private targetId(): UiFocusId {
+            return this.modalScopeId_ + "/ok"
+        }
+    }
+
     /**
      * Smoke harness for reusable control visuals.
      */
@@ -1054,6 +1156,38 @@ namespace ui {
             !screen.hasModal,
             "screen controller modal cancel closes",
         )
+
+        const completedModal = new ControlSmokeActionModal(
+            "screen-completed-modal",
+            "completed",
+        )
+        screen.openModal(completedModal)
+        control.assert(screen.hasModal, "screen controller has completed modal")
+        control.assert(
+            screen.handleInput({ action: "activate" }),
+            "screen controller completed modal input handled",
+        )
+        control.assert(
+            !screen.hasModal,
+            "screen controller completed modal closes",
+        )
+
+        const keepOpenModal = new ControlSmokeActionModal(
+            "screen-keep-open-modal",
+            "keepOpen",
+        )
+        screen.openModal(keepOpenModal)
+        control.assert(screen.hasModal, "screen controller has keep-open modal")
+        control.assert(
+            screen.handleInput({ action: "activate" }),
+            "screen controller keep-open modal input handled",
+        )
+        control.assert(
+            screen.hasModal,
+            "screen controller keep-open modal stays open",
+        )
+        screen.closeModal(keepOpenModal)
+
         screen.exit()
     }
 

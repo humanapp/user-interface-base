@@ -9,7 +9,7 @@
         "ui-core/display-shield-frame-adapter.ts",
         "ui-core/runtime.ts",
         "ui-core/input.ts",
-        "ui-core/scene-stack.ts",
+        "ui-core/screen.ts",
         "ui-core/layout.ts",
         "ui-core/focus.ts",
         "ui-core/focus-navigation.ts",
