@@ -1,3 +1,4 @@
+//% block="micro:bit apps UI" weight=100 color="#AA00AA" icon="\uf26c"
 namespace ui {
     /**
      * Display target that exposes a draw surface and presents frames.
