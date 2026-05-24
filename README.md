@@ -1,6 +1,6 @@
 # micro:bit apps UI (user-interface-base)
 
-**micro:bit apps UI** is a small UI toolkit for building [micro:bit apps](https://microbit-apps.org/); apps that run on the [BBC micro:bit](https://microbit.org/) + [Display Shield](https://microbit-apps.org/getting-started/display-shields/).
+**micro:bit apps UI** is a small UI toolkit for building [micro:bit apps](https://microbit-apps.org/): apps that run on the [BBC micro:bit](https://microbit.org/) + [Display Shield](https://microbit-apps.org/getting-started/display-shields/).
 
 ## The Short Version
 
@@ -235,8 +235,8 @@ const runtime = new ui.UiRuntime({
 })
 ```
 
-Direct screens can also keep bitmaps and strings as fields. Asset resolvers are
-most useful when controls need stable ids instead of direct values.
+Screens can also keep bitmaps and strings as fields. Asset resolvers are most
+useful when reusable controls need stable ids instead of direct values.
 
 ## A Few Working Rules
 
@@ -259,9 +259,7 @@ There are two normal ways to use it:
 - Work in VS Code when you want files on disk, source control, and command-line
   builds.
 
-Both workflows use MakeCode's extension system. This library depends on
-`display-shield`; MakeCode installs that dependency from this package's
-`pxt.json`.
+Both workflows use MakeCode's extension system.
 
 ### Workflow 1: MakeCode Editor
 
@@ -285,7 +283,7 @@ To add micro:bit apps UI:
 
 4. Select the extension when MakeCode finds it.
 5. Switch to JavaScript view and use the `ui` namespace.
-6. The extension's drawer will be labeled `micro:bit apps UI`.
+6. The extension's toolbox category will be labeled `micro:bit apps UI`.
 
 
 ### Workflow 2: VS Code
