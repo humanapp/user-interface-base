@@ -39,7 +39,7 @@ namespace ui {
     /**
      * Smoke harness for direct 160x120 viewport rendering.
      */
-    export function renderLogicalViewportSmokeTest(fillColor: number): void {
+    export function runViewportSmokeTest(fillColor: number): void {
         const standardBitmap = bitmaps.create(
             STANDARD_DISPLAY_WIDTH,
             STANDARD_DISPLAY_HEIGHT,
@@ -1600,7 +1600,7 @@ namespace ui {
 }
 
 ui.runGeometrySmokeTest()
-ui.renderLogicalViewportSmokeTest(2)
+ui.runViewportSmokeTest(2)
 ui.runAssetResolverSmokeTest()
 ui.runRuntimeSmokeTest()
 ui.runLayoutSmokeTest()
