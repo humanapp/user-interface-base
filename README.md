@@ -30,8 +30,10 @@ class HelloScreen extends ui.UiScreen {
 }
 ```
 
-All drawing methods use palette colors. Text, bitmaps, rectangles, lines, and
-circles are drawn through the `DrawSurface` passed to `render()`.
+All drawing methods use palette color indices. The default palette matches
+[MakeCode Arcade's default palette](https://arcade.makecode.com/reference/scene/background-color).
+Text, bitmaps, rectangles, lines, and circles are drawn through the `DrawSurface`
+passed to `render()`.
 
 ## 2. Start A Runtime
 
