@@ -1,50 +1,5 @@
 namespace ui {
     /**
-     * Point in pixel coordinates.
-     */
-    export class Point {
-        /**
-         * Horizontal coordinate in pixels.
-         */
-        public x: number
-
-        /**
-         * Vertical coordinate in pixels.
-         */
-        public y: number
-
-        constructor(x = 0, y = 0) {
-            this.x = x
-            this.y = y
-        }
-
-        /**
-         * Updates this point and returns it for reuse.
-         */
-        public set(x: number, y: number): Point {
-            this.x = x
-            this.y = y
-            return this
-        }
-
-        /**
-         * Copies another point into this point.
-         */
-        public copyFrom(point: Point): Point {
-            this.x = point.x
-            this.y = point.y
-            return this
-        }
-
-        /**
-         * Creates a point with the same coordinate values.
-         */
-        public clone(): Point {
-            return new Point(this.x, this.y)
-        }
-    }
-
-    /**
      * Width and height in pixels.
      */
     export class Size {
@@ -195,13 +150,6 @@ namespace ui {
             return (
                 x >= this.x && x < this.right && y >= this.y && y < this.bottom
             )
-        }
-
-        /**
-         * Tests whether a point is inside this half-open rectangle.
-         */
-        public containsPoint(point: Point): boolean {
-            return this.contains(point.x, point.y)
         }
     }
 }

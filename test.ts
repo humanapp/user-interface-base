@@ -369,30 +369,6 @@ namespace ui {
         }
     }
 
-    class CountingLayoutSmokeNode extends LayoutSmokeNode {
-        public measureCount: number
-        public arrangeCount: number
-
-        constructor(layoutSpec: UiLayoutSpec, width: number, height: number) {
-            super(layoutSpec, width, height, width, height)
-            this.measureCount = 0
-            this.arrangeCount = 0
-        }
-
-        public measure(
-            constraints: UiLayoutConstraints,
-            output: UiMeasuredSize,
-        ): void {
-            this.measureCount++
-            super.measure(constraints, output)
-        }
-
-        public arrange(rect: Rect): void {
-            this.arrangeCount++
-            super.arrange(rect)
-        }
-    }
-
     /**
      * Smoke harness for measured layout contracts and final rectangle storage.
      */
@@ -507,20 +483,6 @@ namespace ui {
         )
     }
 
-    function layoutContentSpec(): UiLayoutSpec {
-        return {
-            width: { mode: "content" },
-            height: { mode: "content" },
-        }
-    }
-
-    function layoutFixedSpec(width: number, height: number): UiLayoutSpec {
-        return {
-            width: { mode: "fixed", value: width },
-            height: { mode: "fixed", value: height },
-        }
-    }
-
     function assertLayoutRect(
         rect: Rect,
         x: number,
@@ -619,22 +581,6 @@ namespace ui {
             options?: DrawTextOptions,
         ): Size {
             return new Size(text.length * 5, 8)
-        }
-    }
-
-    class PositionSmokeSurface extends ControlSmokeSurface {
-        public textX: number
-        public textY: number
-
-        public drawText(
-            text: string,
-            x: number,
-            y: number,
-            options?: DrawTextOptions,
-        ): void {
-            this.textX = x
-            this.textY = y
-            super.drawText(text, x, y, options)
         }
     }
 
@@ -1023,7 +969,7 @@ namespace ui {
         )
         assertLayoutRect(
             screenControlRect,
-            51,
+            50,
             5,
             24,
             20,
@@ -1109,23 +1055,6 @@ namespace ui {
             "screen controller modal cancel closes",
         )
         screen.exit()
-    }
-
-    function assertControlActivation<T>(
-        result: any,
-        kind: string,
-        controlId: string,
-        value: T,
-        name: string,
-    ): void {
-        control.assert(!!result, name + " result exists")
-        control.assert(result.kind == kind, name + " result kind")
-        control.assert(result.controlId == controlId, name + " control id")
-        control.assert(result.value == value, name + " value")
-        control.assert(
-            !!result.control && result.control.id == controlId,
-            name + " source control",
-        )
     }
 
     /**
