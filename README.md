@@ -268,23 +268,22 @@ the project.
 
 You need:
 
-- The MakeCode editor for micro:bit.
-- A BBC micro:bit and Display Shield when you want to run on hardware.
+- The [MakeCode editor for micro:bit](https://makecode.microbit.org).
+- A [BBC micro:bit](https://microbit.org/) and [Display Shield](https://microbit-apps.org/getting-started/display-shields/) when you want to run on hardware.
 
 To add micro:bit apps UI:
 
-1. Open `https://makecode.microbit.org/beta` and create or open a project.
+1. Open `https://makecode.microbit.org` and create or open a project.
 2. Open the Extensions window from the toolbox.
 3. Paste this repository URL into the extension search box:
 
-   ```text
-   https://github.com/microbit-apps/user-interface-base
-   ```
+    ```text
+    https://github.com/microbit-apps/user-interface-base
+    ```
 
 4. Select the extension when MakeCode finds it.
 5. Switch to JavaScript view and use the `ui` namespace.
 6. The extension's toolbox category will be labeled `micro:bit apps UI`.
-
 
 ### Workflow 2: VS Code
 
@@ -293,7 +292,7 @@ VS Code and built from the command line.
 
 You need:
 
-- VS Code or another local editor.
+- VS Code.
 - Node.js and npm.
 - The
   [Microsoft MakeCode Arcade VS Code extension](https://marketplace.visualstudio.com/items?itemName=ms-edu.pxt-vscode-web).
@@ -301,9 +300,9 @@ You need:
   useful for running the MakeCode simulator from VS Code.
 - The MakeCode command-line tool:
 
-  ```sh
-  npm install -g makecode
-  ```
+    ```sh
+    npm install -g makecode
+    ```
 
 - A BBC micro:bit and Display Shield when you want to run on hardware.
 
@@ -316,8 +315,8 @@ mkc build
 ```
 
 Then open the folder in VS Code. Use the MakeCode icon in the activity bar to
-open the MakeCode Asset Explorer. From there you can install project
-dependencies, add extensions by GitHub URL, start the MakeCode simulator, and
+open the MakeCode Action Palette. From there you can start the MakeCode simulator, install project
+dependencies, add extensions by GitHub URL, and
 build for hardware.
 
 To add micro:bit apps UI to an existing local project, run this from the project
@@ -328,7 +327,7 @@ mkc add https://github.com/microbit-apps/user-interface-base user-interface-base
 mkc build
 ```
 
-If you add the extension from VS Code instead, use the MakeCode Asset Explorer's
+If you add the extension from VS Code instead, use the MakeCode Extension's
 Add an Extension command and paste:
 
 ```text
@@ -351,3 +350,12 @@ After editing `pxt.json` by hand, download dependencies and build:
 mkc install
 mkc build
 ```
+
+## Existing Projects
+
+These micro:bit apps projects use user-interface-base and are useful references
+when you want to see the library in action:
+
+- [microcode-v2](https://github.com/microbit-apps/microcode-v2)
+- [microdata](https://github.com/microbit-apps/microdata)
+- [microgui](https://github.com/microbit-apps/microgui)
