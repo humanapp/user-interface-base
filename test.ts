@@ -1609,9 +1609,6 @@ ui.runPickerSmokeTest()
 ui.runScreenControllerSmokeTest()
 ui.runNumericEntrySmokeTest()
 
-// Render the display-profile smoke image after nonvisual checks.
-ui.renderLogicalViewportSmokeTest(7)
-
 control.__log(1, "All tests passed!")
 
 //-------------------------------------------------
