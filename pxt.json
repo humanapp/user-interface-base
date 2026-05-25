@@ -32,7 +32,8 @@
         "microbit"
     ],
     "testFiles": [
-        "test.ts"
+        "test.ts",
+        "samples.ts"
     ],
     "dependencies": {
         "core": "*",
