@@ -10,9 +10,24 @@ namespace ui {
     }
 
     /**
-     * Caller-owned control record consumed by action, modal, and toggle views.
+     * Optional width and height in pixels.
      */
-    export interface UiControl<T> {
+    export interface UiSizeOptions {
+        /**
+         * Requested width in pixels.
+         */
+        width?: number
+
+        /**
+         * Requested height in pixels.
+         */
+        height?: number
+    }
+
+    /**
+     * Shared fields for one rendered control.
+     */
+    export interface UiControlFields<T = string> {
         /**
          * Stable caller id for this control.
          */
@@ -21,7 +36,7 @@ namespace ui {
         /**
          * Typed value returned when this control is activated.
          */
-        value: T
+        value?: T
 
         /**
          * Visible label text. Takes precedence over `textId`.
@@ -59,14 +74,41 @@ namespace ui {
         omitMissingBitmap?: boolean
 
         /**
-         * Width requested by variable-size control collections.
+         * Requested size for this control.
          */
-        width?: number
+        size?: UiSizeOptions
 
         /**
-         * Height requested by variable-size control collections.
+         * Whether this visible control can receive focus. Omitted values are
+         * treated as `true`.
          */
-        height?: number
+        focusable?: boolean
+
+        /**
+         * Optional control style used when rendering.
+         */
+        style?: UiButtonStyle
+
+        /**
+         * Whether this control participates in layout, rendering, focus, and hit
+         * testing. Omitted values are treated as `true`.
+         */
+        visible?: boolean
+
+        /**
+         * Optional callback invoked when this control is activated.
+         */
+        onActivate?: UiControlActivateHandler<T>
+    }
+
+    /**
+     * Caller-owned control record consumed by action, modal, and toggle views.
+     */
+    export interface UiControl<T> extends UiControlFields<T> {
+        /**
+         * Typed value returned when this control is activated.
+         */
+        value: T
 
         /**
          * Extra space before this control in variable-size control collections.
@@ -79,31 +121,59 @@ namespace ui {
         gapAfter?: number
 
         /**
-         * Whether this visible control can receive focus. Omitted values are
-         * treated as `true`.
-         */
-        focusable?: boolean
-
-        /**
-         * Optional control style used when `draw` is omitted.
-         */
-        style?: UiButtonStyle
-
-        /**
-         * Whether this control participates in layout, rendering, focus, and hit
-         * testing. Omitted values are treated as `true`.
-         */
-        visible?: boolean
-
-        /**
          * Whether default focus selection should prefer this control.
          */
         selected?: boolean
+    }
+
+    /**
+     * Shared options for controls that render caller-owned control records.
+     */
+    export interface UiControlCollectionOptions<T = string> {
+        /**
+         * Caller-owned control records in render order.
+         */
+        controls: UiControl<T>[]
 
         /**
-         * Optional callback invoked when this control is activated.
+         * Control id to focus first when available.
+         */
+        defaultControlId?: string
+
+        /**
+         * Size assigned to each control.
+         */
+        controlSize?: UiSizeOptions
+
+        /**
+         * Control style used by controls without a custom draw callback.
+         */
+        controlStyle?: UiButtonStyle
+
+        /**
+         * Called when an enabled control is activated.
          */
         onActivate?: UiControlActivateHandler<T>
+    }
+
+    /**
+     * Shared layout options for rectangular control grids.
+     */
+    export interface UiControlGridLayoutOptions {
+        /**
+         * Number of columns for rectangular grids.
+         */
+        columnCount?: number
+
+        /**
+         * Space between adjacent rows.
+         */
+        rowGap?: number
+
+        /**
+         * Space between adjacent columns.
+         */
+        columnGap?: number
     }
 
     /**
@@ -196,12 +266,26 @@ namespace _uiControls {
         }
     }
 
-    export function controlWidth(value: number | undefined): number {
-        return sanitizeDimension(value, 24)
+    export function sizeWidth(
+        size: ui.UiSizeOptions | undefined,
+        defaultValue: number,
+    ): number {
+        return sanitizeDimension(size ? size.width : undefined, defaultValue)
     }
 
-    export function controlHeight(value: number | undefined): number {
-        return sanitizeDimension(value, 20)
+    export function sizeHeight(
+        size: ui.UiSizeOptions | undefined,
+        defaultValue: number,
+    ): number {
+        return sanitizeDimension(size ? size.height : undefined, defaultValue)
+    }
+
+    export function controlWidth(size: ui.UiSizeOptions | undefined): number {
+        return sizeWidth(size, 24)
+    }
+
+    export function controlHeight(size: ui.UiSizeOptions | undefined): number {
+        return sizeHeight(size, 20)
     }
 
     export function gap(value: number | undefined): number {

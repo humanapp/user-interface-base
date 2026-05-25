@@ -11,14 +11,9 @@ namespace ui {
         text: string
 
         /**
-         * Width requested by the label. Omitted values use text width.
+         * Requested label size. Omitted axes use the rendered text size.
          */
-        width?: number
-
-        /**
-         * Height requested by the label. Omitted values use font height.
-         */
-        height?: number
+        size?: UiSizeOptions
 
         /**
          * Text color palette index. Omitted values use `1`.
@@ -59,8 +54,8 @@ namespace ui {
             this.color_ = options.color !== undefined ? options.color : 1
             this.backgroundColor_ = options.backgroundColor
             this.font_ = options.font || LABEL_DEFAULT_FONT
-            this.width_ = _uiLayout.sanitizeDimension(options.width)
-            this.height_ = _uiLayout.sanitizeDimension(options.height)
+            this.width_ = _uiControls.sizeWidth(options.size, 0)
+            this.height_ = _uiControls.sizeHeight(options.size, 0)
             this.layoutSpec = _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect(0, 0, this.width(), this.height())
             this.layoutDirty = true

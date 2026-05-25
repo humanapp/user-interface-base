@@ -2,21 +2,12 @@ namespace ui {
     /**
      * Options for a rectangular or ragged control grid.
      */
-    export interface UiGridOptions<T> {
+    export interface UiGridOptions<T>
+        extends UiControlCollectionOptions<T>, UiControlGridLayoutOptions {
         /**
          * Focus scope id for this grid.
          */
         scopeId: UiFocusScopeId
-
-        /**
-         * Caller-owned control records in grid order.
-         */
-        controls: UiControl<T>[]
-
-        /**
-         * Control id to focus first when available.
-         */
-        defaultControlId?: string
 
         /**
          * Scroll owner used when this grid is arranged in scroll content.
@@ -24,50 +15,15 @@ namespace ui {
         scrollOwnerId?: UiFocusScrollOwnerId
 
         /**
-         * Number of columns for rectangular grids. Defaults to the control count.
-         */
-        columnCount?: number
-
-        /**
          * Row lengths for ragged grids. Omitted values use `columnCount`.
          */
         rows?: number[]
-
-        /**
-         * Width assigned to each control.
-         */
-        controlWidth?: number
-
-        /**
-         * Height assigned to each control.
-         */
-        controlHeight?: number
-
-        /**
-         * Space between adjacent rows.
-         */
-        rowGap?: number
-
-        /**
-         * Space between adjacent columns.
-         */
-        columnGap?: number
-
-        /**
-         * Control style used by controls without a custom draw callback.
-         */
-        controlStyle?: UiButtonStyle
 
         /**
          * Bounds used to keep control focus labels visible. Omitted values use the
          * active display surface's pixel bounds when available.
          */
         labelBounds?: Rect
-
-        /**
-         * Called when an enabled grid control is activated.
-         */
-        onActivate?: UiControlActivateHandler<T>
     }
 
     /**
@@ -120,10 +76,8 @@ namespace ui {
                 Math.max(1, options.controls.length),
             )
             this.rows_ = options.rows
-            this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
-            this.controlHeight_ = _uiControls.controlHeight(
-                options.controlHeight,
-            )
+            this.controlWidth_ = _uiControls.controlWidth(options.controlSize)
+            this.controlHeight_ = _uiControls.controlHeight(options.controlSize)
             this.rowGap_ = _uiControls.gap(options.rowGap)
             this.columnGap_ = _uiControls.gap(options.columnGap)
             this.layoutSpec = _uiControls.defaultLayoutSpec()

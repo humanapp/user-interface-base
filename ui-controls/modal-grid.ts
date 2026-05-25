@@ -2,16 +2,12 @@ namespace ui {
     /**
      * Options for a modal picker or control grid.
      */
-    export interface UiPickerOptions<T = string> {
+    export interface UiPickerOptions<T = string>
+        extends UiControlCollectionOptions<T>, UiControlGridLayoutOptions {
         /**
          * Modal focus scope owned by this grid while open.
          */
         modalScopeId: UiFocusScopeId
-
-        /**
-         * Caller-owned modal control records.
-         */
-        controls: UiControl<T>[]
 
         /**
          * Visible modal title. Takes precedence over `titleId`.
@@ -29,11 +25,6 @@ namespace ui {
         titleBitmap?: Bitmap | string
 
         /**
-         * Control id to focus first when available.
-         */
-        defaultControlId?: string
-
-        /**
          * Caller-owned controls rendered at the right edge of the title bar.
          */
         titleControls?: UiControl<T>[]
@@ -44,44 +35,9 @@ namespace ui {
         closeOnActivate?: boolean
 
         /**
-         * Number of columns for rectangular modal grids.
+         * Size assigned to each title-bar control.
          */
-        columnCount?: number
-
-        /**
-         * Width assigned to each control.
-         */
-        controlWidth?: number
-
-        /**
-         * Height assigned to each control.
-         */
-        controlHeight?: number
-
-        /**
-         * Space between adjacent content rows.
-         */
-        rowGap?: number
-
-        /**
-         * Space between adjacent content columns.
-         */
-        columnGap?: number
-
-        /**
-         * Control style used by controls without a custom draw callback.
-         */
-        controlStyle?: UiButtonStyle
-
-        /**
-         * Width assigned to each title-bar control.
-         */
-        titleControlWidth?: number
-
-        /**
-         * Height assigned to each title-bar control.
-         */
-        titleControlHeight?: number
+        titleControlSize?: UiSizeOptions
 
         /**
          * Space between adjacent title-bar controls.
@@ -97,11 +53,6 @@ namespace ui {
          * Panel, title, and spacing style for this modal.
          */
         modalStyle?: UiModalStyle
-
-        /**
-         * Called when an enabled modal control is activated.
-         */
-        onActivate?: UiControlActivateHandler<T>
 
         /**
          * Called when the modal reports cancellation.
@@ -223,18 +174,18 @@ namespace ui {
                 options.columnCount,
                 Math.max(1, options.controls.length),
             )
-            this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
-            this.controlHeight_ = _uiControls.controlHeight(
-                options.controlHeight,
-            )
+            this.controlWidth_ = _uiControls.controlWidth(options.controlSize)
+            this.controlHeight_ = _uiControls.controlHeight(options.controlSize)
             this.rowGap_ = _uiControls.gap(options.rowGap)
             this.columnGap_ = _uiControls.gap(options.columnGap)
             this.controlStyle_ = options.controlStyle
-            this.titleControlWidth_ = _uiControls.controlWidth(
-                options.titleControlWidth || options.controlWidth,
+            this.titleControlWidth_ = _uiControls.sizeWidth(
+                options.titleControlSize,
+                this.controlWidth_,
             )
-            this.titleControlHeight_ = _uiControls.controlHeight(
-                options.titleControlHeight || options.controlHeight,
+            this.titleControlHeight_ = _uiControls.sizeHeight(
+                options.titleControlSize,
+                this.controlHeight_,
             )
             this.titleControlGap_ = _uiControls.gap(options.titleControlGap)
             this.titleControlStyle_ =
@@ -437,7 +388,7 @@ namespace ui {
             }
             if (title.length > 0)
                 surface.drawText(title, titleX, this.finalRect.y + 4, {
-                    color: this.titleColor(),
+                    color: this.textColor(),
                 })
             this.renderControls(
                 surface,
@@ -489,8 +440,10 @@ namespace ui {
                 title,
                 controls,
                 columnCount: Math.max(1, controls.length),
-                controlWidth: this.choiceControlWidth(controls),
-                controlHeight: 20,
+                controlSize: {
+                    width: this.choiceControlWidth(controls),
+                    height: 20,
+                },
                 columnGap: 4,
                 controlStyle: UiButtonStyles.LightShadowedWhite,
                 onActivate,
@@ -576,10 +529,10 @@ namespace ui {
             )
         }
 
-        private titleColor(): number {
-            return this.style_ && this.style_.titleColor !== undefined
-                ? this.style_.titleColor
-                : 15
+        private textColor(): number {
+            return this.style_ && this.style_.color !== undefined
+                ? this.style_.color
+                : 1
         }
 
         private resolveTitleBitmap(

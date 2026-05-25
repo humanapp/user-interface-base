@@ -34,9 +34,9 @@ namespace ui {
         backgroundColor?: number
 
         /**
-         * Foreground color used for text.
+         * Text color used for button content.
          */
-        foregroundColor?: number
+        color?: number
 
         /**
          * Frame shape drawn around the button.
@@ -209,8 +209,7 @@ namespace ui {
             const bitmap = content.bitmap
             const text = this.contentText(content, style)
             const font = style.font || BUTTON_DEFAULT_FONT
-            const foreground =
-                style.foregroundColor !== undefined ? style.foregroundColor : 15
+            const color = style.color !== undefined ? style.color : 15
             const graphicWidth = this.contentWidth(content)
 
             if (bitmap) {
@@ -225,7 +224,7 @@ namespace ui {
                     rect.y +
                     Math.max(0, Math.idiv(rect.height - font.charHeight, 2))
                 surface.drawText(text, textX, textY, {
-                    color: foreground,
+                    color,
                     font,
                 })
             }
@@ -337,86 +336,14 @@ namespace ui {
     }
 
     /**
-     * Options for one screen-managed button control.
+     * Options for one screen-managed button control. Inherited `value` defaults
+     * to the button id when omitted.
      */
-    export interface UiButtonOptions<T = string> {
+    export interface UiButtonOptions<T = string> extends UiControlFields<T> {
         /**
          * Focus scope id for this button.
          */
         scopeId: UiFocusScopeId
-
-        /**
-         * Stable caller id for this button.
-         */
-        id: string
-
-        /**
-         * Typed value returned when this button is activated. Omitted values use
-         * the button id.
-         */
-        value?: T
-
-        /**
-         * Visible label text. Takes precedence over `textId`.
-         */
-        text?: string
-
-        /**
-         * Resolver-backed label id used when `text` is omitted.
-         */
-        textId?: string
-
-        /**
-         * Focus label text. Takes precedence over `focusLabelId`.
-         */
-        focusLabel?: string
-
-        /**
-         * Resolver-backed focus label id used when `focusLabel` is omitted.
-         */
-        focusLabelId?: string
-
-        /**
-         * Bitmap drawn for this button. Takes precedence over `bitmapId`.
-         */
-        bitmap?: Bitmap
-
-        /**
-         * Resolver-backed bitmap id used when `bitmap` is omitted.
-         */
-        bitmapId?: string | number
-
-        /**
-         * When true, missing resolver-backed bitmaps are not drawn.
-         */
-        omitMissingBitmap?: boolean
-
-        /**
-         * Width requested by the button.
-         */
-        width?: number
-
-        /**
-         * Height requested by the button.
-         */
-        height?: number
-
-        /**
-         * Whether this visible button can receive focus. Omitted values are
-         * treated as `true`.
-         */
-        focusable?: boolean
-
-        /**
-         * Button style used when rendering.
-         */
-        style?: UiButtonStyle
-
-        /**
-         * Whether this button participates in layout, rendering, focus, and hit
-         * testing. Omitted values are treated as `true`.
-         */
-        visible?: boolean
 
         /**
          * Scroll owner used when this button is arranged in scroll content.
@@ -428,11 +355,6 @@ namespace ui {
          * active display surface's pixel bounds when available.
          */
         labelBounds?: Rect
-
-        /**
-         * Optional callback invoked when this button is activated.
-         */
-        onActivate?: UiControlActivateHandler<T>
     }
 
     /**
@@ -519,14 +441,14 @@ namespace ui {
             constraints: UiLayoutConstraints,
             output: UiMeasuredSize,
         ): void {
-            const width =
-                this.control_.width !== undefined
-                    ? _uiControls.controlWidth(this.control_.width)
-                    : this.preferredWidth()
-            const height =
-                this.control_.height !== undefined
-                    ? _uiControls.controlHeight(this.control_.height)
-                    : this.preferredHeight()
+            const width = _uiControls.sizeWidth(
+                this.control_.size,
+                this.preferredWidth(),
+            )
+            const height = _uiControls.sizeHeight(
+                this.control_.size,
+                this.preferredHeight(),
+            )
             measureLayoutSpec(
                 this.layoutSpec,
                 constraints,
@@ -802,7 +724,7 @@ namespace ui {
          */
         export const Default: UiButtonStyle = {
             backgroundColor: 0,
-            foregroundColor: 15,
+            color: 15,
             frame: "none",
         }
 
@@ -882,8 +804,7 @@ namespace ui {
         if (!source) return
         if (source.backgroundColor !== undefined)
             target.backgroundColor = source.backgroundColor
-        if (source.foregroundColor !== undefined)
-            target.foregroundColor = source.foregroundColor
+        if (source.color !== undefined) target.color = source.color
         if (source.frame !== undefined) target.frame = source.frame
         if (source.borderColor !== undefined)
             target.borderColor = source.borderColor

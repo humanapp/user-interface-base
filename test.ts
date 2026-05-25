@@ -1078,6 +1078,15 @@ namespace ui {
             singleExit.kind == "exited" && singleExit.direction == "right",
             "single button exit result",
         )
+        const sized = new UiButton({
+            scopeId: "fixed",
+            id: "fixed",
+            text: "Fixed",
+            size: { width: 60, height: 22 },
+        })
+        sized.measure({ maxWidth: 160, maxHeight: 120 }, measured)
+        control.assert(measured.preferredWidth == 60, "sized button width")
+        control.assert(measured.preferredHeight == 22, "sized button height")
     }
 
     /**
@@ -1095,8 +1104,7 @@ namespace ui {
             ],
             defaultControlId: "ok",
             columnCount: 2,
-            controlWidth: 44,
-            controlHeight: 18,
+            controlSize: { width: 44, height: 18 },
             columnGap: 4,
             controlStyle: UiButtonStyles.LightShadowedWhite,
             onActivate: value => {

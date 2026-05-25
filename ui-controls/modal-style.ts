@@ -21,7 +21,7 @@ namespace ui {
         /**
          * Text color for the modal title.
          */
-        titleColor?: number
+        color?: number
 
         /**
          * Extra vertical space between the title band and modal content.
@@ -59,7 +59,7 @@ namespace ui {
          */
         export const Default: UiModalStyle = {
             backgroundColor: 12,
-            titleColor: 1,
+            color: 1,
             contentMargin: 4,
             titleGap: 0,
             showTitleBar: true,
@@ -77,8 +77,7 @@ namespace ui {
         if (!source) return
         if (source.backgroundColor !== undefined)
             target.backgroundColor = source.backgroundColor
-        if (source.titleColor !== undefined)
-            target.titleColor = source.titleColor
+        if (source.color !== undefined) target.color = source.color
         if (source.contentMargin !== undefined)
             target.contentMargin = source.contentMargin
         if (source.titleGap !== undefined) target.titleGap = source.titleGap

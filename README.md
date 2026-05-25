@@ -167,6 +167,10 @@ custom reusable controls, implement a `UiFocusableView` and add it to a screen
 with `add()` or `addCentered()`. The screen will arrange it, register its focus
 targets, route input to it, and render it each frame.
 
+When a fixed control size is needed, use `size: { width, height }` on a single
+button or label. Pickers use `controlSize: { width, height }` for repeated
+control cells.
+
 ## 7. Open A Numeric Keypad
 
 **micro:bit apps UI** includes a modal keypad for number entry. For positive

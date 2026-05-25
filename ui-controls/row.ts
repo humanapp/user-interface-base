@@ -2,21 +2,11 @@ namespace ui {
     /**
      * Options for a one-dimensional control collection.
      */
-    export interface UiRowOptions<T> {
+    export interface UiRowOptions<T> extends UiControlCollectionOptions<T> {
         /**
          * Focus scope id for this row.
          */
         scopeId: UiFocusScopeId
-
-        /**
-         * Caller-owned control records in row order.
-         */
-        controls: UiControl<T>[]
-
-        /**
-         * Control id to focus first when available.
-         */
-        defaultControlId?: string
 
         /**
          * Scroll owner used when this row is arranged in scroll content.
@@ -24,34 +14,14 @@ namespace ui {
         scrollOwnerId?: UiFocusScrollOwnerId
 
         /**
-         * Width assigned to each control.
-         */
-        controlWidth?: number
-
-        /**
-         * Height assigned to each control.
-         */
-        controlHeight?: number
-
-        /**
          * Space between adjacent controls.
          */
         gap?: number
 
         /**
-         * Control style used by controls without a custom draw callback.
-         */
-        controlStyle?: UiButtonStyle
-
-        /**
          * Bounds used to keep control focus labels visible.
          */
         labelBounds?: Rect
-
-        /**
-         * Called when an enabled row control is activated.
-         */
-        onActivate?: UiControlActivateHandler<T>
     }
 
     /**
@@ -96,10 +66,8 @@ namespace ui {
             this.controls_ = options.controls
             this.defaultControlId_ = options.defaultControlId
             this.scrollOwnerId_ = options.scrollOwnerId
-            this.controlWidth_ = _uiControls.controlWidth(options.controlWidth)
-            this.controlHeight_ = _uiControls.controlHeight(
-                options.controlHeight,
-            )
+            this.controlWidth_ = _uiControls.controlWidth(options.controlSize)
+            this.controlHeight_ = _uiControls.controlHeight(options.controlSize)
             this.gap_ = _uiControls.gap(options.gap)
             this.layoutSpec = _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect()
@@ -478,17 +446,11 @@ namespace ui {
         }
 
         private controlWidth(control: UiControl<T>): number {
-            return _uiControls.sanitizeDimension(
-                control.width,
-                this.controlWidth_,
-            )
+            return _uiControls.sizeWidth(control.size, this.controlWidth_)
         }
 
         private controlHeight(control: UiControl<T>): number {
-            return _uiControls.sanitizeDimension(
-                control.height,
-                this.controlHeight_,
-            )
+            return _uiControls.sizeHeight(control.size, this.controlHeight_)
         }
 
         private controlGapBefore(control: UiControl<T>, index: number): number {
