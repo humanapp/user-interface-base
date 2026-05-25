@@ -1720,6 +1720,20 @@ namespace ui {
             deleteModalSurface.log.indexOf("bitmap:2x1;") >= 0,
             "numeric modal delete icon",
         )
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/digit-1")
+        deleteController.handleInput({ action: "down" })
+        control.assert(
+            deleteFocus.getActiveTargetId("numeric-delete") ==
+                "numeric-delete/toggleSign",
+            "numeric modal decimal sign key below one",
+        )
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/digit-3")
+        deleteController.handleInput({ action: "down" })
+        control.assert(
+            deleteFocus.getActiveTargetId("numeric-delete") ==
+                "numeric-delete/decimalPoint",
+            "numeric modal decimal point key below three",
+        )
         deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/delete")
         const deleteResult = deleteModal.handleFocusInput(
             deleteController.handleInput({ action: "activate" }),

@@ -836,10 +836,10 @@ namespace ui {
             keys.push(2)
             keys.push(3)
             if (this.deleteEnabled_) keys.push(UI_NUMERIC_ENTRY_KEY_DELETE)
-            if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT)
+            if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN)
             else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
             keys.push(0)
-            if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN)
+            if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT)
             else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
             keys.push(UI_NUMERIC_ENTRY_KEY_ENTER)
             return keys
