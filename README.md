@@ -1,10 +1,10 @@
-# micro:bit apps UI (user-interface-base)
+# **micro:bit apps UI** (user-interface-base)
 
-**micro:bit apps UI** is a small UI toolkit for building [micro:bit apps](https://microbit-apps.org/): apps that run on the [BBC micro:bit](https://microbit.org/) + [Display Shield](https://microbit-apps.org/getting-started/display-shields/).
+\***\*micro:bit apps UI\*\*** is a small UI toolkit for building [micro:bit apps](https://microbit-apps.org/): apps that run on the [BBC micro:bit](https://microbit.org/) + [Display Shield](https://microbit-apps.org/getting-started/display-shields/).
 
 ## The Short Version
 
-micro:bit apps UI gives an app a small screen runtime:
+**micro:bit apps UI** gives an app a small screen runtime:
 
 - Draw in a fixed `160x120` pixel coordinate space.
 - Put each app page in a `UiScreen`.
@@ -16,9 +16,9 @@ micro:bit apps UI gives an app a small screen runtime:
 You can draw directly in a screen, add screen-owned focusable views, or open
 modal UI such as the built-in numeric keypad.
 
-## 1. Think In Display Pixels
+## 1. Draw In Display Coordinates
 
-The Display Shield is `160x120` pixels. micro:bit apps UI uses that same
+The Display Shield is `160x120` pixels. **micro:bit apps UI** uses that same
 coordinate space, with `(0, 0)` at the top-left corner.
 
 ```ts
@@ -51,10 +51,10 @@ runtime.push(new HelloScreen())
 runtime.start()
 ```
 
-`start()` hooks a Display Shield frame callback that drives micro:bit apps UI. It
-updates controller repeat, delivers queued input to the active screen, calls the
-screen's `update()`, calls `render()`, and commits the frame. Call `stop()` when
-the app should stop drawing UI frames.
+`start()` registers a frame handler with the current MakeCode event context. It
+delivers queued input to the active screen, calls the
+screen's `update()`, calls `render()`, and commits the frame to the display
+adapter. Call `stop()` when the app should stop drawing UI frames.
 
 ## 3. Make A Screen Own App State
 
@@ -95,17 +95,30 @@ class CounterScreen extends ui.UiScreen {
 }
 ```
 
-Returning `true` means the screen handled the event. Returning `undefined` lets
-micro:bit apps UI try the screen's modal and focus routing.
+Returning `true` from `handleScreenInput` means the screen handled the event. Returning `undefined` lets
+**micro:bit apps UI** try the screen's modal and focus routing.
 
 ## 4. Input
 
-The runtime works with semantic actions, not specific buttons.
+The runtime works with semantic actions, not specific buttons. A
+`UiInputEvent` names what the user meant to do: `up`, `down`, `left`, `right`,
+`activate`, `cancel`, or `menu`.
 
-## 4. micro:bit Input Events
+Input events can also include a `source` such as `microbitButton`,
+`displayShieldController`, `keyboard`, or `synthetic`, and a `phase` such as
+`pressed`, `released`, or `repeated`. Most screens only need `action`; use
+`phase` when release events or key repeat should behave differently from the
+initial press.
 
-The runtime works with semantic actions, not specific buttons. Your app maps
-hardware input into actions.
+Call `runtime.dispatchInput()` from hardware callbacks, test code, or adapter
+code. The runtime queues those events and delivers them on the next frame. The
+active screen gets first chance through `handleScreenInput()`, then the runtime
+tries modal and focus routing when the screen returns `undefined`.
+
+## 5. Map micro:bit Input To Actions
+
+Map micro:bit button callbacks to the semantic actions your UI uses.
+For example, a simple two-button app can use A as activate and B as cancel.
 
 ```ts
 input.onButtonPressed(Button.A, function () {
@@ -123,10 +136,7 @@ input.onButtonPressed(Button.B, function () {
 })
 ```
 
-The action names are `up`, `down`, `left`, `right`, `activate`, `cancel`, and
-`menu`. Directional actions are useful when a screen has focusable controls.
-
-## 5. Draw Buttons When You Need Button UI
+## 6. Draw Buttons When You Need Button UI
 
 `UiButtonView` draws button frames, labels, icons, and focus treatment. It is a
 renderer, so a screen can use it directly for simple button-looking UI.
@@ -156,9 +166,9 @@ For reusable app controls, implement a `UiFocusableView` and add it to a screen
 with `add()` or `addCentered()`. The screen will arrange it, register its focus
 targets, route input to it, and render it each frame.
 
-## 6. Open A Numeric Keypad
+## 7. Open A Numeric Keypad
 
-micro:bit apps UI includes a modal keypad for number entry. Open it from a
+**micro:bit apps UI** includes a modal keypad for number entry. Open it from a
 screen, then handle the result in `onResult`.
 
 ```ts
@@ -213,7 +223,7 @@ a `completed` result and closes the modal automatically. If a screen overrides
 content. The base render method draws screen-owned views and the active modal on
 top of the screen.
 
-## 7. Use Assets When UI Refers To App-Owned Bitmaps Or Text
+## 8. Use Assets When UI Refers To App-Owned Bitmaps Or Text
 
 Controls can refer to bitmaps and labels by id. Provide an asset resolver when
 the runtime is created.
@@ -253,26 +263,20 @@ useful when reusable controls need stable ids instead of direct values.
 
 ## A Few Working Rules
 
-- Keep layout, focus, and drawing coordinates in pixels.
 - Prefer semantic input events inside screens instead of checking physical
   buttons in every screen.
 - Keep one runtime for the app and push, pop, or replace screens as the user
   moves through the app.
-- Reuse `Rect`, `Size`, and `UiMeasuredSize` objects in frame code when practical.
-- Use screen modals for short blocking tasks such as number entry.
+- Reuse `Rect`, `Size`, and `UiMeasuredSize` objects in frame code when practical. Avoid allocations in the render callback.
+- Use screen modals for short blocking tasks such as number entry and confirmation dialog.
 
 ## Getting Started
 
-micro:bit apps UI is a MakeCode extension. The public package name is
-`user-interface-base`, and the TypeScript namespace is `ui`.
+**micro:bit apps UI** is a MakeCode extension. There are two normal ways to use it:
 
-There are two normal ways to use it:
-
-- Work in the MakeCode Editor when you want the browser-based project workflow.
-- Work in VS Code when you want files on disk, source control, and command-line
+- **Work in the MakeCode Editor** when you want the browser-based project workflow.
+- **Work in VS Code** when you want files on disk, source control, and command-line
   builds.
-
-Both workflows use MakeCode's extension system.
 
 ### Workflow 1: MakeCode Editor
 
@@ -284,7 +288,7 @@ You need:
 - The [MakeCode editor for micro:bit](https://makecode.microbit.org).
 - A [BBC micro:bit](https://microbit.org/) and [Display Shield](https://microbit-apps.org/getting-started/display-shields/) when you want to run on hardware.
 
-To add micro:bit apps UI:
+To add **micro:bit apps UI**:
 
 1. Open `https://makecode.microbit.org` and create or open a project.
 2. Open the Extensions window from the toolbox.
@@ -296,7 +300,7 @@ To add micro:bit apps UI:
 
 4. Select the extension when MakeCode finds it.
 5. Switch to JavaScript view and use the `ui` namespace.
-6. The extension's toolbox category will be labeled `micro:bit apps UI`.
+6. The extension's toolbox category will be labeled `**micro:bit apps UI**`.
 
 ### Workflow 2: VS Code
 
@@ -305,8 +309,8 @@ VS Code and built from the command line.
 
 You need:
 
-- VS Code.
-- Node.js and npm.
+- [VS Code](https://code.visualstudio.com/download)
+- [Node.js and npm](https://nodejs.org/en/download)
 - The
   [Microsoft MakeCode Arcade VS Code extension](https://marketplace.visualstudio.com/items?itemName=ms-edu.pxt-vscode-web).
   Despite the name, it also works for micro:bit projects and is especially
@@ -332,7 +336,7 @@ open the MakeCode Action Palette. From there you can start the MakeCode simulato
 dependencies, add extensions by GitHub URL, and
 build for hardware.
 
-To add micro:bit apps UI to an existing local project, run this from the project
+To add **micro:bit apps UI** to an existing local project, run this from the project
 folder:
 
 ```sh
@@ -352,7 +356,7 @@ You can also edit the app's `pxt.json` directly:
 ```json
 {
     "dependencies": {
-        "user-interface-base": "github:microbit-apps/user-interface-base#v0.0.35"
+        "micro:bit apps UI": "github:microbit-apps/user-interface-base#v0.0.47"
     }
 }
 ```
