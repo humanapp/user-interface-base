@@ -160,19 +160,38 @@ class DataGraphScreen extends ui.UiScreen {
     private values: number[]
     private tick: number
     private graphRect: ui.Rect
+    private toggleButtonRect: ui.Rect
+    private toggleButtonView: ui.UiButtonView
+    private running: boolean
 
     constructor() {
         super()
         this.backgroundColor = 0
         this.tick = 0
+        this.running = true
         this.graphRect = new ui.Rect(8, 22, 144, 70)
+        this.toggleButtonRect = new ui.Rect(46, 98, 68, 18)
+        this.toggleButtonView = new ui.UiButtonView({
+            style: ui.UiButtonStyles.LightShadowedWhite,
+        })
         this.values = [
             24, 28, 35, 40, 46, 52, 58, 63, 68, 72, 70, 66, 60, 54, 48, 42, 36,
             31, 27, 25,
         ]
     }
 
+    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+        if (event.action == "activate" && event.phase != "released") {
+            this.running = !this.running
+            return true
+        }
+
+        return undefined
+    }
+
     public update(): void {
+        if (!this.running) return
+
         this.tick += 1
         if (this.tick % 6 != 0) return
 
@@ -217,6 +236,14 @@ class DataGraphScreen extends ui.UiScreen {
             previousX = x
             previousY = y
         }
+
+        const toggleText = this.running ? "Stop" : "Start"
+        this.toggleButtonView.render(surface, this.toggleButtonRect, {
+            text: toggleText,
+        })
+        this.toggleButtonView.renderFocus(surface, this.toggleButtonRect, {
+            text: toggleText,
+        })
 
         super.render(surface)
     }
