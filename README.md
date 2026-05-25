@@ -222,44 +222,6 @@ a `completed` result and closes the modal automatically. If a screen overrides
 content. The base render method draws screen-owned views and the active modal on
 top of the screen.
 
-## 8. Use Assets When UI Refers To App-Owned Bitmaps Or Text
-
-Controls can refer to bitmaps and labels by id. Provide an asset resolver when
-the runtime is created.
-
-```ts
-class AppAssets implements ui.UiAssetResolver {
-    public getBitmap(
-        id: string | number,
-        nullIfMissing?: boolean,
-    ): Bitmap | undefined {
-        if (id == "start") {
-            return bmp`
-                . 7 .
-                7 7 7
-                . 7 .
-            `
-        }
-
-        if (nullIfMissing) return undefined
-        return bmp`.`
-    }
-
-    public getText(id: string): string {
-        if (id == "startLabel") return "Start"
-        return ""
-    }
-}
-
-const runtime = new ui.UiRuntime({
-    display: new ui.DisplayShieldFrameAdapter(),
-    assets: new AppAssets(),
-})
-```
-
-Screens can also keep bitmaps and strings as fields. Asset resolvers are most
-useful when reusable controls need stable ids instead of direct values.
-
 ## A Few Working Rules
 
 - Prefer semantic input events inside screens instead of checking physical
@@ -269,7 +231,7 @@ useful when reusable controls need stable ids instead of direct values.
 - Reuse `Rect`, `Size`, and `UiMeasuredSize` objects in frame code when practical. Avoid allocations in the render callback.
 - Use screen modals for short blocking tasks such as number entry and confirmation dialog.
 
-## Getting Started
+## Using **micro:bit apps UI**
 
 **micro:bit apps UI** is a MakeCode extension. There are two normal ways to use it:
 
@@ -371,6 +333,44 @@ mkc build
 
 These examples show small patterns you can copy into an app. They start with
 reusable controls, then move into custom drawing for app-specific screens.
+
+### Using App-Owned Bitmaps Or Text in UI
+
+Controls can refer to bitmaps and labels by id. Provide an asset resolver when
+the runtime is created.
+
+```ts
+class AppAssets implements ui.UiAssetResolver {
+    public getBitmap(
+        id: string | number,
+        nullIfMissing?: boolean,
+    ): Bitmap | undefined {
+        if (id == "start") {
+            return bmp`
+                . 7 .
+                7 7 7
+                . 7 .
+            `
+        }
+
+        if (nullIfMissing) return undefined
+        return bmp`.`
+    }
+
+    public getText(id: string): string {
+        if (id == "startLabel") return "Start"
+        return ""
+    }
+}
+
+const runtime = new ui.UiRuntime({
+    display: new ui.DisplayShieldFrameAdapter(),
+    assets: new AppAssets(),
+})
+```
+
+Screens can also keep bitmaps and strings as fields. Asset resolvers are most
+useful when reusable controls need stable ids instead of direct values.
 
 ### Confirmation Dialog
 
