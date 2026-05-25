@@ -235,7 +235,7 @@ top of the screen.
 
 **micro:bit apps UI** is a MakeCode extension. There are two normal ways to use it:
 
-- **Work in the MakeCode Editor** when you want the browser-based project workflow.
+- **Work in the MakeCode Editor** when you want the in-editor project workflow.
 - **Work in VS Code** when you want files on disk, source control, and command-line
   builds.
 
