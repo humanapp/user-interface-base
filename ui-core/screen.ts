@@ -84,17 +84,18 @@ namespace ui {
         /**
          * Adds a root view rendered and routed by this screen.
          */
-        public add<TResult>(
-            view: UiFocusableView<TResult>,
+        public add<TView extends UiView<any>>(
+            view: TView,
             placement?: UiPlacement,
-        ): UiFocusableView<TResult> {
-            const root = createScreenRoot<TResult>(view, placement)
+        ): TView {
+            const root = createScreenRoot(view, placement)
             this.roots_.push(root)
             if (placement && (this.entered_ || this.hasExplicitSize(placement)))
                 this.arrangeRoot(root)
             if (this.entered_) {
                 this.registerRoot(root)
-                if (this.roots_.length == 1) view.focusDefault(this.focus_)
+                if (this.focus_.getActiveScopeId() === undefined)
+                    this.focusFirstRoot()
             }
             return view
         }
@@ -102,12 +103,12 @@ namespace ui {
         /**
          * Adds a root view in a horizontally centered band.
          */
-        public addCentered<TResult>(
-            view: UiFocusableView<TResult>,
+        public addCentered<TView extends UiView<any>>(
+            view: TView,
             centerY: number,
             width: number,
             height: number,
-        ): UiFocusableView<TResult> {
+        ): TView {
             return this.add(view, {
                 x: 0,
                 centerY,
@@ -134,8 +135,7 @@ namespace ui {
                 if (root.placement) this.arrangeRoot(root)
                 this.registerRoot(root)
             }
-            if (this.roots_.length > 0)
-                this.roots_[0].view.focusDefault(this.focus_)
+            this.focusFirstRoot()
         }
 
         /**
@@ -233,6 +233,7 @@ namespace ui {
         }
 
         private registerRoot<TResult>(root: UiScreenRoot<TResult>): void {
+            if (!isFocusableView(root.view)) return
             root.view.registerFocusTargets(this.focus_)
             root.view.registerNavigation(this.focusInput_)
         }
@@ -367,8 +368,18 @@ namespace ui {
             result: UiFocusInputResult,
         ): boolean | undefined {
             for (let i = 0; i < this.roots_.length; i++) {
-                const viewResult = this.roots_[i].view.handleFocusInput(result)
+                const view = this.roots_[i].view
+                if (!isFocusableView(view)) continue
+                const viewResult = view.handleFocusInput(result)
                 if (viewResult) return this.defaultHandled(viewResult)
+            }
+            return undefined
+        }
+
+        private focusFirstRoot(): UiFocusSetResult | undefined {
+            for (let i = 0; i < this.roots_.length; i++) {
+                const view = this.roots_[i].view
+                if (isFocusableView(view)) return view.focusDefault(this.focus_)
             }
             return undefined
         }
@@ -427,7 +438,7 @@ namespace ui {
     }
 
     interface UiScreenRoot<TResult> {
-        view: UiFocusableView<TResult>
+        view: UiView<TResult>
         placement: UiPlacement
         rect: Rect
         childRect: Rect
@@ -436,7 +447,7 @@ namespace ui {
     }
 
     function createScreenRoot<TResult>(
-        view: UiFocusableView<TResult>,
+        view: UiView<TResult>,
         placement?: UiPlacement,
     ): UiScreenRoot<TResult> {
         return {
@@ -447,6 +458,12 @@ namespace ui {
             constraints: { maxWidth: 0, maxHeight: 0 },
             measured: new UiMeasuredSize(),
         }
+    }
+
+    function isFocusableView<TResult>(
+        view: UiView<TResult>,
+    ): view is UiFocusableView<TResult> {
+        return !!(<any>view).registerFocusTargets
     }
 
     interface UiScreenInput {

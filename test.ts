@@ -1169,6 +1169,7 @@ namespace ui {
             display: new RuntimeSmokeDisplayAdapter(() => {}),
             assets: new ControlSmokeAssets(),
         })
+        screen.add(new UiLabel("Screen", 1), { x: 2, y: 3 })
         const screenRow = new ControlSmokeRoot(
             "screen-row",
             24,
@@ -1253,7 +1254,11 @@ namespace ui {
         const screenSurface = new ControlSmokeSurface()
         screen.render(screenSurface)
         control.assert(
-            screenSurface.log.length > 0,
+            screenSurface.log.indexOf("text:Screen;") >= 0,
+            "screen controller renders passive label",
+        )
+        control.assert(
+            screenSurface.log.indexOf("fill:1;") >= 0,
             "screen controller renders roots",
         )
 

@@ -12,11 +12,15 @@ class HelloScreen extends ui.UiScreen {
 
 class CounterScreen extends ui.UiScreen {
     private count: number
+    private countLabel: ui.UiLabel
 
     constructor() {
         super()
         this.count = 0
         this.backgroundColor = 0
+        this.add(new ui.UiLabel("Count:", 1), { x: 8, y: 8 })
+        this.countLabel = new ui.UiLabel("0", 7)
+        this.add(this.countLabel, { x: 8, y: 24 })
     }
 
     public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
@@ -24,53 +28,49 @@ class CounterScreen extends ui.UiScreen {
 
         if (event.action == "activate") {
             this.count += 1
-            return true
-        }
-
-        if (event.action == "cancel") {
+        } else if (event.action == "cancel") {
             this.count = 0
-            return true
+        } else {
+            return undefined
         }
 
-        return undefined
-    }
-
-    public render(surface: ui.DrawSurface): void {
-        surface.drawText("Count:", 8, 8, { color: 1 })
-        surface.drawText("" + this.count, 8, 24, { color: 7 })
-        super.render(surface)
+        this.countLabel.setText("" + this.count)
+        return true
     }
 }
 
 class StartScreen extends ui.UiScreen {
     private status: "Ready" | "Started" | "Stopped"
+    private statusLabel: ui.UiLabel
     private toggleButton: ui.UiButton
 
     constructor() {
         super()
         this.status = "Ready"
+        this.statusLabel = new ui.UiLabel(this.status, 1)
         this.toggleButton = new ui.UiButton("start", "Start", () => {
             this.status = this.status == "Started" ? "Stopped" : "Started"
+            this.statusLabel.setText(this.status)
             this.toggleButton.setText(
                 this.status == "Started" ? "Stop" : "Start",
             )
         })
+        this.add(this.statusLabel, { x: 8, y: 8 })
         this.add(this.toggleButton, { centerX: 80, centerY: 60 })
-    }
-
-    public render(surface: ui.DrawSurface): void {
-        surface.drawText(this.status, 8, 8, { color: 1 })
-        super.render(surface)
     }
 }
 
 class SettingsScreen extends ui.UiScreen {
     private speed: number
+    private speedLabel: ui.UiLabel
 
     constructor() {
         super()
         this.speed = 5
         this.backgroundColor = 8
+        this.add(new ui.UiLabel("Speed", 1), { x: 8, y: 8 })
+        this.speedLabel = new ui.UiLabel("" + this.speed, 7)
+        this.add(this.speedLabel, { x: 8, y: 24 })
     }
 
     public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
@@ -80,12 +80,6 @@ class SettingsScreen extends ui.UiScreen {
         }
 
         return undefined
-    }
-
-    public render(surface: ui.DrawSurface): void {
-        surface.drawText("Speed", 8, 8, { color: 1 })
-        surface.drawText("" + this.speed, 8, 24, { color: 7 })
-        super.render(surface)
     }
 
     private openSpeedEditor(): void {
@@ -99,6 +93,7 @@ class SettingsScreen extends ui.UiScreen {
             onResult: result => {
                 if (result.kind == "completed") {
                     this.speed = result.value
+                    this.speedLabel.setText("" + this.speed)
                 }
             },
         })
@@ -110,11 +105,15 @@ type ConfirmChoice = "cancel" | "ok"
 
 class SaveScreen extends ui.UiScreen {
     private status: string
+    private statusLabel: ui.UiLabel
 
     constructor() {
         super()
         this.status = "Not saved"
         this.backgroundColor = 8
+        this.statusLabel = new ui.UiLabel(`Status: ${this.status}`, 7)
+        this.add(this.statusLabel, { x: 8, y: 8 })
+        this.add(new ui.UiLabel("Press A to save", 1), { x: 8, y: 18 })
     }
 
     public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
@@ -124,12 +123,6 @@ class SaveScreen extends ui.UiScreen {
         }
 
         return undefined
-    }
-
-    public render(surface: ui.DrawSurface): void {
-        surface.drawText(`Status: ${this.status}`, 8, 8, { color: 7 })
-        surface.drawText("Press A to save", 8, 18, { color: 1 })
-        super.render(surface)
     }
 
     private openConfirmDialog(): void {
@@ -149,9 +142,11 @@ class SaveScreen extends ui.UiScreen {
             modalStyle: ui.modalStyle(ui.UiModalStyles.Default),
             onActivate: choice => {
                 this.status = choice == "ok" ? "Saved" : "Cancelled"
+                this.statusLabel.setText(`Status: ${this.status}`)
             },
             onCancel: () => {
                 this.status = "Cancelled"
+                this.statusLabel.setText(`Status: ${this.status}`)
             },
         })
 
@@ -163,6 +158,7 @@ class DataGraphScreen extends ui.UiScreen {
     private values: number[]
     private tick: number
     private graphRect: ui.Rect
+    private valueLabel: ui.UiLabel
     private toggleButton: ui.UiButton
     private running: boolean
 
@@ -172,15 +168,21 @@ class DataGraphScreen extends ui.UiScreen {
         this.tick = 0
         this.running = true
         this.graphRect = new ui.Rect(8, 22, 144, 70)
+        this.add(new ui.UiLabel("Signal", 1), { x: 8, y: 6 })
         this.toggleButton = new ui.UiButton("toggle", "Stop", () => {
             this.running = !this.running
             this.toggleButton.setText(this.running ? "Stop" : "Start")
         })
-        this.add(this.toggleButton, { centerX: 80, centerY: 107 })
         this.values = [
             24, 28, 35, 40, 46, 52, 58, 63, 68, 72, 70, 66, 60, 54, 48, 42, 36,
             31, 27, 25,
         ]
+        this.valueLabel = new ui.UiLabel(
+            "" + this.values[this.values.length - 1],
+            7,
+        )
+        this.add(this.valueLabel, { x: 128, y: 6 })
+        this.add(this.toggleButton, { centerX: 80, centerY: 107 })
     }
 
     public update(): void {
@@ -193,14 +195,10 @@ class DataGraphScreen extends ui.UiScreen {
         const wave = phase < 10 ? phase : 20 - phase
         this.values.removeAt(0)
         this.values.push(25 + wave * 6)
+        this.valueLabel.setText("" + this.values[this.values.length - 1])
     }
 
     public render(surface: ui.DrawSurface): void {
-        surface.drawText("Signal", 8, 6, { color: 1 })
-        surface.drawText("" + this.values[this.values.length - 1], 128, 6, {
-            color: 7,
-        })
-
         surface.drawRect(this.graphRect, 1)
         surface.drawLine(
             this.graphRect.x + 1,
@@ -239,5 +237,10 @@ const runtime = new ui.UiRuntime({
     display: new ui.DisplayShieldFrameAdapter(),
     clearColor: 0,
 })
-runtime.push(new StartScreen())
+//runtime.push(new HelloScreen())
+//runtime.push(new CounterScreen())
+//runtime.push(new SettingsScreen())
+runtime.push(new SaveScreen())
+//runtime.push(new StartScreen())
+//runtime.push(new DataGraphScreen())
 runtime.start()

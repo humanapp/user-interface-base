@@ -18,6 +18,7 @@
         "ui-core/view.ts",
         "ui-core/modal.ts",
         "ui-controls/button.ts",
+        "ui-controls/label.ts",
         "ui-controls/control.ts",
         "ui-controls/modal-style.ts",
         "ui-controls/modal-grid.ts",
