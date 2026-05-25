@@ -138,31 +138,36 @@ input.onButtonPressed(Button.B, function () {
 
 ## 6. Draw Buttons When You Need Button UI
 
-`UiButtonView` draws button frames, labels, icons, and focus treatment. It is a
-renderer, so a screen can use it directly for simple button-looking UI.
+`UiButton` is the simplest way to place one focused button on a screen. It owns
+the layout rectangle, renders through the standard button view, registers its
+focus target, and invokes its activation callback.
 
 ```ts
 class StartScreen extends ui.UiScreen {
-    private buttonView: ui.UiButtonView
-    private buttonRect: ui.Rect
+    private status: "Ready" | "Started" | "Stopped"
+    private toggleButton: ui.UiButton
 
     constructor() {
         super()
-        this.buttonView = new ui.UiButtonView({
-            style: ui.UiButtonStyles.LightShadowedWhite,
+        this.status = "Ready"
+        this.toggleButton = new ui.UiButton("start", "Start", () => {
+            this.status = this.status == "Started" ? "Stopped" : "Started"
+            this.toggleButton.setText(
+                this.status == "Started" ? "Stop" : "Start",
+            )
         })
-        this.buttonRect = new ui.Rect(48, 48, 64, 24)
+        this.add(this.toggleButton, { centerX: 80, centerY: 60 })
     }
 
     public render(surface: ui.DrawSurface): void {
-        this.buttonView.render(surface, this.buttonRect, { text: "Start" })
-        this.buttonView.renderFocus(surface, this.buttonRect, { text: "Start" })
+        surface.drawText(this.status, 8, 8, { color: 1 })
         super.render(surface)
     }
 }
 ```
 
-For reusable app controls, implement a `UiFocusableView` and add it to a screen
+Use `UiButtonView` directly only when you need the lower-level renderer. For
+custom reusable controls, implement a `UiFocusableView` and add it to a screen
 with `add()` or `addCentered()`. The screen will arrange it, register its focus
 targets, route input to it, and render it each frame.
 
@@ -443,8 +448,7 @@ class DataGraphScreen extends ui.UiScreen {
     private values: number[]
     private tick: number
     private graphRect: ui.Rect
-    private toggleButtonRect: ui.Rect
-    private toggleButtonView: ui.UiButtonView
+    private toggleButton: ui.UiButton
     private running: boolean
 
     constructor() {
@@ -453,23 +457,15 @@ class DataGraphScreen extends ui.UiScreen {
         this.tick = 0
         this.running = true
         this.graphRect = new ui.Rect(8, 22, 144, 70)
-        this.toggleButtonRect = new ui.Rect(46, 98, 68, 18)
-        this.toggleButtonView = new ui.UiButtonView({
-            style: ui.UiButtonStyles.LightShadowedWhite,
+        this.toggleButton = new ui.UiButton("toggle", "Stop", () => {
+            this.running = !this.running
+            this.toggleButton.setText(this.running ? "Stop" : "Start")
         })
+        this.add(this.toggleButton, { centerX: 80, centerY: 107 })
         this.values = [
             24, 28, 35, 40, 46, 52, 58, 63, 68, 72, 70, 66, 60, 54, 48, 42, 36,
             31, 27, 25,
         ]
-    }
-
-    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
-        if (event.action == "activate" && event.phase != "released") {
-            this.running = !this.running
-            return true
-        }
-
-        return undefined
     }
 
     public update(): void {
@@ -519,14 +515,6 @@ class DataGraphScreen extends ui.UiScreen {
             previousX = x
             previousY = y
         }
-
-        const toggleText = this.running ? "Stop" : "Start"
-        this.toggleButtonView.render(surface, this.toggleButtonRect, {
-            text: toggleText,
-        })
-        this.toggleButtonView.renderFocus(surface, this.toggleButtonRect, {
-            text: toggleText,
-        })
 
         super.render(surface)
     }

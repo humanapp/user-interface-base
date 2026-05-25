@@ -5,6 +5,10 @@ namespace ui {
     const BUTTON_FOCUS_LABEL_PADDING = 1
     const BUTTON_CONTENT_GAP = 3
     const BUTTON_DEFAULT_FONT = bitmaps.font8
+    const BUTTON_CONTROL_HORIZONTAL_PADDING = 16
+    const BUTTON_CONTROL_VERTICAL_PADDING = 8
+    const BUTTON_CONTROL_MIN_WIDTH = 24
+    const BUTTON_CONTROL_MIN_HEIGHT = 20
 
     /**
      * Border or frame treatment drawn behind button content.
@@ -329,6 +333,463 @@ namespace ui {
 
         private contentHeight(content: UiButtonContent): number {
             return content.bitmap ? content.bitmap.height : 0
+        }
+    }
+
+    /**
+     * Options for one screen-managed button control.
+     */
+    export interface UiButtonOptions<T = string> {
+        /**
+         * Focus scope id for this button.
+         */
+        scopeId: UiFocusScopeId
+
+        /**
+         * Stable caller id for this button.
+         */
+        id: string
+
+        /**
+         * Typed value returned when this button is activated. Omitted values use
+         * the button id.
+         */
+        value?: T
+
+        /**
+         * Visible label text. Takes precedence over `textId`.
+         */
+        text?: string
+
+        /**
+         * Resolver-backed label id used when `text` is omitted.
+         */
+        textId?: string
+
+        /**
+         * Focus label text. Takes precedence over `focusLabelId`.
+         */
+        focusLabel?: string
+
+        /**
+         * Resolver-backed focus label id used when `focusLabel` is omitted.
+         */
+        focusLabelId?: string
+
+        /**
+         * Bitmap drawn for this button. Takes precedence over `bitmapId`.
+         */
+        bitmap?: Bitmap
+
+        /**
+         * Resolver-backed bitmap id used when `bitmap` is omitted.
+         */
+        bitmapId?: string | number
+
+        /**
+         * When true, missing resolver-backed bitmaps are not drawn.
+         */
+        omitMissingBitmap?: boolean
+
+        /**
+         * Width requested by the button.
+         */
+        width?: number
+
+        /**
+         * Height requested by the button.
+         */
+        height?: number
+
+        /**
+         * Whether this visible button can receive focus. Omitted values are
+         * treated as `true`.
+         */
+        focusable?: boolean
+
+        /**
+         * Button style used when rendering.
+         */
+        style?: UiButtonStyle
+
+        /**
+         * Whether this button participates in layout, rendering, focus, and hit
+         * testing. Omitted values are treated as `true`.
+         */
+        visible?: boolean
+
+        /**
+         * Scroll owner used when this button is arranged in scroll content.
+         */
+        scrollOwnerId?: UiFocusScrollOwnerId
+
+        /**
+         * Bounds used to keep the focus label visible. Omitted values use the
+         * active display surface's pixel bounds when available.
+         */
+        labelBounds?: Rect
+
+        /**
+         * Optional callback invoked when this button is activated.
+         */
+        onActivate?: UiControlActivateHandler<T>
+    }
+
+    /**
+     * Result emitted by a single button control.
+     */
+    export type UiButtonResult<T = string> =
+        | {
+              kind: "activated"
+              controlId: string
+              value: T
+              control: UiControl<T>
+          }
+        | {
+              kind: "exited"
+              direction: UiFocusDirection
+              scopeId: UiFocusScopeId
+              controlId?: string
+          }
+
+    /**
+     * Screen-managed button with retained layout, focus, rendering, and activation.
+     */
+    export class UiButton<T = string>
+        implements UiFocusableView<UiButtonResult<T>>, UiFocusNavigationProvider
+    {
+        public readonly layoutSpec: UiLayoutSpec
+        public readonly finalRect: Rect
+        public layoutDirty: boolean
+        private scopeId_: UiFocusScopeId
+        private control_: UiControl<T>
+        private scrollOwnerId_: UiFocusScrollOwnerId
+        private labelBounds_: Rect
+        private controlView_: UiButtonView
+
+        /**
+         * Creates a button from full options or from `id`, `text`, and callback.
+         */
+        constructor(
+            options: UiButtonOptions<T> | string,
+            text?: string,
+            onActivate?: () => void,
+        ) {
+            options = this.resolveOptions(options, text, onActivate)
+            this.scopeId_ = options.scopeId
+            this.control_ = <UiControl<T>>options
+            if (this.control_.value === undefined)
+                this.control_.value = <any>options.id
+            if (!this.control_.style)
+                this.control_.style = UiButtonStyles.LightShadowedWhite
+            this.scrollOwnerId_ = options.scrollOwnerId
+            this.labelBounds_ = options.labelBounds
+            this.layoutSpec = _uiControls.defaultLayoutSpec()
+            this.finalRect = new Rect()
+            this.layoutDirty = true
+            this.controlView_ = new UiButtonView({ style: options.style })
+        }
+
+        /**
+         * Focus scope id used by this button.
+         */
+        public get scopeId(): UiFocusScopeId {
+            return this.scopeId_
+        }
+
+        /**
+         * Caller-owned control record rendered by this button.
+         */
+        public get control(): UiControl<T> {
+            return this.control_
+        }
+
+        /**
+         * Updates the visible button text and returns this button.
+         */
+        public setText(text: string): UiButton<T> {
+            this.control_.text = text
+            return this
+        }
+
+        /**
+         * Measures this button under parent constraints.
+         */
+        public measure(
+            constraints: UiLayoutConstraints,
+            output: UiMeasuredSize,
+        ): void {
+            const width =
+                this.control_.width !== undefined
+                    ? _uiControls.controlWidth(this.control_.width)
+                    : this.preferredWidth()
+            const height =
+                this.control_.height !== undefined
+                    ? _uiControls.controlHeight(this.control_.height)
+                    : this.preferredHeight()
+            measureLayoutSpec(
+                this.layoutSpec,
+                constraints,
+                width,
+                height,
+                width,
+                height,
+                output,
+            )
+            this.clearLayoutInvalidation()
+        }
+
+        /**
+         * Assigns the button rectangle for rendering and focus.
+         */
+        public arrange(rect: Rect): void {
+            copyArrangedLayoutRect(this.finalRect, rect)
+            this.clearLayoutInvalidation()
+        }
+
+        /**
+         * Marks the button as needing layout.
+         */
+        public invalidateLayout(): void {
+            this.layoutDirty = true
+        }
+
+        /**
+         * Clears this button's layout invalidation flag.
+         */
+        public clearLayoutInvalidation(): void {
+            this.layoutDirty = false
+        }
+
+        /**
+         * Registers this button's focus scope and target.
+         */
+        public registerFocusTargets(focus: UiFocusState): void {
+            const targetId = this.targetId()
+            const focusable = this.isNavigationControl()
+            focus.setScope({
+                id: this.scopeId_,
+                preferredTargetId: focusable ? targetId : undefined,
+            })
+            if (!focusable) return
+            focus.setTarget({
+                id: targetId,
+                scopeId: this.scopeId_,
+                rect: this.finalRect,
+                scrollOwnerId: this.scrollOwnerId_,
+                scrollRect: this.scrollOwnerId_ ? this.finalRect : undefined,
+                activatable: true,
+            })
+        }
+
+        /**
+         * Registers button navigation with a focus input controller.
+         */
+        public registerNavigation(controller: UiFocusInputController): void {
+            controller.setNavigation(this.scopeId_, this)
+        }
+
+        /**
+         * Focuses this button when it is available.
+         */
+        public focusDefault(focus: UiFocusState): UiFocusSetResult {
+            return focus.setActiveScope(this.scopeId_)
+        }
+
+        /**
+         * Returns this button's boundary result for directional focus movement.
+         */
+        public move(request: UiFocusNavigationRequest): UiFocusMoveResult {
+            if (
+                request.scopeId != this.scopeId_ ||
+                request.currentTargetId != this.targetId() ||
+                !this.isNavigationControl()
+            )
+                return {
+                    kind: "stayed",
+                    scopeId: request.scopeId,
+                    targetId: request.currentTargetId,
+                    reason: "missingActive",
+                }
+            return {
+                kind: "exited",
+                scopeId: this.scopeId_,
+                targetId: request.currentTargetId,
+                direction: request.direction,
+            }
+        }
+
+        /**
+         * Converts a focus input result into a button result when one occurred.
+         */
+        public handleFocusInput(result: UiFocusInputResult): UiButtonResult<T> {
+            if (result.kind == "activated") {
+                const activation = this.createResultForActivation(
+                    result.scopeId,
+                    result.targetId,
+                )
+                this.emitActivate(activation)
+                return activation
+            }
+            if (result.kind == "exited") {
+                return this.createResultForMove(
+                    result.scopeId,
+                    result.targetId,
+                    result.direction,
+                )
+            }
+            return undefined
+        }
+
+        /**
+         * Converts a focus activation result into a typed button activation.
+         */
+        public createResultForActivation(
+            scopeId: UiFocusScopeId,
+            targetId: UiFocusId,
+        ): UiButtonResult<T> {
+            if (scopeId != this.scopeId_ || targetId != this.targetId())
+                return undefined
+            return {
+                kind: "activated",
+                controlId: this.control_.id,
+                value: this.control_.value,
+                control: this.control_,
+            }
+        }
+
+        /**
+         * Converts a focus movement result into a button boundary exit.
+         */
+        public createResultForMove(
+            scopeId: UiFocusScopeId,
+            targetId: UiFocusId,
+            direction: UiFocusDirection,
+        ): UiButtonResult<T> {
+            if (scopeId != this.scopeId_ || targetId != this.targetId())
+                return undefined
+            return {
+                kind: "exited",
+                direction,
+                scopeId,
+                controlId: this.control_.id,
+            }
+        }
+
+        /**
+         * Renders the button and its focused overlay.
+         */
+        public render(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            if (!_uiControls.isVisible(this.control_)) return
+            const labelBounds = _uiControls.resolveLabelBounds(
+                surface,
+                this.labelBounds_,
+            )
+            _uiControls.renderControl(
+                surface,
+                assets,
+                this.control_,
+                this.finalRect,
+                this.controlView_,
+                undefined,
+                labelBounds,
+            )
+            if (this.isFocused(focus)) {
+                _uiControls.renderControl(
+                    surface,
+                    assets,
+                    this.control_,
+                    this.finalRect,
+                    this.controlView_,
+                    undefined,
+                    labelBounds,
+                    true,
+                )
+            }
+        }
+
+        private targetId(): UiFocusId {
+            return _uiControls.targetId(this.scopeId_, this.control_.id)
+        }
+
+        private isNavigationControl(): boolean {
+            return (
+                _uiControls.isVisible(this.control_) &&
+                _uiControls.isFocusable(this.control_)
+            )
+        }
+
+        private isFocused(focus?: UiFocusState): boolean {
+            return (
+                _uiControls.activeTargetIdForScope(focus, this.scopeId_) ==
+                this.targetId()
+            )
+        }
+
+        private emitActivate(result: UiButtonResult<T>): void {
+            if (!result || result.kind != "activated") return
+            _uiControls.emitControlActivate(
+                result.value,
+                result.control,
+                result.controlId,
+            )
+        }
+
+        private resolveOptions(
+            options: UiButtonOptions<T> | string,
+            text?: string,
+            onActivate?: () => void,
+        ): UiButtonOptions<T> {
+            if (typeof options != "string") return options
+            const id = options
+            return <UiButtonOptions<T>>{
+                scopeId: id,
+                id,
+                text,
+                onActivate: onActivate
+                    ? () => {
+                          onActivate()
+                      }
+                    : undefined,
+            }
+        }
+
+        private preferredWidth(): number {
+            const style =
+                this.control_.style || UiButtonStyles.LightShadowedWhite
+            const font = style.font || BUTTON_DEFAULT_FONT
+            const text = this.control_.text || ""
+            const textWidth = text.length ? font.charWidth * text.length : 0
+            const bitmapWidth = this.control_.bitmap
+                ? this.control_.bitmap.width
+                : 0
+            const gap = textWidth && bitmapWidth ? BUTTON_CONTENT_GAP : 0
+            return Math.max(
+                BUTTON_CONTROL_MIN_WIDTH,
+                bitmapWidth +
+                    gap +
+                    textWidth +
+                    BUTTON_CONTROL_HORIZONTAL_PADDING,
+            )
+        }
+
+        private preferredHeight(): number {
+            const style =
+                this.control_.style || UiButtonStyles.LightShadowedWhite
+            const font = style.font || BUTTON_DEFAULT_FONT
+            const textHeight = this.control_.text ? font.charHeight : 0
+            const bitmapHeight = this.control_.bitmap
+                ? this.control_.bitmap.height
+                : 0
+            return Math.max(
+                BUTTON_CONTROL_MIN_HEIGHT,
+                Math.max(textHeight, bitmapHeight) +
+                    BUTTON_CONTROL_VERTICAL_PADDING,
+            )
         }
     }
 

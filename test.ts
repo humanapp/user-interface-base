@@ -1025,6 +1025,57 @@ namespace ui {
             surface.log.indexOf("text:go;") >= 0,
             "control focus label text",
         )
+
+        let activated = ""
+        const single = new UiButton("start", "Start", () => {
+            activated = "called"
+        })
+        const measured = new UiMeasuredSize()
+        single.measure({ maxWidth: 160, maxHeight: 120 }, measured)
+        control.assert(
+            measured.preferredWidth == 46,
+            "single button measured width",
+        )
+        control.assert(
+            measured.preferredHeight == 20,
+            "single button measured height",
+        )
+        single.arrange(new Rect(4, 5, 46, 20))
+        const focus = new UiFocusState()
+        const controller = new UiFocusInputController({ focus })
+        single.registerFocusTargets(focus)
+        single.registerNavigation(controller)
+        single.focusDefault(focus)
+        control.assert(
+            focus.getActiveTargetId("start") == "start/start",
+            "single button focused target",
+        )
+        surface.log = ""
+        single.render(surface, new ControlSmokeAssets(), focus)
+        control.assert(
+            surface.log.indexOf("text:Start;") >= 0,
+            "single button text render",
+        )
+        control.assert(
+            surface.log.indexOf("line:9;") >= 0,
+            "single button focus render",
+        )
+        const singleActivate = single.handleFocusInput(
+            controller.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            singleActivate.kind == "activated" &&
+                singleActivate.value == "start",
+            "single button activation result",
+        )
+        control.assert(activated == "called", "single button callback")
+        const singleExit = single.handleFocusInput(
+            controller.handleInput({ action: "right" }),
+        )
+        control.assert(
+            singleExit.kind == "exited" && singleExit.direction == "right",
+            "single button exit result",
+        )
     }
 
     /**
