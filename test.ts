@@ -1127,7 +1127,7 @@ namespace ui {
         const surface = new ControlSmokeSurface()
         picker.render(surface, new ControlSmokeAssets(), focus)
         control.assert(
-            surface.log.indexOf("rounded:15:1;") >= 0,
+            surface.log.indexOf("rounded:15:10;") >= 0,
             "picker rounded panel",
         )
         control.assert(
@@ -1151,6 +1151,58 @@ namespace ui {
         )
         control.assert(cancelResult.kind == "cancelled", "picker cancel result")
         control.assert(cancelled == "confirm", "picker cancel callback")
+
+        let simpleActivated = ""
+        let simpleCancelled = ""
+        const simplePicker = new UiPicker(
+            "simple-confirm",
+            "Continue?",
+            ["No", "Yes"],
+            value => {
+                simpleActivated = value
+            },
+            scopeId => {
+                simpleCancelled = scopeId
+            },
+        )
+        const simpleMeasured = new UiMeasuredSize()
+        simplePicker.measure({ maxWidth: 160, maxHeight: 120 }, simpleMeasured)
+        simplePicker.arrange(new Rect(0, 0, simpleMeasured.preferredWidth, 56))
+        const simpleFocus = new UiFocusState()
+        const simpleController = new UiFocusInputController({
+            focus: simpleFocus,
+        })
+        simpleFocus.setScope({ id: "simple-parent" })
+        simpleFocus.setActiveScope("simple-parent")
+        simplePicker.open(simpleFocus, simpleController)
+        control.assert(
+            simpleFocus.getActiveTargetId("simple-confirm") ==
+                "simple-confirm/choice-1",
+            "simple picker preferred target",
+        )
+        const simpleActivateResult = simplePicker.handleFocusInput(
+            simpleController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            simpleActivateResult.kind == "activated" &&
+                simpleActivateResult.value == "Yes",
+            "simple picker activation result",
+        )
+        control.assert(
+            simpleActivated == "Yes",
+            "simple picker activation callback",
+        )
+        const simpleCancelResult = simplePicker.handleFocusInput(
+            simpleController.handleInput({ action: "cancel" }),
+        )
+        control.assert(
+            simpleCancelResult.kind == "cancelled",
+            "simple picker cancel result",
+        )
+        control.assert(
+            simpleCancelled == "simple-confirm",
+            "simple picker cancel callback",
+        )
     }
 
     /**

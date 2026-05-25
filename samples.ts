@@ -92,8 +92,6 @@ class SettingsScreen extends ui.UiScreen {
     }
 }
 
-type ConfirmChoice = "cancel" | "ok"
-
 class SaveScreen extends ui.UiScreen {
     private status: string
     private statusLabel: ui.UiLabel
@@ -117,29 +115,19 @@ class SaveScreen extends ui.UiScreen {
     }
 
     private openConfirmDialog(): void {
-        const modal = new ui.UiPicker<ConfirmChoice>({
-            modalScopeId: "save-dialog",
-            title: "Save changes?",
-            controls: [
-                { id: "cancel", value: "cancel", text: "Cancel" },
-                { id: "ok", value: "ok", text: "OK", selected: true },
-            ],
-            defaultControlId: "ok",
-            columnCount: 2,
-            controlWidth: 44,
-            controlHeight: 18,
-            columnGap: 4,
-            controlStyle: ui.UiButtonStyles.LightShadowedWhite,
-            modalStyle: ui.modalStyle(ui.UiModalStyles.Default),
-            onActivate: choice => {
-                this.status = choice == "ok" ? "Saved" : "Cancelled"
+        const modal = new ui.UiPicker(
+            "save-dialog",
+            "Save changes?",
+            ["Cancel", "OK"],
+            choice => {
+                this.status = choice == "OK" ? "Saved" : "Cancelled"
                 this.statusLabel.setText(`Status: ${this.status}`)
             },
-            onCancel: () => {
+            () => {
                 this.status = "Cancelled"
                 this.statusLabel.setText(`Status: ${this.status}`)
             },
-        })
+        )
 
         this.openModal(modal)
     }
@@ -230,8 +218,8 @@ const runtime = new ui.UiRuntime({
 })
 //runtime.push(new HelloScreen())
 //runtime.push(new CounterScreen())
-runtime.push(new SettingsScreen())
-//runtime.push(new SaveScreen())
+//runtime.push(new SettingsScreen())
+runtime.push(new SaveScreen())
 //runtime.push(new StartScreen())
 //runtime.push(new DataGraphScreen())
 runtime.start()

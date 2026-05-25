@@ -53,7 +53,7 @@ namespace ui {
          * Default rounded modal panel style.
          */
         export const Default: UiModalStyle = {
-            panelColor: 1,
+            panelColor: 10,
             titleColor: 15,
             contentMargin: 4,
             titleGap: 0,

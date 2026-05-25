@@ -2,7 +2,7 @@ namespace ui {
     /**
      * Options for a modal picker or control grid.
      */
-    export interface UiPickerOptions<T> {
+    export interface UiPickerOptions<T = string> {
         /**
          * Modal focus scope owned by this grid while open.
          */
@@ -110,6 +110,11 @@ namespace ui {
     }
 
     /**
+     * Choice accepted by the compact picker constructor.
+     */
+    export type UiPickerChoice<T = string> = string | UiControl<T>
+
+    /**
      * Handles modal cancellation.
      */
     export interface UiPickerCancelHandler {
@@ -122,7 +127,7 @@ namespace ui {
     /**
      * Result emitted by a modal grid.
      */
-    export type UiPickerResult<T> =
+    export type UiPickerResult<T = string> =
         | {
               kind: "activated"
               controlId: string
@@ -148,14 +153,14 @@ namespace ui {
         style?: UiModalStyle,
     ): void {
         const fill =
-            style && style.panelColor !== undefined ? style.panelColor : 1
+            style && style.panelColor !== undefined ? style.panelColor : 10
         surface.drawRoundedRect(rect, 15, fill)
     }
 
     /**
      * Modal picker or control grid backed by a `ui-core` modal focus scope.
      */
-    export class UiPicker<T> implements UiModal<UiPickerResult<T>> {
+    export class UiPicker<T = string> implements UiModal<UiPickerResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -185,7 +190,24 @@ namespace ui {
         private onActivate_: UiControlActivateHandler<T>
         private onCancel_: UiPickerCancelHandler
 
-        constructor(options: UiPickerOptions<T>) {
+        /**
+         * Creates a picker from full options or from scope id, title, choices,
+         * and activation/cancellation callbacks.
+         */
+        constructor(
+            options: UiPickerOptions<T> | UiFocusScopeId,
+            title?: string,
+            choices?: UiPickerChoice<T>[],
+            onActivate?: UiControlActivateHandler<T>,
+            onCancel?: UiPickerCancelHandler,
+        ) {
+            options = this.resolveOptions(
+                options,
+                title,
+                choices,
+                onActivate,
+                onCancel,
+            )
             this.modalScopeId_ = options.modalScopeId
             this.title_ = options.title
             this.titleId_ = options.titleId
@@ -449,6 +471,57 @@ namespace ui {
                 this.titleControlView_,
                 this.titleControlStyle_,
             )
+        }
+
+        private resolveOptions(
+            options: UiPickerOptions<T> | UiFocusScopeId,
+            title?: string,
+            choices?: UiPickerChoice<T>[],
+            onActivate?: UiControlActivateHandler<T>,
+            onCancel?: UiPickerCancelHandler,
+        ): UiPickerOptions<T> {
+            if (typeof options != "string") return options
+            const controls = this.choiceControls(choices)
+            return {
+                modalScopeId: options,
+                title,
+                controls,
+                columnCount: Math.max(1, controls.length),
+                controlWidth: this.choiceControlWidth(controls),
+                controlHeight: 20,
+                columnGap: 4,
+                controlStyle: UiButtonStyles.LightShadowedWhite,
+                onActivate,
+                onCancel,
+            }
+        }
+
+        private choiceControls(choices?: UiPickerChoice<T>[]): UiControl<T>[] {
+            const controls: UiControl<T>[] = []
+            if (!choices) return controls
+            for (let i = 0; i < choices.length; i++) {
+                const choice = choices[i]
+                if (typeof choice == "string") {
+                    controls.push({
+                        id: "choice-" + i,
+                        value: <any>choice,
+                        text: choice,
+                        selected: i == choices.length - 1,
+                    })
+                } else {
+                    controls.push(choice)
+                }
+            }
+            return controls
+        }
+
+        private choiceControlWidth(controls: UiControl<T>[]): number {
+            let textLength = 0
+            for (let i = 0; i < controls.length; i++) {
+                const text = controls[i].text || ""
+                textLength = Math.max(textLength, text.length)
+            }
+            return Math.max(24, textLength * bitmaps.font8.charWidth + 16)
         }
 
         private emitActivate(result: UiPickerResult<T>): void {
