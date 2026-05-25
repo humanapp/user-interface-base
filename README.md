@@ -1,6 +1,6 @@
 # **micro:bit apps UI** (user-interface-base)
 
-\***\*micro:bit apps UI\*\*** is a small UI toolkit for building [micro:bit apps](https://microbit-apps.org/): apps that run on the [BBC micro:bit](https://microbit.org/) + [Display Shield](https://microbit-apps.org/getting-started/display-shields/).
+**micro:bit apps UI** is a small UI toolkit for building [micro:bit apps](https://microbit-apps.org/): apps that run on the [BBC micro:bit](https://microbit.org/) + [Display Shield](https://microbit-apps.org/getting-started/display-shields/).
 
 ## The Short Version
 
