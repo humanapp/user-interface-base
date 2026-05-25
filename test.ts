@@ -573,6 +573,8 @@ namespace ui {
             options?: DrawTextOptions,
         ): void {
             this.log += "text:" + text + ";"
+            if (options && options.color !== undefined)
+                this.log += "textColor:" + options.color + ";"
         }
 
         public measureText(
@@ -1127,12 +1129,24 @@ namespace ui {
         const surface = new ControlSmokeSurface()
         picker.render(surface, new ControlSmokeAssets(), focus)
         control.assert(
-            surface.log.indexOf("rounded:15:10;") >= 0,
+            surface.log.indexOf("rounded:15:12;") >= 0,
             "picker rounded panel",
         )
         control.assert(
             surface.log.indexOf("text:Save changes?;") >= 0,
             "picker title render",
+        )
+        control.assert(
+            surface.log.indexOf("textColor:1;") >= 0,
+            "picker title color",
+        )
+        const customPanelSurface = new ControlSmokeSurface()
+        drawModalPanel(customPanelSurface, new Rect(0, 0, 10, 10), {
+            backgroundColor: 5,
+        })
+        control.assert(
+            customPanelSurface.log.indexOf("rounded:15:5;") >= 0,
+            "picker panel background override",
         )
 
         const activateResult = picker.handleFocusInput(
@@ -1670,7 +1684,7 @@ namespace ui {
         const modalSurface = new ControlSmokeSurface()
         modal.render(modalSurface, new ControlSmokeAssets(), modalFocus)
         control.assert(
-            modalSurface.log.indexOf("rounded:15:10;") >= 0,
+            modalSurface.log.indexOf("rounded:15:12;") >= 0,
             "numeric modal rounded panel",
         )
         control.assert(

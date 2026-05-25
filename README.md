@@ -185,6 +185,10 @@ class SettingsScreen extends ui.UiScreen {
         this.add(new ui.UiLabel("Speed", 1), { x: 8, y: 8 })
         this.speedLabel = new ui.UiLabel("" + this.speed, 7)
         this.add(this.speedLabel, { x: 8, y: 24 })
+        this.add(new ui.UiLabel("Press A to Edit", 1), {
+            centerX: 80,
+            y: 108,
+        })
     }
 
     public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {

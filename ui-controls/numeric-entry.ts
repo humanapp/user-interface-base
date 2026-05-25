@@ -352,21 +352,12 @@ namespace ui {
     /**
      * Options for a modal numeric keypad backed by `UiNumericEntry`.
      */
-    export interface UiNumericEntryModalOptions extends UiNumericEntryOptions {
+    export interface UiNumericEntryModalOptions
+        extends UiNumericEntryOptions, UiModalPanelStyle {
         /**
          * Modal focus scope owned while the keypad is open.
          */
         modalScopeId: UiFocusScopeId
-
-        /**
-         * Fill color for the modal panel.
-         */
-        panelColor?: number
-
-        /**
-         * Inset between the modal panel and keypad content.
-         */
-        contentMargin?: number
 
         /**
          * Style applied to keypad buttons.
@@ -409,7 +400,7 @@ namespace ui {
         private keyContent_: UiButtonContent
         private displayRect_: Rect
         private gridRect_: Rect
-        private panelColor_: number
+        private backgroundColor_: number
         private contentMargin_: number
         private deleteEnabled_: boolean
         private deleteIcon_: UiNumericEntryKeyIcon
@@ -427,8 +418,10 @@ namespace ui {
             options = this.resolveOptions(options, initialValue, onCompleted)
             this.modalScopeId_ = options.modalScopeId
             this.entry_ = this.createEntry(options)
-            this.panelColor_ =
-                options.panelColor === undefined ? 10 : options.panelColor
+            this.backgroundColor_ =
+                options.backgroundColor === undefined
+                    ? 12
+                    : options.backgroundColor
             this.contentMargin_ = this.contentMargin(options.contentMargin)
             this.deleteEnabled_ = options.deleteEnabled || false
             this.deleteIcon_ = options.deleteIcon
@@ -707,7 +700,7 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
-            surface.drawRoundedRect(this.finalRect, 15, this.panelColor_)
+            surface.drawRoundedRect(this.finalRect, 15, this.backgroundColor_)
             this.entry_.render(surface, this.displayRect_)
             this.renderKeys(surface, assets)
             this.renderFocus(surface, assets, focus)

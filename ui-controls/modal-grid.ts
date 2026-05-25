@@ -150,10 +150,12 @@ namespace ui {
     export function drawModalPanel(
         surface: DrawSurface,
         rect: Rect,
-        style?: UiModalStyle,
+        style?: UiModalPanelStyle,
     ): void {
         const fill =
-            style && style.panelColor !== undefined ? style.panelColor : 10
+            style && style.backgroundColor !== undefined
+                ? style.backgroundColor
+                : 12
         surface.drawRoundedRect(rect, 15, fill)
     }
 

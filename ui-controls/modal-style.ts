@@ -1,22 +1,27 @@
 namespace ui {
     /**
-     * Visual style and spacing used by modal panels.
+     * Visual style and spacing used by modal panel bodies.
      */
-    export interface UiModalStyle {
+    export interface UiModalPanelStyle {
         /**
-         * Fill color for the modal panel.
+         * Fill color for the modal panel background.
          */
-        panelColor?: number
-
-        /**
-         * Text color for the modal title.
-         */
-        titleColor?: number
+        backgroundColor?: number
 
         /**
          * Inset between the modal outline and modal content.
          */
         contentMargin?: number
+    }
+
+    /**
+     * Visual style and spacing used by titled modal panels.
+     */
+    export interface UiModalStyle extends UiModalPanelStyle {
+        /**
+         * Text color for the modal title.
+         */
+        titleColor?: number
 
         /**
          * Extra vertical space between the title band and modal content.
@@ -53,8 +58,8 @@ namespace ui {
          * Default rounded modal panel style.
          */
         export const Default: UiModalStyle = {
-            panelColor: 10,
-            titleColor: 15,
+            backgroundColor: 12,
+            titleColor: 1,
             contentMargin: 4,
             titleGap: 0,
             showTitleBar: true,
@@ -70,8 +75,8 @@ namespace ui {
 
     function copyModalStyle(target: UiModalStyle, source?: UiModalStyle): void {
         if (!source) return
-        if (source.panelColor !== undefined)
-            target.panelColor = source.panelColor
+        if (source.backgroundColor !== undefined)
+            target.backgroundColor = source.backgroundColor
         if (source.titleColor !== undefined)
             target.titleColor = source.titleColor
         if (source.contentMargin !== undefined)
