@@ -83,21 +83,12 @@ class SettingsScreen extends ui.UiScreen {
     }
 
     private openSpeedEditor(): void {
-        const modal = new ui.UiNumericEntryModal({
-            modalScopeId: "speed-editor",
-            mode: "positiveInteger",
-            initialText: "" + this.speed,
-            maxLength: 3,
-            cancelEnabled: true,
-            panelColor: 10,
-            onResult: result => {
-                if (result.kind == "completed") {
-                    this.speed = result.value
-                    this.speedLabel.setText("" + this.speed)
-                }
-            },
-        })
-        this.openModal(modal)
+        this.openModal(
+            new ui.UiNumericEntryModal("speed-editor", this.speed, value => {
+                this.speed = value
+                this.speedLabel.setText("" + value)
+            }),
+        )
     }
 }
 
@@ -239,8 +230,8 @@ const runtime = new ui.UiRuntime({
 })
 //runtime.push(new HelloScreen())
 //runtime.push(new CounterScreen())
-//runtime.push(new SettingsScreen())
-runtime.push(new SaveScreen())
+runtime.push(new SettingsScreen())
+//runtime.push(new SaveScreen())
 //runtime.push(new StartScreen())
 //runtime.push(new DataGraphScreen())
 runtime.start()

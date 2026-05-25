@@ -169,8 +169,9 @@ targets, route input to it, and render it each frame.
 
 ## 7. Open A Numeric Keypad
 
-**micro:bit apps UI** includes a modal keypad for number entry. Open it from a
-screen, then handle the result in `onResult`.
+**micro:bit apps UI** includes a modal keypad for number entry. For positive
+integer entry, open it from a screen with an initial value and a completion
+handler.
 
 ```ts
 class SettingsScreen extends ui.UiScreen {
@@ -196,22 +197,12 @@ class SettingsScreen extends ui.UiScreen {
     }
 
     private openSpeedEditor(): void {
-        const modal = new ui.UiNumericEntryModal({
-            modalScopeId: "speed-editor",
-            mode: "positiveInteger",
-            initialText: "" + this.speed,
-            maxLength: 3,
-            cancelEnabled: true,
-            panelColor: 10,
-            onResult: result => {
-                if (result.kind == "completed") {
-                    this.speed = result.value
-                    this.speedLabel.setText("" + this.speed)
-                }
-            },
-        })
-
-        this.openModal(modal)
+        this.openModal(
+            new ui.UiNumericEntryModal("speed-editor", this.speed, value => {
+                this.speed = value
+                this.speedLabel.setText("" + value)
+            }),
+        )
     }
 }
 ```

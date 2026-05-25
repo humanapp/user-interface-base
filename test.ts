@@ -1516,6 +1516,34 @@ namespace ui {
             "numeric display rounded border",
         )
 
+        let simpleModalValue = 0
+        const simpleModal = new UiNumericEntryModal(
+            "numeric-simple",
+            5,
+            value => {
+                simpleModalValue = value
+            },
+        )
+        const simpleFocus = new UiFocusState()
+        const simpleController = new UiFocusInputController({
+            focus: simpleFocus,
+        })
+        simpleFocus.setScope({ id: "parent-simple" })
+        simpleFocus.setActiveScope("parent-simple")
+        simpleModal.open(simpleFocus, simpleController)
+        simpleFocus.setActiveTarget("numeric-simple", "numeric-simple/enter")
+        const simpleResult = simpleModal.handleFocusInput(
+            simpleController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            simpleResult.kind == "completed",
+            "numeric simple modal completed",
+        )
+        control.assert(
+            simpleModalValue == 5,
+            "numeric simple modal callback value",
+        )
+
         let modalResult: UiNumericEntryResult = undefined
         const modal = new UiNumericEntryModal({
             modalScopeId: "numeric-modal",
@@ -1590,7 +1618,7 @@ namespace ui {
         const modalSurface = new ControlSmokeSurface()
         modal.render(modalSurface, new ControlSmokeAssets(), modalFocus)
         control.assert(
-            modalSurface.log.indexOf("rounded:15:1;") >= 0,
+            modalSurface.log.indexOf("rounded:15:10;") >= 0,
             "numeric modal rounded panel",
         )
         control.assert(

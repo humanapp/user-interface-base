@@ -75,15 +75,20 @@ namespace ui {
     }
 
     /**
+     * Completion result emitted by numeric entry.
+     */
+    export interface UiNumericEntryCompletedResult {
+        kind: "completed"
+        mode: UiNumericEntryMode
+        text: string
+        value: number
+    }
+
+    /**
      * Result emitted by numeric entry.
      */
     export type UiNumericEntryResult =
-        | {
-              kind: "completed"
-              mode: UiNumericEntryMode
-              text: string
-              value: number
-          }
+        | UiNumericEntryCompletedResult
         | { kind: "cancelled"; mode: UiNumericEntryMode; text: string }
         | { kind: "deleted"; mode: UiNumericEntryMode }
 
@@ -380,6 +385,13 @@ namespace ui {
     }
 
     /**
+     * Receives the completed numeric value from the compact modal constructor.
+     */
+    export interface UiNumericEntryCompletedHandler {
+        (value: number, result: UiNumericEntryCompletedResult): void
+    }
+
+    /**
      * Modal numeric keypad for decimal and positive-integer entry.
      */
     export class UiNumericEntryModal
@@ -403,11 +415,20 @@ namespace ui {
         private deleteIcon_: UiNumericEntryKeyIcon
         private onResult_: (result: UiNumericEntryResult) => void
 
-        constructor(options: UiNumericEntryModalOptions) {
+        /**
+         * Creates a keypad from full options or from scope id, initial value,
+         * and completed-value callback for positive-integer entry.
+         */
+        constructor(
+            options: UiNumericEntryModalOptions | UiFocusScopeId,
+            initialValue?: number | string,
+            onCompleted?: UiNumericEntryCompletedHandler,
+        ) {
+            options = this.resolveOptions(options, initialValue, onCompleted)
             this.modalScopeId_ = options.modalScopeId
             this.entry_ = this.createEntry(options)
             this.panelColor_ =
-                options.panelColor === undefined ? 1 : options.panelColor
+                options.panelColor === undefined ? 10 : options.panelColor
             this.contentMargin_ = this.contentMargin(options.contentMargin)
             this.deleteEnabled_ = options.deleteEnabled || false
             this.deleteIcon_ = options.deleteIcon
@@ -835,6 +856,26 @@ namespace ui {
                 cancelEnabled: true,
                 validate: options.validate,
             })
+        }
+
+        private resolveOptions(
+            options: UiNumericEntryModalOptions | UiFocusScopeId,
+            initialValue?: number | string,
+            onCompleted?: UiNumericEntryCompletedHandler,
+        ): UiNumericEntryModalOptions {
+            if (typeof options != "string") return options
+            return {
+                modalScopeId: options,
+                mode: "positiveInteger",
+                initialText:
+                    initialValue === undefined ? "" : "" + initialValue,
+                onResult: onCompleted
+                    ? result => {
+                          if (result.kind == "completed")
+                              onCompleted(result.value, result)
+                      }
+                    : undefined,
+            }
         }
 
         private rowLength(row: number): number {
