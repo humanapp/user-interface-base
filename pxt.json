@@ -1,5 +1,5 @@
 {
-    "name": "micro:bit apps UI",
+    "name": "user-interface-base",
     "version": "0.0.47",
     "files": [
         "ns.ts",
