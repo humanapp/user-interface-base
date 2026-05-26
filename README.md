@@ -59,7 +59,7 @@ adapter. Call `stop()` when the app should stop drawing UI frames.
 ## 3. Make A Screen Own App State
 
 Screens are the normal place to keep page state and respond to input. Use
-`handleScreenInput()` when the screen wants first chance at an event.
+`handleInput()` when the screen wants first chance at an event.
 
 ```ts
 class CounterScreen extends ui.UiScreen {
@@ -75,7 +75,7 @@ class CounterScreen extends ui.UiScreen {
         this.add(this.countLabel, { x: 8, y: 24 })
     }
 
-    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+    public handleInput(event: ui.UiInputEvent): boolean | undefined {
         if (event.phase == "released") return undefined
 
         if (event.action == "activate") {
@@ -92,8 +92,9 @@ class CounterScreen extends ui.UiScreen {
 }
 ```
 
-Returning `true` from `handleScreenInput` means the screen handled the event. Returning `undefined` lets
-**micro:bit apps UI** try the screen's modal and focus routing.
+Returning `true` from `handleInput` means the screen handled the event.
+Returning `undefined` lets **micro:bit apps UI** try focus routing. While a
+modal is open, the modal receives input before the screen.
 
 ## 4. Input
 
@@ -108,9 +109,9 @@ Input events can also include a `source` such as `microbitButton`,
 initial press.
 
 Call `runtime.dispatchInput()` from hardware callbacks, test code, or adapter
-code. The runtime queues those events and delivers them on the next frame. The
-active screen gets first chance through `handleScreenInput()`, then the runtime
-tries modal and focus routing when the screen returns `undefined`.
+code. The runtime queues those events and delivers them on the next frame. When
+no modal is open, the active screen gets first chance through `handleInput()`,
+then the runtime tries focus routing when the screen returns `undefined`.
 
 ## 5. Map micro:bit Input To Actions
 
@@ -195,7 +196,7 @@ class SettingsScreen extends ui.UiScreen {
         })
     }
 
-    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+    public handleInput(event: ui.UiInputEvent): boolean | undefined {
         if (event.action == "activate" && event.phase != "released") {
             this.openSpeedEditor()
             return true
@@ -391,7 +392,7 @@ class SaveScreen extends ui.UiScreen {
         this.add(new ui.UiLabel("Press A to save", 1), { x: 8, y: 18 })
     }
 
-    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+    public handleInput(event: ui.UiInputEvent): boolean | undefined {
         if (event.action == "activate" && event.phase != "released") {
             this.openConfirmDialog()
             return true

@@ -160,11 +160,11 @@ namespace ui {
         public deactivate(): void {}
 
         /**
-         * Handles one input event.
+         * Routes one input event through modal, screen, and focus handling.
          */
-        public handleInput(event: UiInputEvent): boolean {
+        public routeInput(event: UiInputEvent): boolean {
             if (this.activeModal_) return this.handleModalInput(event)
-            const screenHandled = this.handleScreenInput(event)
+            const screenHandled = this.handleInput(event)
             if (screenHandled !== undefined) return screenHandled
             const result = this.focusInput_.handleInput(event)
             const handled = this.handleRootFocusInput(result)
@@ -219,7 +219,7 @@ namespace ui {
         /**
          * Handles screen-level input before root views receive it.
          */
-        public handleScreenInput(event: UiInputEvent): boolean | undefined {
+        public handleInput(event: UiInputEvent): boolean | undefined {
             return undefined
         }
 
@@ -653,7 +653,7 @@ namespace ui {
             let index = 0
             while (index < queue.length && this.topRecord() == record) {
                 const event = queue[index++]
-                record.screen.handleInput(event)
+                record.screen.routeInput(event)
             }
 
             this.clearInputQueue(queue)

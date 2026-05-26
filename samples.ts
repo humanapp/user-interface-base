@@ -23,7 +23,7 @@ class CounterScreen extends ui.UiScreen {
         this.add(this.countLabel, { x: 8, y: 24 })
     }
 
-    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+    public handleInput(event: ui.UiInputEvent): boolean | undefined {
         if (event.phase == "released") return undefined
 
         if (event.action == "activate") {
@@ -77,7 +77,7 @@ class SettingsScreen extends ui.UiScreen {
         })
     }
 
-    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+    public handleInput(event: ui.UiInputEvent): boolean | undefined {
         if (event.action == "activate" && event.phase != "released") {
             this.openSpeedEditor()
             return true
@@ -109,7 +109,7 @@ class SaveScreen extends ui.UiScreen {
         this.add(new ui.UiLabel("Press A to save", 1), { x: 8, y: 18 })
     }
 
-    public handleScreenInput(event: ui.UiInputEvent): boolean | undefined {
+    public handleInput(event: ui.UiInputEvent): boolean | undefined {
         if (event.action == "activate" && event.phase != "released") {
             this.openConfirmDialog()
             return true

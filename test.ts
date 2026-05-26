@@ -618,7 +618,7 @@ namespace ui {
             this.inputHandler_ = handler
         }
 
-        public handleScreenInput(event: UiInputEvent): boolean | undefined {
+        public handleInput(event: UiInputEvent): boolean | undefined {
             return this.inputHandler_(event)
         }
     }
@@ -1292,12 +1292,12 @@ namespace ui {
             "screen auto placed control rect",
         )
         control.assert(
-            screen.handleInput({ action: "activate" }),
+            screen.routeInput({ action: "activate" }),
             "screen controller activation handled",
         )
         control.assert(screenLog == "B;", "screen controller root callback")
         control.assert(
-            screen.handleInput({ action: "left" }),
+            screen.routeInput({ action: "left" }),
             "screen controller row navigation handled",
         )
         control.assert(
@@ -1305,7 +1305,7 @@ namespace ui {
             "screen controller row navigation focus",
         )
         control.assert(
-            screen.handleInput({ action: "activate" }),
+            screen.routeInput({ action: "activate" }),
             "screen controller second activation handled",
         )
         control.assert(
@@ -1313,15 +1313,15 @@ namespace ui {
             "screen controller row navigation callback",
         )
         control.assert(
-            screen.handleInput({ action: "cancel" }),
+            screen.routeInput({ action: "cancel" }),
             "screen controller root cancel handled",
         )
         control.assert(
-            !screen.handleInput({ action: "cancel", phase: "released" }),
+            !screen.routeInput({ action: "cancel", phase: "released" }),
             "screen controller cancel release unhandled",
         )
         control.assert(
-            !screen.handleInput({ action: "menu" }),
+            !screen.routeInput({ action: "menu" }),
             "screen controller leaves menu unregistered",
         )
 
@@ -1350,7 +1350,7 @@ namespace ui {
         )
         control.assert(screen.hasModal, "screen controller has modal")
         control.assert(
-            screen.handleInput({ action: "cancel" }),
+            screen.routeInput({ action: "cancel" }),
             "screen controller modal input handled",
         )
         control.assert(
@@ -1369,7 +1369,7 @@ namespace ui {
         screen.openModal(completedModal)
         control.assert(screen.hasModal, "screen controller has completed modal")
         control.assert(
-            screen.handleInput({ action: "activate" }),
+            screen.routeInput({ action: "activate" }),
             "screen controller completed modal input handled",
         )
         control.assert(
@@ -1384,7 +1384,7 @@ namespace ui {
         screen.openModal(keepOpenModal)
         control.assert(screen.hasModal, "screen controller has keep-open modal")
         control.assert(
-            screen.handleInput({ action: "activate" }),
+            screen.routeInput({ action: "activate" }),
             "screen controller keep-open modal input handled",
         )
         control.assert(
