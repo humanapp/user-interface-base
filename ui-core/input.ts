@@ -15,9 +15,8 @@ namespace ui {
      * Physical or synthetic source that produced a semantic input action.
      */
     export type UiInputSource =
-        | "displayShieldController"
-        | "microbitButton"
-        | "keyboard"
+        | "controller"
+        | "board"
         | "synthetic"
 
     /**

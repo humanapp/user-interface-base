@@ -449,27 +449,4 @@ namespace _uiLayout {
     export function rectCenterX(rect: ui.Rect): number {
         return rect.x + Math.idiv(rect.width, 2)
     }
-
-    export function copyEdgeInsets(
-        target: ui.UiLayoutEdgeInsets,
-        padding: number | ui.UiLayoutEdgeInsets | undefined,
-    ): void {
-        if (typeof padding == "number") {
-            const value = sanitizeDimension(padding)
-            target.top = value
-            target.right = value
-            target.bottom = value
-            target.left = value
-        } else if (padding) {
-            target.top = sanitizeDimension(padding.top)
-            target.right = sanitizeDimension(padding.right)
-            target.bottom = sanitizeDimension(padding.bottom)
-            target.left = sanitizeDimension(padding.left)
-        } else {
-            target.top = 0
-            target.right = 0
-            target.bottom = 0
-            target.left = 0
-        }
-    }
 }

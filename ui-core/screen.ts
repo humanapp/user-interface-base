@@ -701,7 +701,7 @@ namespace ui {
                 dispatchScreenInput(
                     input,
                     action,
-                    "displayShieldController",
+                    "controller",
                     "pressed",
                 )
             })
@@ -709,7 +709,7 @@ namespace ui {
                 dispatchScreenInput(
                     input,
                     action,
-                    "displayShieldController",
+                    "controller",
                     "released",
                 )
             })
@@ -717,7 +717,7 @@ namespace ui {
                 dispatchScreenInput(
                     input,
                     action,
-                    "displayShieldController",
+                    "controller",
                     "repeated",
                 )
             })

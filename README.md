@@ -102,9 +102,8 @@ The runtime works with semantic actions, not specific buttons. A
 `UiInputEvent` names what the user meant to do: `up`, `down`, `left`, `right`,
 `activate`, `cancel`, or `menu`.
 
-Input events can also include a `source` such as `microbitButton`,
-`displayShieldController`, `keyboard`, or `synthetic`, and a `phase` such as
-`pressed`, `released`, or `repeated`. Most screens only need `action`; use
+Input events also include a `source` (`board`,
+`controller`, or `synthetic`) and a `phase` (`pressed`, `released`, or `repeated`). Most screens only need `action`; use
 `phase` when release events or key repeat should behave differently from the
 initial press.
 
@@ -121,14 +120,14 @@ For example, a simple two-button app can use A as activate and B as cancel.
 input.onButtonPressed(Button.A, function () {
     runtime.dispatchInput({
         action: "activate",
-        source: "microbitButton",
+        source: "board",
     })
 })
 
 input.onButtonPressed(Button.B, function () {
     runtime.dispatchInput({
         action: "cancel",
-        source: "microbitButton",
+        source: "board",
     })
 })
 ```
@@ -214,6 +213,7 @@ class SettingsScreen extends ui.UiScreen {
     }
 }
 ```
+
 <p align="center">
     <img src="./assets/numeric-entry.png" width="40%">
 </p>
@@ -460,6 +460,7 @@ class NameEntryScreen extends ui.UiScreen {
     }
 }
 ```
+
 <p align="center">
     <img src="./assets/text-entry.png" width="40%">
 </p>
@@ -549,6 +550,7 @@ class DataGraphScreen extends ui.UiScreen {
     }
 }
 ```
+
 <p align="center">
     <img src="./assets/data-vis.png" width="40%">
 </p>
