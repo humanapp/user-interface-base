@@ -161,7 +161,7 @@ namespace ui {
         /**
          * Optional title content.
          */
-        title?: UiButtonContentOptions | string
+        title?: UiControlContentOptions | string
 
         /**
          * Style applied to keyboard buttons.
@@ -171,7 +171,7 @@ namespace ui {
         /**
          * Optional custom action key content.
          */
-        customAction?: UiButtonContentOptions | string
+        customAction?: UiControlContentOptions | string
 
         /**
          * Optional in-modal custom action handler.
@@ -420,13 +420,13 @@ namespace ui {
         public layoutDirty: boolean
         private modalScopeId_: UiFocusScopeId
         private entry_: UiTextEntry
-        private title_: UiButtonContentOptions | string
-        private customAction_: UiButtonContentOptions | string
+        private title_: UiControlContentOptions | string
+        private customAction_: UiControlContentOptions | string
         private onCustomAction_: UiTextEntryCustomActionHandler
         private keyStyle_: UiButtonStyle
         private titleStyle_: UiButtonStyle
         private keyView_: UiButtonView
-        private keyContent_: UiButtonContent
+        private keyContent_: UiControlContent
         private keyValues_: string[]
         private keyXs_: number[]
         private keyRect_: Rect
@@ -574,6 +574,19 @@ namespace ui {
          */
         public clearLayoutInvalidation(): void {
             this.layoutDirty = false
+        }
+
+        /**
+         * Resolves resolver-backed content ids for title and custom action content.
+         */
+        public _resolveContentAssets(assets: UiAssetResolver): void {
+            if (this.title_ !== undefined && typeof this.title_ != "string")
+                _uiControls.resolveContentOptions(this.title_, assets)
+            if (
+                this.customAction_ !== undefined &&
+                typeof this.customAction_ != "string"
+            )
+                _uiControls.resolveContentOptions(this.customAction_, assets)
         }
 
         /**
@@ -800,7 +813,7 @@ namespace ui {
             assets: UiAssetResolver,
         ): void {
             if (!this.hasTitle()) return
-            this.prepareContent(this.title_, assets)
+            this.prepareContent(this.title_)
             this.keyView_.render(
                 surface,
                 this.titleRect_,
@@ -826,7 +839,7 @@ namespace ui {
                     this.keyWidth(key),
                     UI_TEXT_ENTRY_MODAL_KEY_HEIGHT,
                 )
-                this.prepareKeyContent(key, assets)
+                this.prepareKeyContent(key)
                 this.keyView_.render(
                     surface,
                     this.keyRect_,
@@ -859,7 +872,7 @@ namespace ui {
                 this.keyWidth(key),
                 UI_TEXT_ENTRY_MODAL_KEY_HEIGHT,
             )
-            this.prepareKeyContent(key, assets)
+            this.prepareKeyContent(key)
             this.keyView_.renderFocus(
                 surface,
                 this.keyRect_,
@@ -914,32 +927,17 @@ namespace ui {
             this.arrangeKeys()
         }
 
-        private prepareKeyContent(key: string, assets: UiAssetResolver): void {
+        private prepareKeyContent(key: string): void {
             if (key == UI_TEXT_ENTRY_KEY_CUSTOM) {
-                this.prepareContent(this.customAction_, assets)
+                this.prepareContent(this.customAction_)
             } else {
                 this.keyContent_.bitmap = undefined
                 this.keyContent_.text = this.keyTextForKey(key)
             }
         }
 
-        private prepareContent(
-            source: UiButtonContentOptions | string,
-            assets: UiAssetResolver,
-        ): void {
-            this.keyContent_.bitmap = undefined
-            this.keyContent_.text = ""
-            if (source === undefined) return
-            if (typeof source == "string") {
-                this.keyContent_.text = source
-                return
-            }
-            if (source.text !== undefined) this.keyContent_.text = source.text
-            else if (source.textId !== undefined)
-                this.keyContent_.text = assets.getText(source.textId)
-            if (source.bitmap) this.keyContent_.bitmap = source.bitmap
-            else if (source.bitmapId !== undefined)
-                this.keyContent_.bitmap = assets.getBitmap(source.bitmapId)
+        private prepareContent(source: UiControlContentOptions | string): void {
+            _uiControls.resolveContent(source, undefined, this.keyContent_)
         }
 
         private keyTextForKey(key: string): string {

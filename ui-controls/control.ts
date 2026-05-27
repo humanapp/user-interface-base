@@ -25,11 +25,47 @@ namespace ui {
     }
 
     /**
+     * Content rendered by a control.
+     */
+    export interface UiControlContent {
+        /**
+         * Bitmap drawn before the text or centered by itself.
+         */
+        bitmap?: Bitmap
+
+        /**
+         * Text drawn beside the bitmap or centered by itself.
+         */
+        text?: string
+    }
+
+    /**
+     * Resolver-backed content ids.
+     */
+    export interface UiReferencedContent {
+        /**
+         * Resolver-backed bitmap id.
+         */
+        bitmapId?: string | number
+
+        /**
+         * Resolver-backed display text id.
+         */
+        textId?: string
+    }
+
+    /**
+     * Caller-provided control content before resolver lookup.
+     */
+    export interface UiControlContentOptions
+        extends UiControlContent, UiReferencedContent {}
+
+    /**
      * Shared fields for one rendered control.
      */
     export interface UiControlFields<
         T = string,
-    > extends UiButtonContentOptions {
+    > extends UiControlContentOptions {
         /**
          * Stable caller id for this control.
          */
@@ -302,50 +338,39 @@ namespace _uiControls {
 
     export function renderControl<T>(
         surface: ui.DrawSurface,
-        assets: ui.UiAssetResolver,
         control: ui.UiControl<T>,
         rect: ui.Rect,
         buttonView: ui.UiButtonView,
         controlStyle?: ui.UiButtonStyle,
         labelBounds?: ui.Rect,
         focused?: boolean,
+        assets?: ui.UiAssetResolver,
     ): void {
+        if (
+            assets &&
+            (control.textId !== undefined ||
+                control.bitmapId !== undefined ||
+                control.focusLabelId !== undefined)
+        )
+            resolveControlContent(control, assets)
         const content = controlContentScratch
-        content.bitmap = undefined
-        content.text =
-            control.text !== undefined
-                ? control.text
-                : control.textId !== undefined
-                  ? assets.getText(control.textId)
-                  : ""
-        if (control.bitmap) content.bitmap = control.bitmap
-        else if (control.bitmapId !== undefined)
-            content.bitmap = assets.getBitmap(
-                control.bitmapId,
-                control.omitMissingBitmap || false,
-            )
+        resolveContent(control, undefined, content)
         const style = control.style || controlStyle
         if (focused) {
-            const focusLabel =
-                control.focusLabel !== undefined
-                    ? control.focusLabel
-                    : control.focusLabelId !== undefined
-                      ? assets.getText(control.focusLabelId)
-                      : undefined
             buttonView.renderFocus(
                 surface,
                 rect,
                 content,
                 style,
                 labelBounds,
-                focusLabel,
+                control.focusLabel,
             )
         } else {
             buttonView.render(surface, rect, content, style)
         }
     }
 
-    const controlContentScratch: ui.UiButtonContent = {}
+    const controlContentScratch: ui.UiControlContent = {}
     const labelBoundsScratch = new ui.Rect()
 
     export function resolveLabelBounds(
@@ -360,6 +385,68 @@ namespace _uiControls {
             ui.STANDARD_DISPLAY_HEIGHT,
         )
         return labelBoundsScratch
+    }
+
+    export function resolveContent(
+        source: ui.UiControlContentOptions | string | undefined,
+        assets: ui.UiAssetResolver | undefined,
+        output: ui.UiControlContent,
+        omitMissingBitmap?: boolean,
+    ): void {
+        const text =
+            typeof source == "string"
+                ? source
+                : source && source.text !== undefined
+                  ? source.text
+                  : source && assets && source.textId !== undefined
+                    ? assets.getText(source.textId)
+                    : ""
+        const bitmap =
+            source && typeof source != "string" && source.bitmap
+                ? source.bitmap
+                : source &&
+                    typeof source != "string" &&
+                    assets &&
+                    source.bitmapId !== undefined
+                  ? assets.getBitmap(
+                        source.bitmapId,
+                        omitMissingBitmap || false,
+                    )
+                  : undefined
+        output.text = text
+        output.bitmap = bitmap
+    }
+
+    export function resolveControlContent<T>(
+        control: ui.UiControl<T>,
+        assets: ui.UiAssetResolver,
+    ): void {
+        resolveContentOptions(control, assets, control.omitMissingBitmap)
+        if (
+            control.focusLabel === undefined &&
+            control.focusLabelId !== undefined
+        )
+            control.focusLabel = assets.getText(control.focusLabelId)
+        control.focusLabelId = undefined
+    }
+
+    export function resolveContentOptions(
+        content: ui.UiControlContentOptions,
+        assets: ui.UiAssetResolver,
+        omitMissingBitmap?: boolean,
+    ): void {
+        resolveContent(content, assets, content, omitMissingBitmap)
+        content.textId = undefined
+        content.bitmapId = undefined
+    }
+
+    export function resolveControlCollectionContent<T>(
+        controls: ui.UiControl<T>[],
+        assets: ui.UiAssetResolver,
+    ): void {
+        if (!controls) return
+        for (let i = 0; i < controls.length; i++)
+            resolveControlContent(controls[i], assets)
     }
 
     export function activeTargetIdForScope(
@@ -391,5 +478,23 @@ namespace _uiControls {
 
     export function copyRect(target: ui.Rect, source: ui.Rect): void {
         ui.copyArrangedLayoutRect(target, source)
+    }
+}
+
+namespace _uiCore {
+    resolveContentAssets = function (
+        view: ui.UiView<any>,
+        assets: ui.UiAssetResolver,
+    ): void {
+        if (view instanceof ui.UiButton)
+            (<ui.UiButton<any>>view)._resolveContentAssets(assets)
+        else if (view instanceof ui.UiLabel)
+            (<ui.UiLabel>view)._resolveContentAssets(assets)
+        else if (view instanceof ui.UiPicker)
+            (<ui.UiPicker<any>>view)._resolveContentAssets(assets)
+        else if (view instanceof ui.UiNumericEntryModal)
+            (<ui.UiNumericEntryModal>view)._resolveContentAssets(assets)
+        else if (view instanceof ui.UiTextEntryModal)
+            (<ui.UiTextEntryModal>view)._resolveContentAssets(assets)
     }
 }

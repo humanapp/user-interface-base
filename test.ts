@@ -139,22 +139,25 @@ namespace ui {
         private log_: (name: string) => void
 
         constructor(
+            runtime: UiRuntime,
             prefix: string,
             backgroundColor: number,
             log: (name: string) => void,
         ) {
-            super()
+            super(runtime)
             this.prefix_ = prefix
             this.backgroundColor = backgroundColor
             this.log_ = log
             this.exitCount = 0
         }
 
-        public enter(runtime: UiRuntime): void {
+        public _enter(): void {
+            super._enter()
             this.log_(this.prefix_ + "enter")
         }
 
-        public exit(): void {
+        public _exit(): void {
+            super._exit()
             this.exitCount++
             this.log_(this.prefix_ + "exit")
         }
@@ -256,9 +259,14 @@ namespace ui {
             appendLog("commit"),
         )
         const runtime = new UiRuntime({ display, clearColor: 0 })
-        const base = new RuntimeSmokeScreen("base", 1, appendLog)
-        const overlay = new RuntimeSmokeScreen("overlay", 2, appendLog)
-        const replacement = new RuntimeSmokeScreen("replace", 3, appendLog)
+        const base = new RuntimeSmokeScreen(runtime, "base", 1, appendLog)
+        const overlay = new RuntimeSmokeScreen(runtime, "overlay", 2, appendLog)
+        const replacement = new RuntimeSmokeScreen(
+            runtime,
+            "replace",
+            3,
+            appendLog,
+        )
 
         runtime.push(base)
         control.assert(log == "baseenter;baseactivate;", "base push order")
@@ -613,8 +621,11 @@ namespace ui {
     class ControlSmokeScreen extends UiScreen {
         private inputHandler_: (event: UiInputEvent) => boolean | undefined
 
-        constructor(handler: (event: UiInputEvent) => boolean | undefined) {
-            super()
+        constructor(
+            runtime: UiRuntime,
+            handler: (event: UiInputEvent) => boolean | undefined,
+        ) {
+            super(runtime)
             this.inputHandler_ = handler
         }
 
@@ -987,7 +998,6 @@ namespace ui {
         surface.log = ""
         _uiControls.renderControl(
             surface,
-            new ControlSmokeAssets(),
             {
                 id: "selected",
                 value: "selected",
@@ -1082,9 +1092,11 @@ namespace ui {
             color: 7,
             size: { width: 40, height: 8 },
         })
+        resolvedLabel._resolveContentAssets(new ControlSmokeAssets())
         resolvedLabel.arrange(new Rect(0, 0, 40, 8))
         surface.log = ""
-        resolvedLabel.render(surface, new ControlSmokeAssets())
+        resolvedLabel.measure({ maxWidth: 160, maxHeight: 120 }, measured)
+        resolvedLabel.render(surface)
         control.assert(
             surface.log.indexOf("bitmap:2x1;") >= 0,
             "label bitmap id render",
@@ -1149,6 +1161,7 @@ namespace ui {
                 cancelled = scopeId
             },
         })
+        picker._resolveContentAssets(new ControlSmokeAssets())
 
         const measured = new UiMeasuredSize()
         picker.measure({ maxWidth: 160, maxHeight: 120 }, measured)
@@ -1271,16 +1284,16 @@ namespace ui {
      */
     export function runScreenControllerSmokeTest(): void {
         let screenLog = ""
-        const screen = new ControlSmokeScreen((event: UiInputEvent) => {
+        const screenRuntime = new UiRuntime({
+            display: new RuntimeSmokeDisplayAdapter(() => {}),
+            assets: new ControlSmokeAssets(),
+        })
+        const screen = new ControlSmokeScreen(screenRuntime, event => {
             if (event.action == "cancel" && event.phase != "released") {
                 screenLog += "root-cancel;"
                 return true
             }
             return undefined
-        })
-        const screenRuntime = new UiRuntime({
-            display: new RuntimeSmokeDisplayAdapter(() => {}),
-            assets: new ControlSmokeAssets(),
         })
         screen.add(new UiLabel("Screen", 1), { x: 2, y: 3 })
         const screenRow = new ControlSmokeRoot(
@@ -1299,7 +1312,7 @@ namespace ui {
             x: 7,
             y: 32,
         })
-        screen.enter(screenRuntime)
+        screen._enter()
         control.assert(
             screen.focus.getActiveTargetId("screen-row") == "screen-row/b",
             "screen controller root focus",
@@ -1447,7 +1460,7 @@ namespace ui {
             "screen controller custom modal closes",
         )
 
-        screen.exit()
+        screen._exit()
     }
 
     /**
@@ -1761,6 +1774,7 @@ namespace ui {
                 deleteModalResult = result
             },
         })
+        deleteModal._resolveContentAssets(new ControlSmokeAssets())
         const deleteModalMeasured = new UiMeasuredSize()
         deleteModal.measure(
             { maxWidth: 160, maxHeight: 120 },
@@ -1987,6 +2001,7 @@ namespace ui {
                 modalResult = result
             },
         })
+        modal._resolveContentAssets(new ControlSmokeAssets())
         const modalMeasured = new UiMeasuredSize()
         modal.measure({ maxWidth: 160, maxHeight: 120 }, modalMeasured)
         control.assert(

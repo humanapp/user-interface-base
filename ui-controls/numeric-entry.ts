@@ -368,7 +368,7 @@ namespace ui {
         /**
          * Optional delete key content shown when `deleteEnabled` is true.
          */
-        deleteContent?: UiButtonContentOptions | string
+        deleteContent?: UiControlContentOptions | string
 
         /**
          * Receives completed or cancelled numeric entry results.
@@ -398,13 +398,13 @@ namespace ui {
         private keyRect_: Rect
         private keyStyle_: UiButtonStyle
         private keyView_: UiButtonView
-        private keyContent_: UiButtonContent
+        private keyContent_: UiControlContent
         private displayRect_: Rect
         private gridRect_: Rect
         private backgroundColor_: number
         private contentMargin_: number
         private flags_: number
-        private deleteContent_: UiButtonContentOptions | string
+        private deleteContent_: UiControlContentOptions | string
         private onResult_: (result: UiNumericEntryResult) => void
 
         /**
@@ -513,6 +513,17 @@ namespace ui {
          */
         public clearLayoutInvalidation(): void {
             this.layoutDirty = false
+        }
+
+        /**
+         * Resolves resolver-backed content ids for optional modal keys.
+         */
+        public _resolveContentAssets(assets: UiAssetResolver): void {
+            if (
+                this.deleteContent_ !== undefined &&
+                typeof this.deleteContent_ != "string"
+            )
+                _uiControls.resolveContentOptions(this.deleteContent_, assets)
         }
 
         /**
@@ -730,7 +741,7 @@ namespace ui {
                 const key = this.keyValues_[i]
                 if (key == UI_NUMERIC_ENTRY_KEY_SPACER) continue
                 this.setKeyRect(i)
-                this.prepareKeyContent(key, assets)
+                this.prepareKeyContent(key)
                 this.keyView_.render(
                     surface,
                     this.keyRect_,
@@ -753,7 +764,7 @@ namespace ui {
             if (index < 0) return
             const key = this.keyValues_[index]
             this.setKeyRect(index)
-            this.prepareKeyContent(key, assets)
+            this.prepareKeyContent(key)
             this.keyView_.renderFocus(
                 surface,
                 this.keyRect_,
@@ -924,10 +935,7 @@ namespace ui {
             return this.keyStyle_
         }
 
-        private prepareKeyContent(
-            key: UiNumericEntryModalKeyValue,
-            assets: UiAssetResolver,
-        ): void {
+        private prepareKeyContent(key: UiNumericEntryModalKeyValue): void {
             this.keyContent_.bitmap = undefined
             if (
                 key == UI_NUMERIC_ENTRY_KEY_DELETE &&
@@ -937,16 +945,11 @@ namespace ui {
                 if (typeof content == "string") {
                     this.keyContent_.text = content
                 } else {
-                    if (content.text !== undefined)
-                        this.keyContent_.text = content.text
-                    else if (content.textId !== undefined)
-                        this.keyContent_.text = assets.getText(content.textId)
-                    else this.keyContent_.text = ""
-                    if (content.bitmap) this.keyContent_.bitmap = content.bitmap
-                    else if (content.bitmapId !== undefined)
-                        this.keyContent_.bitmap = assets.getBitmap(
-                            content.bitmapId,
-                        )
+                    _uiControls.resolveContent(
+                        content,
+                        undefined,
+                        this.keyContent_,
+                    )
                 }
             } else {
                 this.keyContent_.text = this.keyTextForKey(key)

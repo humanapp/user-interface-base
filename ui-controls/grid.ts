@@ -163,6 +163,13 @@ namespace ui {
         }
 
         /**
+         * Resolves resolver-backed content ids for grid controls.
+         */
+        public _resolveContentAssets(assets: UiAssetResolver): void {
+            _uiControls.resolveControlCollectionContent(this.controls_, assets)
+        }
+
+        /**
          * Copies one arranged control rectangle into `output`.
          */
         public getControlRect(controlId: string, output: Rect): boolean {
@@ -348,12 +355,13 @@ namespace ui {
                 if (!_uiControls.isVisible(control)) continue
                 _uiControls.renderControl(
                     surface,
-                    assets,
                     control,
                     this.controlRects_[i],
                     this.controlView_,
                     this.controlStyle_,
                     labelBounds,
+                    undefined,
+                    assets,
                 )
             }
         }
@@ -383,13 +391,13 @@ namespace ui {
             if (index < 0) return
             _uiControls.renderControl(
                 surface,
-                assets,
                 this.controls_[index],
                 this.controlRects_[index],
                 this.controlView_,
                 this.controlStyle_,
                 labelBounds,
                 true,
+                assets,
             )
         }
 

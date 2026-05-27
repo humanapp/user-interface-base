@@ -12,7 +12,7 @@ namespace ui {
         /**
          * Optional title content.
          */
-        title?: UiButtonContentOptions | string
+        title?: UiControlContentOptions | string
 
         /**
          * Caller-owned controls rendered at the right edge of the title bar.
@@ -108,7 +108,7 @@ namespace ui {
         public readonly finalRect: Rect
         public layoutDirty: boolean
         private modalScopeId_: UiFocusScopeId
-        private title_: UiButtonContentOptions | string
+        private title_?: UiControlContentOptions | string
         private closeOnActivate_: boolean
         private style_: UiModalStyle
         private controls_: UiControl<T>[]
@@ -137,7 +137,7 @@ namespace ui {
          */
         constructor(
             options: UiPickerOptions<T> | UiFocusScopeId,
-            title?: UiButtonContentOptions | string,
+            title?: UiControlContentOptions | string,
             choices?: UiPickerChoice<T>[],
             onActivate?: UiControlActivateHandler<T>,
             onCancel?: UiPickerCancelHandler,
@@ -266,6 +266,19 @@ namespace ui {
         }
 
         /**
+         * Resolves resolver-backed content ids for title and controls.
+         */
+        public _resolveContentAssets(assets: UiAssetResolver): void {
+            if (this.title_ !== undefined && typeof this.title_ != "string")
+                _uiControls.resolveContentOptions(this.title_, assets)
+            _uiControls.resolveControlCollectionContent(this.controls_, assets)
+            _uiControls.resolveControlCollectionContent(
+                this.titleControls_,
+                assets,
+            )
+        }
+
+        /**
          * Registers the modal scope, control targets, and optional navigation.
          */
         public open(
@@ -300,12 +313,10 @@ namespace ui {
         /**
          * Returns the resolved title text.
          */
-        public resolveTitleText(assets: UiAssetResolver): string {
+        public resolveTitleText(): string {
             if (this.title_ === undefined) return ""
             if (typeof this.title_ == "string") return this.title_
             if (this.title_.text !== undefined) return this.title_.text
-            if (this.title_.textId !== undefined)
-                return assets.getText(this.title_.textId)
             return ""
         }
 
@@ -367,12 +378,10 @@ namespace ui {
             focus?: UiFocusState,
         ): void {
             drawModalPanel(surface, this.finalRect, this.style_)
-            const title = this.resolveTitleText(assets)
+            const title = this.resolveTitleText()
             let bitmap: Bitmap = undefined
             if (this.title_ !== undefined && typeof this.title_ != "string") {
                 if (this.title_.bitmap) bitmap = this.title_.bitmap
-                else if (this.title_.bitmapId !== undefined)
-                    bitmap = assets.getBitmap(this.title_.bitmapId)
             }
             let titleX = this.finalRect.x + 4
             if (bitmap) {
@@ -421,7 +430,7 @@ namespace ui {
 
         private resolveOptions(
             options: UiPickerOptions<T> | UiFocusScopeId,
-            title?: UiButtonContentOptions | string,
+            title?: UiControlContentOptions | string,
             choices?: UiPickerChoice<T>[],
             onActivate?: UiControlActivateHandler<T>,
             onCancel?: UiPickerCancelHandler,
@@ -524,7 +533,7 @@ namespace ui {
         }
 
         private showTitleBar(): boolean {
-            return !this.style_ || this.style_.showTitleBar !== false
+            return !!this.title_
         }
 
         private hasTitleControls(): boolean {
@@ -701,12 +710,13 @@ namespace ui {
                 if (!_uiControls.isVisible(control)) continue
                 _uiControls.renderControl(
                     surface,
-                    assets,
                     control,
                     rects[i],
                     buttonView,
                     style,
                     labelBounds,
+                    undefined,
+                    assets,
                 )
             }
         }
@@ -737,13 +747,13 @@ namespace ui {
             )
             _uiControls.renderControl(
                 surface,
-                assets,
                 controls[index],
                 rects[index],
                 buttonView,
                 style,
                 labelBounds,
                 true,
+                assets,
             )
         }
 

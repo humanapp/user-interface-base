@@ -5,7 +5,7 @@ namespace ui {
     /**
      * Options for one passive text or bitmap label.
      */
-    export interface UiLabelOptions extends UiButtonContentOptions {
+    export interface UiLabelOptions extends UiControlContentOptions {
         /**
          * Requested label size. Omitted axes use literal content size.
          */
@@ -45,7 +45,8 @@ namespace ui {
         public readonly finalRect: Rect
         public layoutDirty: boolean
         private text_: string
-        private content_: UiButtonContentOptions
+        private bitmap_: Bitmap
+        private content_: UiControlContentOptions
         private color_: number
         private backgroundColor_: number
         private font_: TextFont
@@ -59,6 +60,7 @@ namespace ui {
             const source = options
             options = this.resolveOptions(options, color)
             this.text_ = options.text || ""
+            this.bitmap_ = options.bitmap
             this.content_ = typeof source == "string" ? undefined : options
             this.color_ = options.color !== undefined ? options.color : 1
             this.backgroundColor_ = options.backgroundColor
@@ -81,14 +83,11 @@ namespace ui {
          * Updates the visible label text and returns this label.
          */
         public setText(text: string): UiLabel {
-            const content = this.content_
             this.text_ = text || ""
-            if (content)
-                this.content_ = {
-                    text: this.text_,
-                    bitmap: content.bitmap,
-                    bitmapId: content.bitmapId,
-                }
+            if (this.content_) {
+                this.content_.text = this.text_
+                this.content_.textId = undefined
+            }
             this.invalidateLayout()
             return this
         }
@@ -145,22 +144,11 @@ namespace ui {
         /**
          * Renders the label through the supplied draw surface.
          */
-        public render(surface: DrawSurface, assets?: UiAssetResolver): void {
+        public render(surface: DrawSurface): void {
             if (this.backgroundColor_ !== undefined)
                 surface.fillRect(this.finalRect, this.backgroundColor_)
-            const content = this.content_
-            const bitmap =
-                content && content.bitmap
-                    ? content.bitmap
-                    : assets && content && content.bitmapId !== undefined
-                      ? assets.getBitmap(content.bitmapId)
-                      : undefined
-            const text =
-                content && content.text !== undefined
-                    ? content.text
-                    : assets && content && content.textId !== undefined
-                      ? assets.getText(content.textId)
-                      : this.text_
+            const bitmap = this.bitmap_
+            const text = this.text_
             let textX = this.finalRect.x
             if (bitmap) {
                 surface.drawBitmap(bitmap, this.finalRect.x, this.finalRect.y)
@@ -178,6 +166,19 @@ namespace ui {
          */
         public handleFocusInput(result: UiFocusInputResult): undefined {
             return undefined
+        }
+
+        /**
+         * Resolves resolver-backed content ids into retained label content.
+         */
+        public _resolveContentAssets(assets: UiAssetResolver): void {
+            const content = this.content_
+            if (!content) return
+            _uiControls.resolveContentOptions(content, assets)
+            this.text_ = content.text || ""
+            this.bitmap_ = content.bitmap
+            this.content_ = undefined
+            this.invalidateLayout()
         }
 
         private resolveOptions(
@@ -198,10 +199,7 @@ namespace ui {
 
         private preferredWidth(): number {
             const textWidth = this.text_.length * this.font_.charWidth
-            const bitmap =
-                this.content_ && this.content_.bitmap
-                    ? this.content_.bitmap
-                    : undefined
+            const bitmap = this.bitmap_
             const bitmapWidth = bitmap ? bitmap.width : 0
             if (textWidth > 0 && bitmapWidth > 0)
                 return bitmapWidth + LABEL_CONTENT_GAP + textWidth
@@ -209,10 +207,7 @@ namespace ui {
         }
 
         private preferredHeight(): number {
-            const bitmap =
-                this.content_ && this.content_.bitmap
-                    ? this.content_.bitmap
-                    : undefined
+            const bitmap = this.bitmap_
             return Math.max(this.font_.charHeight, bitmap ? bitmap.height : 0)
         }
 

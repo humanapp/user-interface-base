@@ -47,7 +47,7 @@ const runtime = new ui.UiRuntime({
     clearColor: 1,
 })
 
-runtime.push(new HelloScreen())
+runtime.push(new HelloScreen(runtime))
 runtime.start()
 ```
 
@@ -55,6 +55,7 @@ runtime.start()
 delivers queued input to the active screen, calls the
 screen's `update()`, calls `render()`, and commits the frame to the display
 adapter. Call `stop()` when the app should stop drawing UI frames.
+Screens receive the runtime in their constructor.
 
 ## 3. Make A Screen Own App State
 
@@ -66,8 +67,8 @@ class CounterScreen extends ui.UiScreen {
     private count: number
     private countLabel: ui.UiLabel
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.count = 0
         this.backgroundColor = 0
         this.add(new ui.UiLabel("Count:", 1), { x: 8, y: 8 })
@@ -144,8 +145,8 @@ class StartScreen extends ui.UiScreen {
     private statusLabel: ui.UiLabel
     private toggleButton: ui.UiButton
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.status = "Ready"
         this.statusLabel = new ui.UiLabel(this.status, 1)
         this.toggleButton = new ui.UiButton("start", "Start", () => {
@@ -181,8 +182,8 @@ class SettingsScreen extends ui.UiScreen {
     private speed: number
     private speedLabel: ui.UiLabel
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.speed = 5
         this.backgroundColor = 8
         this.add(new ui.UiLabel("Speed", 1), { x: 8, y: 8 })
@@ -367,8 +368,8 @@ class SaveScreen extends ui.UiScreen {
     private status: string
     private statusLabel: ui.UiLabel
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.status = "Not saved"
         this.backgroundColor = 8
         this.statusLabel = new ui.UiLabel(`Status: ${this.status}`, 7)
@@ -416,8 +417,8 @@ class NameEntryScreen extends ui.UiScreen {
     private name: string
     private nameLabel: ui.UiLabel
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.name = ""
         this.backgroundColor = 8
         this.add(new ui.UiLabel("Player", 1), { x: 8, y: 8 })
@@ -479,8 +480,8 @@ class DataGraphScreen extends ui.UiScreen {
     private toggleButton: ui.UiButton
     private running: boolean
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.backgroundColor = 0
         this.tick = 0
         this.running = true

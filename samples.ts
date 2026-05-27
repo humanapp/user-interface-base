@@ -14,8 +14,8 @@ class CounterScreen extends ui.UiScreen {
     private count: number
     private countLabel: ui.UiLabel
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.count = 0
         this.backgroundColor = 0
         this.add(new ui.UiLabel("Count:", 1), { x: 8, y: 8 })
@@ -44,8 +44,8 @@ class StartScreen extends ui.UiScreen {
     private statusLabel: ui.UiLabel
     private toggleButton: ui.UiButton
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.status = "Ready"
         this.statusLabel = new ui.UiLabel(this.status, 1)
         this.toggleButton = new ui.UiButton("start", "Start", () => {
@@ -64,8 +64,8 @@ class SettingsScreen extends ui.UiScreen {
     private speed: number
     private speedLabel: ui.UiLabel
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.speed = 5
         this.backgroundColor = 8
         this.add(new ui.UiLabel("Speed", 1), { x: 8, y: 8 })
@@ -100,8 +100,8 @@ class SaveScreen extends ui.UiScreen {
     private status: string
     private statusLabel: ui.UiLabel
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.status = "Not saved"
         this.backgroundColor = 8
         this.statusLabel = new ui.UiLabel(`Status: ${this.status}`, 7)
@@ -141,8 +141,8 @@ class NameEntryScreen extends ui.UiScreen {
     private name: string
     private nameLabel: ui.UiLabel
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.name = ""
         this.backgroundColor = 8
         this.add(new ui.UiLabel("Player", 1), { x: 8, y: 8 })
@@ -193,8 +193,8 @@ class DataGraphScreen extends ui.UiScreen {
     private toggleButton: ui.UiButton
     private running: boolean
 
-    constructor() {
-        super()
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
         this.backgroundColor = 0
         this.tick = 0
         this.running = true
@@ -268,11 +268,11 @@ const runtime = new ui.UiRuntime({
     display: new ui.DisplayShieldFrameAdapter(),
     clearColor: 0,
 })
-//runtime.push(new HelloScreen())
-//runtime.push(new CounterScreen())
-//runtime.push(new SettingsScreen())
-//runtime.push(new SaveScreen())
-runtime.push(new NameEntryScreen())
-//runtime.push(new StartScreen())
-//runtime.push(new DataGraphScreen())
+//runtime.push(new HelloScreen(runtime))
+//runtime.push(new CounterScreen(runtime))
+//runtime.push(new SettingsScreen(runtime))
+//runtime.push(new SaveScreen(runtime))
+runtime.push(new NameEntryScreen(runtime))
+//runtime.push(new StartScreen(runtime))
+//runtime.push(new DataGraphScreen(runtime))
 runtime.start()

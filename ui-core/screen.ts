@@ -24,10 +24,10 @@ namespace ui {
          */
         public backgroundColor: number
         private options_: UiScreenOptions
+        private runtime_: UiRuntime
         private focus_: UiFocusState
         private focusInput_: UiFocusInputController
         private roots_: UiScreenRoot<any>[]
-        private assets_: UiAssetResolver
         private activeModal_: UiModal<any>
         private modalConstraints_: UiLayoutConstraints
         private rootConstraints_: UiLayoutConstraints
@@ -36,13 +36,13 @@ namespace ui {
         private modalSize_: UiMeasuredSize
         private entered_: boolean
 
-        constructor(options?: UiScreenOptions) {
+        constructor(runtime: UiRuntime, options?: UiScreenOptions) {
             this.options_ = options || {}
+            this.runtime_ = runtime
             this.backgroundColor = undefined
             this.focus_ = new UiFocusState()
             this.focusInput_ = this.createFocusInputController()
             this.roots_ = []
-            this.assets_ = undefined
             this.activeModal_ = undefined
             this.modalConstraints_ = {
                 maxWidth: 0,
@@ -64,7 +64,14 @@ namespace ui {
          * Asset resolver from the active runtime.
          */
         public get assets(): UiAssetResolver {
-            return this.assets_
+            return this.runtime_.assets
+        }
+
+        /**
+         * Runtime that owns this screen.
+         */
+        public get runtime(): UiRuntime {
+            return this.runtime_
         }
 
         /**
@@ -89,6 +96,7 @@ namespace ui {
             placement?: UiPlacement,
         ): TView {
             const root = createScreenRoot(view, placement)
+            _uiCore.resolveContentAssets(view, this.assets)
             this.roots_.push(root)
             if (placement && (this.entered_ || this.hasExplicitSize(placement)))
                 this.arrangeRoot(root)
@@ -122,11 +130,10 @@ namespace ui {
         /**
          * Called after the screen has been pushed onto a runtime stack.
          */
-        public enter(runtime: UiRuntime): void {
+        public _enter(): void {
             this.closeModal()
             this.focus_ = new UiFocusState()
             this.focusInput_ = this.createFocusInputController()
-            this.assets_ = runtime.assets
             this.entered_ = true
             this.resolveRootConstraints()
             this.resolveModalConstraints()
@@ -141,9 +148,8 @@ namespace ui {
         /**
          * Called after the screen is removed from the stack.
          */
-        public exit(): void {
+        public _exit(): void {
             this.closeModal()
-            this.assets_ = undefined
             this.entered_ = false
             this.focus_ = new UiFocusState()
             this.focusInput_ = this.createFocusInputController()
@@ -191,6 +197,7 @@ namespace ui {
             options?: UiModalOpenOptions,
         ): UiFocusSetResult {
             if (this.activeModal_) this.closeModal()
+            _uiCore.resolveContentAssets(modal, this.assets)
             this.arrangeModal(modal, options || this.defaultModalOptions_)
             this.activeModal_ = modal
             return modal.open(this.focus_, this.focusInput_)
@@ -224,12 +231,11 @@ namespace ui {
         }
 
         private renderViews(surface: DrawSurface): void {
-            if (!this.assets_) return
             for (let i = 0; i < this.roots_.length; i++) {
-                this.roots_[i].view.render(surface, this.assets_, this.focus_)
+                this.roots_[i].view.render(surface, this.assets, this.focus_)
             }
             if (this.activeModal_)
-                this.activeModal_.render(surface, this.assets_, this.focus_)
+                this.activeModal_.render(surface, this.assets, this.focus_)
         }
 
         private registerRoot<TResult>(root: UiScreenRoot<TResult>): void {
@@ -468,6 +474,10 @@ namespace ui {
         return !!(<any>view).registerFocusTargets
     }
 
+    function assertScreenRuntime(runtime: UiRuntime, screen: UiScreen): void {
+        control.assert(screen.runtime == runtime)
+    }
+
     interface UiScreenInput {
         runtime: UiRuntime
         disposed: boolean
@@ -527,6 +537,7 @@ namespace ui {
          * Pushes a screen and makes it active.
          */
         public push(screen: UiScreen): void {
+            assertScreenRuntime(this.runtime_, screen)
             this.runtime_.clearInputQueue()
 
             const current = this.topRecord()
@@ -540,7 +551,7 @@ namespace ui {
             const record: UiScreenRecord = { screen, input }
             this.screens_.push(record)
 
-            screen.enter(this.runtime_)
+            screen._enter()
             screen.activate()
         }
 
@@ -555,7 +566,7 @@ namespace ui {
             if (!record) return undefined
 
             record.screen.deactivate()
-            record.screen.exit()
+            record.screen._exit()
             disposeScreenInput(record.input)
             releaseControllerButtons()
 
@@ -575,12 +586,13 @@ namespace ui {
          * Returns `undefined` when the stack is empty.
          */
         public replace(screen: UiScreen): UiScreen | undefined {
+            assertScreenRuntime(this.runtime_, screen)
             this.runtime_.clearInputQueue()
 
             const replaced = this.screens_.pop()
             if (replaced) {
                 replaced.screen.deactivate()
-                replaced.screen.exit()
+                replaced.screen._exit()
                 disposeScreenInput(replaced.input)
             }
 
@@ -592,7 +604,7 @@ namespace ui {
             const record: UiScreenRecord = { screen, input }
             this.screens_.push(record)
 
-            screen.enter(this.runtime_)
+            screen._enter()
             screen.activate()
 
             return replaced ? replaced.screen : undefined
@@ -708,4 +720,11 @@ namespace ui {
             })
         }
     }
+}
+
+namespace _uiCore {
+    export let resolveContentAssets = function (
+        view: ui.UiView<any>,
+        assets: ui.UiAssetResolver,
+    ): void {}
 }

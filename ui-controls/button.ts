@@ -77,51 +77,11 @@ namespace ui {
     }
 
     /**
-     * Content rendered by `UiButtonView`.
-     */
-    export interface UiButtonContent {
-        /**
-         * Bitmap drawn before the text or centered by itself.
-         */
-        bitmap?: Bitmap
-
-        /**
-         * Text drawn beside the bitmap or centered by itself.
-         */
-        text?: string
-    }
-
-    /**
-     * Caller-provided button content before resolver lookup.
-     */
-    export interface UiButtonContentOptions {
-        /**
-         * Literal display text.
-         */
-        text?: string
-
-        /**
-         * Resolver-backed display text id.
-         */
-        textId?: string
-
-        /**
-         * Literal bitmap content.
-         */
-        bitmap?: Bitmap
-
-        /**
-         * Resolver-backed bitmap id.
-         */
-        bitmapId?: string | number
-    }
-
-    /**
      * Creates a button control whose value is its id.
      */
     export function button<T extends string>(
         id: T,
-        content?: UiButtonContentOptions | string,
+        content?: UiControlContentOptions | string,
         onActivate?: () => void,
     ): UiControl<T> {
         const control: UiControl<T> = {
@@ -193,7 +153,7 @@ namespace ui {
         public render(
             surface: DrawSurface,
             rect: Rect,
-            content: UiButtonContent,
+            content: UiControlContent,
             style?: UiButtonStyle,
         ): void {
             style = style || this.style_
@@ -207,7 +167,7 @@ namespace ui {
         public renderFocus(
             surface: DrawSurface,
             rect: Rect,
-            content: UiButtonContent,
+            content: UiControlContent,
             style?: UiButtonStyle,
             labelBounds?: Rect,
             focusLabelText?: string,
@@ -253,7 +213,7 @@ namespace ui {
         private renderContent(
             surface: DrawSurface,
             rect: Rect,
-            content: UiButtonContent,
+            content: UiControlContent,
             style: UiButtonStyle,
         ): void {
             const contentRect = this.scratch_
@@ -284,7 +244,7 @@ namespace ui {
 
         private contentRect(
             rect: Rect,
-            content: UiButtonContent,
+            content: UiControlContent,
             style: UiButtonStyle,
             output: Rect,
         ): void {
@@ -306,7 +266,7 @@ namespace ui {
         private renderFocusLabel(
             surface: DrawSurface,
             rect: Rect,
-            content: UiButtonContent,
+            content: UiControlContent,
             style: UiButtonStyle,
             bounds?: Rect,
             focusLabelText?: string,
@@ -353,7 +313,7 @@ namespace ui {
         }
 
         private contentText(
-            content: UiButtonContent,
+            content: UiControlContent,
             style: UiButtonStyle,
         ): string {
             if (
@@ -365,7 +325,7 @@ namespace ui {
         }
 
         private focusLabelText(
-            content: UiButtonContent,
+            content: UiControlContent,
             style: UiButtonStyle,
             focusLabelText?: string,
         ): string {
@@ -378,11 +338,11 @@ namespace ui {
             return ""
         }
 
-        private contentWidth(content: UiButtonContent): number {
+        private contentWidth(content: UiControlContent): number {
             return content.bitmap ? content.bitmap.width : 0
         }
 
-        private contentHeight(content: UiButtonContent): number {
+        private contentHeight(content: UiControlContent): number {
             return content.bitmap ? content.bitmap.height : 0
         }
     }
@@ -483,7 +443,15 @@ namespace ui {
          */
         public setText(text: string): UiButton<T> {
             this.control_.text = text
+            this.control_.textId = undefined
             return this
+        }
+
+        /**
+         * Resolves resolver-backed content ids into retained button content.
+         */
+        public _resolveContentAssets(assets: UiAssetResolver): void {
+            _uiControls.resolveControlContent(this.control_, assets)
         }
 
         /**
@@ -665,23 +633,24 @@ namespace ui {
             )
             _uiControls.renderControl(
                 surface,
-                assets,
                 this.control_,
                 this.finalRect,
                 this.controlView_,
                 undefined,
                 labelBounds,
+                undefined,
+                assets,
             )
             if (this.isFocused(focus)) {
                 _uiControls.renderControl(
                     surface,
-                    assets,
                     this.control_,
                     this.finalRect,
                     this.controlView_,
                     undefined,
                     labelBounds,
                     true,
+                    assets,
                 )
             }
         }

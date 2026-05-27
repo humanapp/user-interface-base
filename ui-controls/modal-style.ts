@@ -27,11 +27,6 @@ namespace ui {
          * Extra vertical space between the title band and modal content.
          */
         titleGap?: number
-
-        /**
-         * Whether an empty modal reserves title-band space.
-         */
-        showTitleBar?: boolean
     }
 
     /**
@@ -62,14 +57,6 @@ namespace ui {
             color: 1,
             contentMargin: 4,
             titleGap: 0,
-            showTitleBar: true,
-        }
-
-        /**
-         * Omits title-band space when no title is present.
-         */
-        export const Titleless: UiModalStyle = {
-            showTitleBar: false,
         }
     }
 
@@ -81,7 +68,5 @@ namespace ui {
         if (source.contentMargin !== undefined)
             target.contentMargin = source.contentMargin
         if (source.titleGap !== undefined) target.titleGap = source.titleGap
-        if (source.showTitleBar !== undefined)
-            target.showTitleBar = source.showTitleBar
     }
 }
