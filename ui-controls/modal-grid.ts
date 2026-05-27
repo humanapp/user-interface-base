@@ -58,12 +58,7 @@ namespace ui {
     /**
      * Handles modal cancellation.
      */
-    export interface UiPickerCancelHandler {
-        /**
-         * Receives the cancelled modal focus scope id.
-         */
-        (modalScopeId: UiFocusScopeId): void
-    }
+    export type UiPickerCancelHandler = (modalScopeId: UiFocusScopeId) => void
 
     /**
      * Result emitted by a modal grid.
@@ -127,7 +122,6 @@ namespace ui {
         private controlRects_: Rect[]
         private titleControlRects_: Rect[]
         private controlView_: UiButtonView
-        private titleControlView_: UiButtonView
         private onActivate_: UiControlActivateHandler<T>
         private onCancel_: UiPickerCancelHandler
 
@@ -179,7 +173,6 @@ namespace ui {
             this.controlRects_ = []
             this.titleControlRects_ = []
             this.controlView_ = new UiButtonView(options.controlStyle)
-            this.titleControlView_ = new UiButtonView(this.titleControlStyle_)
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.layoutSpec = _uiControls.defaultLayoutSpec()
@@ -401,7 +394,7 @@ namespace ui {
                 assets,
                 this.titleControls_,
                 this.titleControlRects_,
-                this.titleControlView_,
+                this.controlView_,
                 this.titleControlStyle_,
             )
             this.renderFocus(
@@ -419,7 +412,7 @@ namespace ui {
                 focus,
                 this.titleControls_,
                 this.titleControlRects_,
-                this.titleControlView_,
+                this.controlView_,
                 this.titleControlStyle_,
             )
         }

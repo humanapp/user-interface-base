@@ -2,12 +2,11 @@ namespace ui {
     /**
      * Handles activation of one control.
      */
-    export interface UiControlActivateHandler<T> {
-        /**
-         * Receives the typed control value, source control, and control id.
-         */
-        (value: T, control: UiControl<T>, controlId: string): void
-    }
+    export type UiControlActivateHandler<T> = (
+        value: T,
+        control: UiControl<T>,
+        controlId: string,
+    ) => void
 
     /**
      * Optional width and height in pixels.

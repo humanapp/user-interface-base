@@ -144,48 +144,64 @@ namespace ui {
             style?: UiButtonStyle,
         ): void {
             style = style || this.style_
-            this.renderFrame(surface, rect, style)
-            this.renderContent(surface, rect, content, style)
-        }
-
-        /**
-         * Renders only the focus treatment for a button.
-         */
-        public renderFocus(
-            surface: DrawSurface,
-            rect: Rect,
-            content: UiControlContent,
-            style?: UiButtonStyle,
-            labelBounds?: Rect,
-            focusLabelText?: string,
-        ): void {
-            style = style || this.style_
-            drawButtonFocusRing(surface, rect)
-            this.renderFocusLabel(
-                surface,
-                rect,
-                content,
-                style,
-                labelBounds,
-                focusLabelText,
-            )
-        }
-
-        private renderFrame(
-            surface: DrawSurface,
-            rect: Rect,
-            style: UiButtonStyle,
-        ): void {
             const background = style.backgroundColor
             const frame = style.frame || "none"
             if (frame == "roundedShadow") {
-                drawShadowedButtonFrame(
-                    surface,
-                    rect,
-                    this.scratch_,
-                    background,
-                    style.edgeColor,
-                    style.shadowColor,
+                const shadowBackground =
+                    background !== undefined ? background : 1
+                const edge =
+                    style.edgeColor !== undefined ? style.edgeColor : 1
+                const shadow =
+                    style.shadowColor !== undefined ? style.shadowColor : 11
+
+                this.scratch_.set(
+                    rect.x + 1,
+                    rect.y + 1,
+                    rect.width - 2,
+                    rect.height - 2,
+                )
+                surface.fillRect(this.scratch_, shadowBackground)
+                surface.drawLine(
+                    rect.x + 1,
+                    rect.y,
+                    rect.x + rect.width - 2,
+                    rect.y,
+                    edge,
+                )
+                surface.drawLine(
+                    rect.x,
+                    rect.y + 1,
+                    rect.x,
+                    rect.y + rect.height - 3,
+                    edge,
+                )
+                surface.drawLine(
+                    rect.x + rect.width - 1,
+                    rect.y + 1,
+                    rect.x + rect.width - 1,
+                    rect.y + rect.height - 3,
+                    edge,
+                )
+                surface.drawLine(
+                    rect.x + 1,
+                    rect.y + rect.height - 1,
+                    rect.x + rect.width - 2,
+                    rect.y + rect.height - 1,
+                    shadow,
+                )
+                surface.drawLine(
+                    rect.x,
+                    rect.y + rect.height - 2,
+                    rect.x,
+                    rect.y + rect.height - 2,
+                    shadow,
+                )
+                surface.drawLine(
+                    rect.x + rect.width - 1,
+                    rect.y + rect.height - 2,
+                    rect.x + rect.width - 1,
+                    rect.y + rect.height - 2,
+                    shadow,
                 )
             } else if (frame == "roundedRect") {
                 surface.drawRoundedRect(rect, style.borderColor, background)
@@ -195,21 +211,13 @@ namespace ui {
                     surface.drawRect(rect, style.borderColor)
                 }
             }
-        }
-
-        private renderContent(
-            surface: DrawSurface,
-            rect: Rect,
-            content: UiControlContent,
-            style: UiButtonStyle,
-        ): void {
             const contentRect = this.scratch_
             this.contentRect(rect, content, style, contentRect)
             const bitmap = content.bitmap
             const text = this.contentText(content, style)
             const font = style.font || BUTTON_DEFAULT_FONT
             const color = style.color !== undefined ? style.color : 15
-            const graphicWidth = this.contentWidth(content)
+            const graphicWidth = bitmap ? bitmap.width : 0
 
             if (bitmap) {
                 surface.drawBitmap(bitmap, contentRect.x, contentRect.y)
@@ -229,35 +237,78 @@ namespace ui {
             }
         }
 
-        private contentRect(
-            rect: Rect,
-            content: UiControlContent,
-            style: UiButtonStyle,
-            output: Rect,
-        ): void {
-            const font = style.font || BUTTON_DEFAULT_FONT
-            const text = this.contentText(content, style)
-            const textWidth = text.length > 0 ? font.charWidth * text.length : 0
-            const textHeight = text.length > 0 ? font.charHeight : 0
-            const contentWidth = this.contentWidth(content)
-            const contentHeight = this.contentHeight(content)
-            const gap =
-                contentWidth > 0 && text.length > 0 ? BUTTON_CONTENT_GAP : 0
-            const width = contentWidth + gap + textWidth
-            const height = Math.max(contentHeight, textHeight)
-            const x = rect.x + Math.idiv(rect.width - width, 2)
-            const y = rect.y + Math.max(0, Math.idiv(rect.height - height, 2))
-            output.set(x, y, width, height)
-        }
-
-        private renderFocusLabel(
+        /**
+         * Renders only the focus treatment for a button.
+         */
+        public renderFocus(
             surface: DrawSurface,
             rect: Rect,
             content: UiControlContent,
-            style: UiButtonStyle,
-            bounds?: Rect,
+            style?: UiButtonStyle,
+            labelBounds?: Rect,
             focusLabelText?: string,
         ): void {
+            style = style || this.style_
+            const focusColor = BUTTON_FOCUS_COLOR
+            const left = rect.x
+            const top = rect.y
+            const right = rect.x + rect.width - 1
+            const bottom = rect.y + rect.height - 1
+
+            for (let dist = 1; dist <= BUTTON_FOCUS_THICKNESS; dist++) {
+                surface.drawLine(
+                    left - dist,
+                    top,
+                    left - dist,
+                    bottom,
+                    focusColor,
+                )
+                surface.drawLine(
+                    right + dist,
+                    top,
+                    right + dist,
+                    bottom,
+                    focusColor,
+                )
+                surface.drawLine(left, top - dist, right, top - dist, focusColor)
+                surface.drawLine(
+                    left,
+                    bottom + dist,
+                    right,
+                    bottom + dist,
+                    focusColor,
+                )
+                if (dist > 1) {
+                    surface.drawLine(
+                        left - dist,
+                        top,
+                        left,
+                        top - dist,
+                        focusColor,
+                    )
+                    surface.drawLine(
+                        right + dist,
+                        top,
+                        right,
+                        top - dist,
+                        focusColor,
+                    )
+                    surface.drawLine(
+                        left - dist,
+                        bottom,
+                        left,
+                        bottom + dist,
+                        focusColor,
+                    )
+                    surface.drawLine(
+                        right + dist,
+                        bottom,
+                        right,
+                        bottom + dist,
+                        focusColor,
+                    )
+                }
+            }
             const text = this.focusLabelText(content, style, focusLabelText)
             if (text.length == 0) return
             const font = style.font || BUTTON_DEFAULT_FONT
@@ -273,13 +324,13 @@ namespace ui {
                 BUTTON_FOCUS_THICKNESS +
                 BUTTON_FOCUS_LABEL_OFFSET +
                 labelGap
-            const minX = bounds ? bounds.x + padding : padding
-            const maxX = bounds
-                ? bounds.x + bounds.width - padding - textWidth
+            const minX = labelBounds ? labelBounds.x + padding : padding
+            const maxX = labelBounds
+                ? labelBounds.x + labelBounds.width - padding - textWidth
                 : rect.x + rect.width - padding - textWidth
-            const minY = bounds ? bounds.y + padding : padding
-            const maxY = bounds
-                ? bounds.y + bounds.height - padding - textHeight
+            const minY = labelBounds ? labelBounds.y + padding : padding
+            const maxY = labelBounds
+                ? labelBounds.y + labelBounds.height - padding - textHeight
                 : labelTop
             const x = Math.max(minX, Math.min(maxX, centerX - (textWidth >> 1)))
             const y = Math.max(minY, Math.min(maxY, labelTop))
@@ -297,6 +348,27 @@ namespace ui {
                 color,
                 font,
             })
+        }
+
+        private contentRect(
+            rect: Rect,
+            content: UiControlContent,
+            style: UiButtonStyle,
+            output: Rect,
+        ): void {
+            const font = style.font || BUTTON_DEFAULT_FONT
+            const text = this.contentText(content, style)
+            const textWidth = text.length > 0 ? font.charWidth * text.length : 0
+            const textHeight = text.length > 0 ? font.charHeight : 0
+            const contentWidth = content.bitmap ? content.bitmap.width : 0
+            const contentHeight = content.bitmap ? content.bitmap.height : 0
+            const gap =
+                contentWidth > 0 && text.length > 0 ? BUTTON_CONTENT_GAP : 0
+            const width = contentWidth + gap + textWidth
+            const height = Math.max(contentHeight, textHeight)
+            const x = rect.x + Math.idiv(rect.width - width, 2)
+            const y = rect.y + Math.max(0, Math.idiv(rect.height - height, 2))
+            output.set(x, y, width, height)
         }
 
         private contentText(
@@ -325,13 +397,6 @@ namespace ui {
             return ""
         }
 
-        private contentWidth(content: UiControlContent): number {
-            return content.bitmap ? content.bitmap.width : 0
-        }
-
-        private contentHeight(content: UiControlContent): number {
-            return content.bitmap ? content.bitmap.height : 0
-        }
     }
 
     /**
@@ -815,112 +880,4 @@ namespace ui {
             target.focusLabelGap = source.focusLabelGap
     }
 
-    function drawShadowedButtonFrame(
-        surface: DrawSurface,
-        rect: Rect,
-        scratch: Rect,
-        backgroundColor?: number,
-        edgeColor?: number,
-        shadowColor?: number,
-    ): void {
-        const background = backgroundColor !== undefined ? backgroundColor : 1
-        const edge = edgeColor !== undefined ? edgeColor : 1
-        const shadow = shadowColor !== undefined ? shadowColor : 11
-
-        scratch.set(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
-        surface.fillRect(scratch, background)
-        surface.drawLine(
-            rect.x + 1,
-            rect.y,
-            rect.x + rect.width - 2,
-            rect.y,
-            edge,
-        )
-        surface.drawLine(
-            rect.x,
-            rect.y + 1,
-            rect.x,
-            rect.y + rect.height - 3,
-            edge,
-        )
-        surface.drawLine(
-            rect.x + rect.width - 1,
-            rect.y + 1,
-            rect.x + rect.width - 1,
-            rect.y + rect.height - 3,
-            edge,
-        )
-        surface.drawLine(
-            rect.x + 1,
-            rect.y + rect.height - 1,
-            rect.x + rect.width - 2,
-            rect.y + rect.height - 1,
-            shadow,
-        )
-        surface.drawLine(
-            rect.x,
-            rect.y + rect.height - 2,
-            rect.x,
-            rect.y + rect.height - 2,
-            shadow,
-        )
-        surface.drawLine(
-            rect.x + rect.width - 1,
-            rect.y + rect.height - 2,
-            rect.x + rect.width - 1,
-            rect.y + rect.height - 2,
-            shadow,
-        )
-    }
-
-    function drawButtonFocusRing(surface: DrawSurface, rect: Rect): void {
-        const focusColor = BUTTON_FOCUS_COLOR
-        const left = rect.x
-        const top = rect.y
-        const right = rect.x + rect.width - 1
-        const bottom = rect.y + rect.height - 1
-
-        for (let dist = 1; dist <= BUTTON_FOCUS_THICKNESS; dist++) {
-            surface.drawLine(left - dist, top, left - dist, bottom, focusColor)
-            surface.drawLine(
-                right + dist,
-                top,
-                right + dist,
-                bottom,
-                focusColor,
-            )
-            surface.drawLine(left, top - dist, right, top - dist, focusColor)
-            surface.drawLine(
-                left,
-                bottom + dist,
-                right,
-                bottom + dist,
-                focusColor,
-            )
-            if (dist > 1) {
-                surface.drawLine(left - dist, top, left, top - dist, focusColor)
-                surface.drawLine(
-                    right + dist,
-                    top,
-                    right,
-                    top - dist,
-                    focusColor,
-                )
-                surface.drawLine(
-                    left - dist,
-                    bottom,
-                    left,
-                    bottom + dist,
-                    focusColor,
-                )
-                surface.drawLine(
-                    right + dist,
-                    bottom,
-                    right,
-                    bottom + dist,
-                    focusColor,
-                )
-            }
-        }
-    }
 }
