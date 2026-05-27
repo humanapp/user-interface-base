@@ -215,6 +215,7 @@ class SettingsScreen extends ui.UiScreen {
     }
 }
 ```
+<img src="./assets/numeric-entry.png" width="50%">
 
 While a modal is open, the screen routes input to the modal first. The numeric
 keypad uses the same semantic input actions as the rest of the runtime. OK emits
@@ -475,6 +476,7 @@ class NameEntryScreen extends ui.UiScreen {
     }
 }
 ```
+<img src="./assets/text-entry.png" width="50%">
 
 ### Animated Data Graph
 
@@ -561,6 +563,7 @@ class DataGraphScreen extends ui.UiScreen {
     }
 }
 ```
+<img src="./assets/data-vis.png" width="50%">
 
 ## Existing Projects
 
