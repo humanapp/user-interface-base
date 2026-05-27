@@ -309,27 +309,10 @@ mkc build
 ```
 
 If you add the extension from VS Code instead, use the MakeCode Extension's
-Add an Extension command and paste:
+**Add an Extension** command and paste:
 
 ```text
 https://github.com/microbit-apps/user-interface-base
-```
-
-You can also edit the app's `pxt.json` directly:
-
-```json
-{
-    "dependencies": {
-        "micro:bit apps UI": "github:microbit-apps/user-interface-base#v0.0.47"
-    }
-}
-```
-
-After editing `pxt.json` by hand, download dependencies and build:
-
-```sh
-mkc install
-mkc build
 ```
 
 ## More Examples
