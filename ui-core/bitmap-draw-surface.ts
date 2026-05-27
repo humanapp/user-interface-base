@@ -184,15 +184,8 @@ namespace ui {
         /**
          * Measures text in pixels for the selected font.
          */
-        public measureText(
-            text: string,
-            font?: TextFont,
-            options?: DrawTextOptions,
-        ): Size {
-            const selectedFont = this.textFont(
-                text,
-                font || (options ? options.font : undefined),
-            )
+        public measureText(text: string, font?: TextFont): Size {
+            const selectedFont = this.textFont(text, font)
             let currentWidth = 0
             let maxWidth = 0
             let lineCount = 1

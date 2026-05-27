@@ -42,11 +42,6 @@ namespace ui {
         rows: UiFocusNavigationTarget[][]
 
         /**
-         * Default left/right wrapping used when `horizontalWrap` is omitted.
-         */
-        wrap?: boolean
-
-        /**
          * Whether left/right movement wraps inside the current row.
          */
         horizontalWrap?: boolean
@@ -97,21 +92,6 @@ namespace ui {
      */
     export interface UiFocusScrollHandler {
         (request: UiFocusScrollRequest): void
-    }
-
-    /**
-     * Dependencies used by `UiFocusInputController`.
-     */
-    export interface UiFocusInputControllerOptions {
-        /**
-         * Focus state to read and update.
-         */
-        focus: UiFocusState
-
-        /**
-         * Optional scroll request sink.
-         */
-        scroll?: UiFocusScrollHandler
     }
 
     /**
@@ -192,11 +172,11 @@ namespace ui {
         private navigationValues_: UiFocusNavigation[]
         private scroll_: UiFocusScrollHandler
 
-        constructor(options: UiFocusInputControllerOptions) {
-            this.focus_ = options.focus
+        constructor(focus: UiFocusState, scroll?: UiFocusScrollHandler) {
+            this.focus_ = focus
             this.navigationScopeIds_ = []
             this.navigationValues_ = []
-            this.scroll_ = options.scroll
+            this.scroll_ = scroll
         }
 
         /**
@@ -415,10 +395,7 @@ namespace ui {
                     scopeId: request.scopeId,
                     currentTargetId: request.currentTargetId,
                     direction: request.direction,
-                    horizontalWrap:
-                        grid.horizontalWrap !== undefined
-                            ? grid.horizontalWrap
-                            : grid.wrap,
+                    horizontalWrap: grid.horizontalWrap,
                     columnIntent: grid.columnIntent,
                     rows: grid.rows,
                     verticalStrategy: grid.verticalStrategy,

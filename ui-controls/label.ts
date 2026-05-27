@@ -57,16 +57,25 @@ namespace ui {
          * Creates a label from full options or from text and color.
          */
         constructor(options: UiLabelOptions | string, color?: number) {
-            const source = options
-            options = this.resolveOptions(options, color)
-            this.text_ = options.text || ""
-            this.bitmap_ = options.bitmap
-            this.content_ = typeof source == "string" ? undefined : options
-            this.color_ = options.color !== undefined ? options.color : 1
-            this.backgroundColor_ = options.backgroundColor
-            this.font_ = options.font || LABEL_DEFAULT_FONT
-            this.width_ = _uiControls.sizeWidth(options.size, 0)
-            this.height_ = _uiControls.sizeHeight(options.size, 0)
+            if (typeof options == "string") {
+                this.text_ = options
+                this.bitmap_ = undefined
+                this.content_ = undefined
+                this.color_ = color !== undefined ? color : 1
+                this.backgroundColor_ = undefined
+                this.font_ = LABEL_DEFAULT_FONT
+                this.width_ = 0
+                this.height_ = 0
+            } else {
+                this.text_ = options.text || ""
+                this.bitmap_ = options.bitmap
+                this.content_ = options
+                this.color_ = options.color !== undefined ? options.color : 1
+                this.backgroundColor_ = options.backgroundColor
+                this.font_ = options.font || LABEL_DEFAULT_FONT
+                this.width_ = _uiControls.sizeWidth(options.size, 0)
+                this.height_ = _uiControls.sizeHeight(options.size, 0)
+            }
             this.layoutSpec = _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect(0, 0, this.width(), this.height())
             this.layoutDirty = true
@@ -179,14 +188,6 @@ namespace ui {
             this.bitmap_ = content.bitmap
             this.content_ = undefined
             this.invalidateLayout()
-        }
-
-        private resolveOptions(
-            options: UiLabelOptions | string,
-            color?: number,
-        ): UiLabelOptions {
-            if (typeof options != "string") return options
-            return { text: options, color }
         }
 
         private width(): number {

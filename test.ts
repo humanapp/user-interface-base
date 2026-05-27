@@ -229,10 +229,10 @@ namespace ui {
         control.assert(resolver.getText("label") == "Known label", "known text")
         control.assert(resolver.getText("missing") == "", "missing text empty")
 
-        const runtime = new UiRuntime({
-            display: new RuntimeSmokeDisplayAdapter(() => {}),
-            assets: resolver,
-        })
+        const runtime = new UiRuntime(
+            new RuntimeSmokeDisplayAdapter(() => {}),
+            resolver,
+        )
         control.assert(
             runtime.assets.getBitmap("missing") == fallback,
             "runtime fallback bitmap",
@@ -258,7 +258,7 @@ namespace ui {
         const display = new RuntimeSmokeDisplayAdapter(() =>
             appendLog("commit"),
         )
-        const runtime = new UiRuntime({ display, clearColor: 0 })
+        const runtime = new UiRuntime(display, undefined, 0)
         const base = new RuntimeSmokeScreen(runtime, "base", 1, appendLog)
         const overlay = new RuntimeSmokeScreen(runtime, "overlay", 2, appendLog)
         const replacement = new RuntimeSmokeScreen(
@@ -585,11 +585,7 @@ namespace ui {
                 this.log += "textColor:" + options.color + ";"
         }
 
-        public measureText(
-            text: string,
-            font?: TextFont,
-            options?: DrawTextOptions,
-        ): Size {
+        public measureText(text: string, font?: TextFont): Size {
             return new Size(text.length * 5, 8)
         }
     }
@@ -957,9 +953,7 @@ namespace ui {
      */
     export function runControlButtonSmokeTest(): void {
         const surface = new ControlSmokeSurface()
-        const buttonView = new UiButtonView({
-            style: UiButtonStyles.LightShadowedWhite,
-        })
+        const buttonView = new UiButtonView(UiButtonStyles.LightShadowedWhite)
         const rect = new Rect(10, 20, 18, 18)
         const bitmap = bmp`
       2 2
@@ -1016,6 +1010,60 @@ namespace ui {
             surface.log.indexOf("text:go;") < 0,
             "control focus label hidden",
         )
+        const assets = new ControlSmokeAssets()
+        const dynamicControl: UiControl<string> = {
+            id: "dynamic",
+            value: "dynamic",
+            bitmapId: "known",
+        }
+        surface.log = ""
+        _uiControls.renderControl(
+            surface,
+            dynamicControl,
+            rect,
+            buttonView,
+            UiButtonStyles.Transparent,
+            undefined,
+            undefined,
+            assets,
+        )
+        control.assert(
+            surface.log.indexOf(
+                "bitmap:" +
+                    assets.knownBitmap.width +
+                    "x" +
+                    assets.knownBitmap.height +
+                    ";",
+            ) >= 0,
+            "dynamic control resolves initial bitmap id",
+        )
+        control.assert(
+            dynamicControl.bitmap === undefined &&
+                dynamicControl.bitmapId == "known",
+            "render control leaves bitmap id mutable",
+        )
+        dynamicControl.bitmapId = "missing"
+        surface.log = ""
+        _uiControls.renderControl(
+            surface,
+            dynamicControl,
+            rect,
+            buttonView,
+            UiButtonStyles.Transparent,
+            undefined,
+            undefined,
+            assets,
+        )
+        control.assert(
+            surface.log.indexOf(
+                "bitmap:" +
+                    assets.fallbackBitmap.width +
+                    "x" +
+                    assets.fallbackBitmap.height +
+                    ";",
+            ) >= 0,
+            "dynamic control resolves changed bitmap id",
+        )
         surface.log = ""
         buttonView.render(
             surface,
@@ -1068,7 +1116,7 @@ namespace ui {
         )
         single.arrange(new Rect(4, 5, 46, 20))
         const focus = new UiFocusState()
-        const controller = new UiFocusInputController({ focus })
+        const controller = new UiFocusInputController(focus)
         single.registerFocusTargets(focus)
         single.registerNavigation(controller)
         single.focusDefault(focus)
@@ -1126,7 +1174,6 @@ namespace ui {
             "single button exit result",
         )
         const sized = new UiButton({
-            scopeId: "fixed",
             id: "fixed",
             text: "Fixed",
             size: { width: 60, height: 22 },
@@ -1173,7 +1220,7 @@ namespace ui {
 
         picker.arrange(new Rect(0, 0, measured.preferredWidth, 56))
         const focus = new UiFocusState()
-        const controller = new UiFocusInputController({ focus })
+        const controller = new UiFocusInputController(focus)
         focus.setScope({ id: "parent" })
         focus.setActiveScope("parent")
         picker.open(focus, controller)
@@ -1243,9 +1290,7 @@ namespace ui {
         simplePicker.measure({ maxWidth: 160, maxHeight: 120 }, simpleMeasured)
         simplePicker.arrange(new Rect(0, 0, simpleMeasured.preferredWidth, 56))
         const simpleFocus = new UiFocusState()
-        const simpleController = new UiFocusInputController({
-            focus: simpleFocus,
-        })
+        const simpleController = new UiFocusInputController(simpleFocus)
         simpleFocus.setScope({ id: "simple-parent" })
         simpleFocus.setActiveScope("simple-parent")
         simplePicker.open(simpleFocus, simpleController)
@@ -1284,10 +1329,10 @@ namespace ui {
      */
     export function runScreenControllerSmokeTest(): void {
         let screenLog = ""
-        const screenRuntime = new UiRuntime({
-            display: new RuntimeSmokeDisplayAdapter(() => {}),
-            assets: new ControlSmokeAssets(),
-        })
+        const screenRuntime = new UiRuntime(
+            new RuntimeSmokeDisplayAdapter(() => {}),
+            new ControlSmokeAssets(),
+        )
         const screen = new ControlSmokeScreen(screenRuntime, event => {
             if (event.action == "cancel" && event.phase != "released") {
                 screenLog += "root-cancel;"
@@ -1467,11 +1512,7 @@ namespace ui {
      * Smoke harness for numeric entry edit rules and typed results.
      */
     export function runNumericEntrySmokeTest(): void {
-        const decimal = new UiNumericEntry({
-            mode: "decimal",
-            initialText: "1",
-            deleteEnabled: true,
-        })
+        const decimal = new UiNumericEntry("decimal", "1", undefined, true)
         control.assert(decimal.maxLength == 8, "decimal max length default")
         decimal.toggleSign()
         control.assert(decimal.text == "-1", "decimal sign toggle")
@@ -1489,7 +1530,7 @@ namespace ui {
         control.assert((<any>backResult).text == "-1.5", "decimal back text")
         control.assert((<any>backResult).value == -1.5, "decimal back value")
 
-        const zero = new UiNumericEntry({ mode: "decimal", initialText: "-0" })
+        const zero = new UiNumericEntry("decimal", "-0")
         const zeroResult = zero.enter()
         control.assert(
             (<any>zeroResult).text == "0",
@@ -1497,10 +1538,7 @@ namespace ui {
         )
         control.assert((<any>zeroResult).value == 0, "decimal minus zero value")
 
-        const trailingPoint = new UiNumericEntry({
-            mode: "decimal",
-            initialText: "1",
-        })
+        const trailingPoint = new UiNumericEntry("decimal", "1")
         trailingPoint.inputDecimalPoint()
         const trailingPointResult = trailingPoint.enter()
         control.assert(
@@ -1508,7 +1546,7 @@ namespace ui {
             "decimal trailing point normalized",
         )
 
-        const decimalPointFirst = new UiNumericEntry({ mode: "decimal" })
+        const decimalPointFirst = new UiNumericEntry("decimal")
         decimalPointFirst.inputDecimalPoint()
         control.assert(
             decimalPointFirst.text == "",
@@ -1521,19 +1559,13 @@ namespace ui {
             "decimal rejects point after sign",
         )
 
-        const decimalLeadingZero = new UiNumericEntry({
-            mode: "decimal",
-            initialText: "0",
-        })
+        const decimalLeadingZero = new UiNumericEntry("decimal", "0")
         decimalLeadingZero.inputDigit(5)
         control.assert(
             decimalLeadingZero.text == "5",
             "decimal replaces zero with digit",
         )
-        const decimalZeroFraction = new UiNumericEntry({
-            mode: "decimal",
-            initialText: "0",
-        })
+        const decimalZeroFraction = new UiNumericEntry("decimal", "0")
         decimalZeroFraction.inputDecimalPoint()
         decimalZeroFraction.inputDigit(5)
         control.assert(
@@ -1541,19 +1573,13 @@ namespace ui {
             "decimal accepts digit after zero point",
         )
 
-        const decimalNegativeLeadingZero = new UiNumericEntry({
-            mode: "decimal",
-            initialText: "-0",
-        })
+        const decimalNegativeLeadingZero = new UiNumericEntry("decimal", "-0")
         decimalNegativeLeadingZero.inputDigit(5)
         control.assert(
             decimalNegativeLeadingZero.text == "-5",
             "decimal replaces minus zero with digit",
         )
-        const decimalNegativeZeroFraction = new UiNumericEntry({
-            mode: "decimal",
-            initialText: "-0",
-        })
+        const decimalNegativeZeroFraction = new UiNumericEntry("decimal", "-0")
         decimalNegativeZeroFraction.inputDecimalPoint()
         decimalNegativeZeroFraction.inputDigit(5)
         control.assert(
@@ -1561,11 +1587,7 @@ namespace ui {
             "decimal accepts digit after minus zero point",
         )
 
-        const positive = new UiNumericEntry({
-            mode: "positiveInteger",
-            initialText: "0",
-            maxLength: 3,
-        })
+        const positive = new UiNumericEntry("positiveInteger", "0", 3)
         positive.toggleSign()
         positive.inputDecimalPoint()
         control.assert(
@@ -1590,10 +1612,7 @@ namespace ui {
             "positive integer value",
         )
 
-        const positiveZero = new UiNumericEntry({
-            mode: "positiveInteger",
-            initialText: "0",
-        })
+        const positiveZero = new UiNumericEntry("positiveInteger", "0")
         const positiveZeroResult = positiveZero.enter()
         control.assert(
             (<any>positiveZeroResult).text == "1",
@@ -1604,7 +1623,7 @@ namespace ui {
             "positive zero value",
         )
 
-        const noCancel = new UiNumericEntry({ mode: "decimal" })
+        const noCancel = new UiNumericEntry("decimal")
         control.assert(
             noCancel.cancel() === undefined,
             "cancel absent by default",
@@ -1613,18 +1632,24 @@ namespace ui {
             noCancel.createDeleteResult() === undefined,
             "delete absent by default",
         )
-        const cancel = new UiNumericEntry({
-            mode: "decimal",
-            cancelEnabled: true,
-            initialText: "3",
-        })
+        const cancel = new UiNumericEntry(
+            "decimal",
+            "3",
+            undefined,
+            undefined,
+            true,
+        )
         control.assert(cancel.cancel().kind == "cancelled", "cancel enabled")
 
         let validateLog = ""
         let completedValidatorCalls = 0
-        const validated = new UiNumericEntry({
-            mode: "decimal",
-            validate: (
+        const validated = new UiNumericEntry(
+            "decimal",
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            (
                 mode: UiNumericEntryMode,
                 candidate: string,
                 action: UiNumericEntryEditAction,
@@ -1634,7 +1659,7 @@ namespace ui {
                     completedValidatorCalls++
                 return candidate == "9" ? "completed" : "accepted"
             },
-        })
+        )
         const completed = validated.inputDigit(9)
         control.assert(completed.kind == "completed", "validator completed")
         control.assert(
@@ -1647,10 +1672,7 @@ namespace ui {
         )
 
         const displaySurface = new ControlSmokeSurface()
-        const displayEntry = new UiNumericEntry({
-            mode: "decimal",
-            initialText: "42",
-        })
+        const displayEntry = new UiNumericEntry("decimal", "42")
         displayEntry.render(displaySurface, new Rect(0, 0, 24, 12))
         control.assert(
             displaySurface.log.indexOf("rounded:15:1;") >= 0,
@@ -1666,9 +1688,7 @@ namespace ui {
             },
         )
         const simpleFocus = new UiFocusState()
-        const simpleController = new UiFocusInputController({
-            focus: simpleFocus,
-        })
+        const simpleController = new UiFocusInputController(simpleFocus)
         simpleFocus.setScope({ id: "parent-simple" })
         simpleFocus.setActiveScope("parent-simple")
         simpleModal.open(simpleFocus, simpleController)
@@ -1708,9 +1728,7 @@ namespace ui {
         modal.arrange(new Rect(0, 0, 88, 111))
 
         const modalFocus = new UiFocusState()
-        const modalController = new UiFocusInputController({
-            focus: modalFocus,
-        })
+        const modalController = new UiFocusInputController(modalFocus)
         modalFocus.setScope({ id: "parent" })
         modalFocus.setActiveScope("parent")
         modal.open(modalFocus, modalController)
@@ -1790,9 +1808,7 @@ namespace ui {
         )
         deleteModal.arrange(new Rect(0, 0, 86, 109))
         const deleteFocus = new UiFocusState()
-        const deleteController = new UiFocusInputController({
-            focus: deleteFocus,
-        })
+        const deleteController = new UiFocusInputController(deleteFocus)
         deleteFocus.setScope({ id: "parent-delete" })
         deleteFocus.setActiveScope("parent-delete")
         deleteModal.open(deleteFocus, deleteController)
@@ -1838,18 +1854,18 @@ namespace ui {
      * Smoke harness for text entry edit rules and typed results.
      */
     export function runTextEntrySmokeTest(): void {
-        const filtered = new UiTextEntry({
-            initialText: " Ab 12 !# ",
-            maxLength: 6,
-        })
+        const filtered = new UiTextEntry(" Ab 12 !# ", 6)
         control.assert(filtered.text == "Ab12", "text filters initial default")
         control.assert(filtered.maxLength == 6, "text max length option")
         control.assert(filtered.minLength == 0, "text min length default")
 
-        const whitespace = new UiTextEntry({
-            initialText: " Ada ",
-            allowWhitespace: true,
-        })
+        const whitespace = new UiTextEntry(
+            " Ada ",
+            undefined,
+            undefined,
+            undefined,
+            true,
+        )
         const whitespaceResult = whitespace.enter()
         control.assert(
             whitespaceResult.kind == "completed",
@@ -1860,28 +1876,30 @@ namespace ui {
             "text completion trims",
         )
 
-        const emptyRejected = new UiTextEntry({
-            allowWhitespace: true,
-            initialText: "   ",
-        })
+        const emptyRejected = new UiTextEntry(
+            "   ",
+            undefined,
+            undefined,
+            undefined,
+            true,
+        )
         control.assert(
             emptyRejected.enter() === undefined,
             "text rejects empty default",
         )
-        const emptyAccepted = new UiTextEntry({
-            allowEmpty: true,
-            initialText: "   ",
-            allowWhitespace: true,
-        })
+        const emptyAccepted = new UiTextEntry(
+            "   ",
+            undefined,
+            undefined,
+            true,
+            true,
+        )
         control.assert(
             (<any>emptyAccepted.enter()).text == "",
             "text allow empty",
         )
 
-        const minLength = new UiTextEntry({
-            initialText: "ab",
-            minLength: 3,
-        })
+        const minLength = new UiTextEntry("ab", undefined, 3)
         control.assert(
             minLength.enter() === undefined,
             "text rejects short completion",
@@ -1892,13 +1910,16 @@ namespace ui {
             "text accepts min length",
         )
 
-        const capability = new UiTextEntry({
-            allowDigits: false,
-            allowSymbols: true,
-            allowWhitespace: true,
-            uppercaseOnly: true,
-            initialText: "a1- b?",
-        })
+        const capability = new UiTextEntry(
+            "a1- b?",
+            undefined,
+            undefined,
+            undefined,
+            true,
+            false,
+            true,
+            true,
+        )
         control.assert(
             capability.text == "A- B?",
             "text capability normalization",
@@ -1908,7 +1929,7 @@ namespace ui {
         capability.inputCharacter("#")
         control.assert(capability.text == "A- B?Z#", "text capability edits")
 
-        const maxLength = new UiTextEntry({ maxLength: 3 })
+        const maxLength = new UiTextEntry(undefined, 3)
         maxLength.inputCharacter("a")
         maxLength.inputCharacter("b")
         maxLength.inputCharacter("c")
@@ -1922,22 +1943,37 @@ namespace ui {
             noCancel.cancel() === undefined,
             "text cancel absent by default",
         )
-        const cancel = new UiTextEntry({
-            cancelEnabled: true,
-            allowWhitespace: true,
-            initialText: " Ada ",
-        })
+        const cancel = new UiTextEntry(
+            " Ada ",
+            undefined,
+            undefined,
+            undefined,
+            true,
+            undefined,
+            undefined,
+            undefined,
+            true,
+        )
         const cancelResult = cancel.cancel()
         control.assert(cancelResult.kind == "cancelled", "text cancel enabled")
         control.assert((<any>cancelResult).text == "Ada", "text cancel trims")
 
         let validateLog = ""
-        const rejected = new UiTextEntry({
-            validate: (candidate: string, action: UiTextEntryEditAction) => {
+        const rejected = new UiTextEntry(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            (candidate: string, action: UiTextEntryEditAction) => {
                 validateLog += action + ":" + candidate + ";"
                 return candidate == "x" ? "rejected" : "accepted"
             },
-        })
+        )
         rejected.inputCharacter("x")
         control.assert(rejected.text == "", "text validator rejects")
         rejected.inputCharacter("y")
@@ -1947,12 +1983,21 @@ namespace ui {
             "text validator sees character",
         )
 
-        const completed = new UiTextEntry({
-            validate: (candidate: string, action: UiTextEntryEditAction) => {
+        const completed = new UiTextEntry(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            (candidate: string, action: UiTextEntryEditAction) => {
                 if (candidate == "ok" && action == "custom") return "completed"
                 return "accepted"
             },
-        })
+        )
         const completedResult = completed.replaceText("ok")
         control.assert(
             completedResult.kind == "completed",
@@ -1963,14 +2008,21 @@ namespace ui {
             "text custom completed text",
         )
 
-        const custom = new UiTextEntry({
-            allowSymbols: true,
-            maxLength: 4,
-            validate: (candidate: string, action: UiTextEntryEditAction) => {
+        const custom = new UiTextEntry(
+            undefined,
+            4,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            true,
+            undefined,
+            undefined,
+            (candidate: string, action: UiTextEntryEditAction) => {
                 if (action == "custom" && candidate == "bad") return "rejected"
                 return "accepted"
             },
-        })
+        )
         custom.inputCharacter("a")
         custom.replaceText("bad")
         control.assert(custom.text == "a", "text rejected custom unchanged")
@@ -1978,7 +2030,7 @@ namespace ui {
         control.assert(custom.text == "long", "text custom normalization")
 
         const displaySurface = new ControlSmokeSurface()
-        const displayEntry = new UiTextEntry({ initialText: "Name" })
+        const displayEntry = new UiTextEntry("Name")
         displayEntry.render(displaySurface, new Rect(0, 0, 40, 18))
         control.assert(
             displaySurface.log.indexOf("rounded:15:1;") >= 0,
@@ -2014,9 +2066,7 @@ namespace ui {
         )
         modal.arrange(new Rect(0, 0, 160, 78))
         const modalFocus = new UiFocusState()
-        const modalController = new UiFocusInputController({
-            focus: modalFocus,
-        })
+        const modalController = new UiFocusInputController(modalFocus)
         modalFocus.setScope({ id: "text-parent" })
         modalFocus.setActiveScope("text-parent")
         modal.open(modalFocus, modalController)
@@ -2094,7 +2144,7 @@ namespace ui {
         )
         pageModal.arrange(new Rect(0, 0, 160, 67))
         const pageFocus = new UiFocusState()
-        const pageController = new UiFocusInputController({ focus: pageFocus })
+        const pageController = new UiFocusInputController(pageFocus)
         pageFocus.setScope({ id: "text-page-parent" })
         pageFocus.setActiveScope("text-page-parent")
         pageModal.open(pageFocus, pageController)
@@ -2152,9 +2202,7 @@ namespace ui {
         })
         customModal.arrange(new Rect(0, 0, 160, 67))
         const customFocus = new UiFocusState()
-        const customController = new UiFocusInputController({
-            focus: customFocus,
-        })
+        const customController = new UiFocusInputController(customFocus)
         customFocus.setScope({ id: "text-custom-parent" })
         customFocus.setActiveScope("text-custom-parent")
         customModal.open(customFocus, customController)
@@ -2185,9 +2233,9 @@ namespace ui {
         })
         customResultModal.arrange(new Rect(0, 0, 160, 67))
         const customResultFocus = new UiFocusState()
-        const customResultController = new UiFocusInputController({
-            focus: customResultFocus,
-        })
+        const customResultController = new UiFocusInputController(
+            customResultFocus,
+        )
         customResultFocus.setScope({ id: "text-custom-result-parent" })
         customResultFocus.setActiveScope("text-custom-result-parent")
         customResultModal.open(customResultFocus, customResultController)

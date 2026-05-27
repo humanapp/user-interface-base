@@ -75,9 +75,7 @@ namespace ui {
             this.controlRects_ = []
             this.controlStyle_ = options.controlStyle
             this.labelBounds_ = options.labelBounds
-            this.controlView_ = new UiButtonView({
-                style: options.controlStyle,
-            })
+            this.controlView_ = new UiButtonView(options.controlStyle)
             this.onActivate_ = options.onActivate
         }
 
@@ -454,11 +452,17 @@ namespace ui {
         }
 
         private controlWidth(control: UiControl<T>): number {
-            return _uiControls.sizeWidth(control.size, this.controlWidth_)
+            return _uiControls.sizeWidth(
+                (<any>control).size,
+                this.controlWidth_,
+            )
         }
 
         private controlHeight(control: UiControl<T>): number {
-            return _uiControls.sizeHeight(control.size, this.controlHeight_)
+            return _uiControls.sizeHeight(
+                (<any>control).size,
+                this.controlHeight_,
+            )
         }
 
         private controlGapBefore(control: UiControl<T>, index: number): number {

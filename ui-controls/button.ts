@@ -123,27 +123,14 @@ namespace ui {
     }
 
     /**
-     * Options for constructing a reusable button visual.
-     */
-    export interface UiButtonViewOptions {
-        /**
-         * Default style used by subsequent render calls.
-         */
-        style?: UiButtonStyle
-    }
-
-    /**
      * Reusable button view that measures and renders button content and state.
      */
     export class UiButtonView {
         private style_: UiButtonStyle
         private scratch_: Rect
 
-        constructor(options?: UiButtonViewOptions) {
-            this.style_ =
-                options && options.style
-                    ? options.style
-                    : UiButtonStyles.Default
+        constructor(style?: UiButtonStyle) {
+            this.style_ = style || UiButtonStyles.Default
             this.scratch_ = new Rect()
         }
 
@@ -353,9 +340,9 @@ namespace ui {
      */
     export interface UiButtonOptions<T = string> extends UiControlFields<T> {
         /**
-         * Focus scope id for this button.
+         * Requested size for this button.
          */
-        scopeId: UiFocusScopeId
+        size?: UiSizeOptions
 
         /**
          * Scroll owner used when this button is arranged in scroll content.
@@ -409,8 +396,15 @@ namespace ui {
             text?: string,
             onActivate?: () => void,
         ) {
-            options = this.resolveOptions(options, text, onActivate)
-            this.scopeId_ = options.scopeId
+            if (typeof options == "string") {
+                const id = options
+                options = <UiButtonOptions<T>>{
+                    id,
+                    text,
+                    onActivate: <any>onActivate,
+                }
+            }
+            this.scopeId_ = options.id
             this.control_ = <UiControl<T>>options
             if (this.control_.value === undefined)
                 this.control_.value = <any>options.id
@@ -421,7 +415,7 @@ namespace ui {
             this.layoutSpec = _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect()
             this.layoutDirty = true
-            this.controlView_ = new UiButtonView({ style: options.style })
+            this.controlView_ = new UiButtonView(options.style)
         }
 
         /**
@@ -461,12 +455,13 @@ namespace ui {
             constraints: UiLayoutConstraints,
             output: UiMeasuredSize,
         ): void {
+            const size = (<UiButtonOptions<T>>this.control_).size
             const width = _uiControls.sizeWidth(
-                this.control_.size,
+                size,
                 this.preferredWidth(),
             )
             const height = _uiControls.sizeHeight(
-                this.control_.size,
+                size,
                 this.preferredHeight(),
             )
             measureLayoutSpec(
@@ -680,25 +675,6 @@ namespace ui {
                 result.control,
                 result.controlId,
             )
-        }
-
-        private resolveOptions(
-            options: UiButtonOptions<T> | string,
-            text?: string,
-            onActivate?: () => void,
-        ): UiButtonOptions<T> {
-            if (typeof options != "string") return options
-            const id = options
-            return <UiButtonOptions<T>>{
-                scopeId: id,
-                id,
-                text,
-                onActivate: onActivate
-                    ? () => {
-                          onActivate()
-                      }
-                    : undefined,
-            }
         }
 
         private preferredWidth(): number {

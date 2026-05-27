@@ -264,10 +264,7 @@ class DataGraphScreen extends ui.UiScreen {
     }
 }
 
-const runtime = new ui.UiRuntime({
-    display: new ui.DisplayShieldFrameAdapter(),
-    clearColor: 0,
-})
+const runtime = new ui.UiRuntime(new ui.DisplayShieldFrameAdapter())
 //runtime.push(new HelloScreen(runtime))
 //runtime.push(new CounterScreen(runtime))
 //runtime.push(new SettingsScreen(runtime))

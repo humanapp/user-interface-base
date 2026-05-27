@@ -42,41 +42,6 @@ namespace ui {
     }
 
     /**
-     * Options for decimal and positive-integer entry.
-     */
-    export interface UiNumericEntryOptions {
-        /**
-         * Numeric mode that controls available edit operations.
-         */
-        mode: UiNumericEntryMode
-
-        /**
-         * Initial display text. Defaults to the empty string.
-         */
-        initialText?: string
-
-        /**
-         * Maximum editable text length. Defaults to `8`.
-         */
-        maxLength?: number
-
-        /**
-         * Whether delete may emit a `deleted` result.
-         */
-        deleteEnabled?: boolean
-
-        /**
-         * Whether `cancel()` may emit a non-committing `cancelled` result.
-         */
-        cancelEnabled?: boolean
-
-        /**
-         * Optional edit validator.
-         */
-        validate?: UiNumericEntryValidator
-    }
-
-    /**
      * Completion result emitted by numeric entry.
      */
     export interface UiNumericEntryCompletedResult {
@@ -104,19 +69,23 @@ namespace ui {
         private flags_: number
         private validate_: UiNumericEntryValidator
 
-        constructor(options: UiNumericEntryOptions) {
-            this.mode_ = options.mode
-            this.text_ = options.initialText || ""
+        constructor(
+            mode: UiNumericEntryMode,
+            initialText?: string,
+            maxLength?: number,
+            deleteEnabled?: boolean,
+            cancelEnabled?: boolean,
+            validate?: UiNumericEntryValidator,
+        ) {
+            this.mode_ = mode
+            this.text_ = initialText || ""
             this.flags_ = 0
-            if (options.deleteEnabled)
+            if (deleteEnabled)
                 this.flags_ |= UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED
-            if (options.cancelEnabled)
+            if (cancelEnabled)
                 this.flags_ |= UI_NUMERIC_ENTRY_FLAG_CANCEL_ENABLED
-            this.maxLength_ = _uiControls.sanitizeDimension(
-                options.maxLength,
-                8,
-            )
-            this.validate_ = options.validate
+            this.maxLength_ = _uiControls.sanitizeDimension(maxLength, 8)
+            this.validate_ = validate
             if (this.maxLength_ == 0) this.maxLength_ = 8
             this.text_ = this.text_.substr(0, this.maxLength_)
         }
@@ -353,12 +322,36 @@ namespace ui {
     /**
      * Options for a modal numeric keypad backed by `UiNumericEntry`.
      */
-    export interface UiNumericEntryModalOptions
-        extends UiNumericEntryOptions, UiModalPanelStyle {
+    export interface UiNumericEntryModalOptions extends UiModalPanelStyle {
         /**
          * Modal focus scope owned while the keypad is open.
          */
         modalScopeId: UiFocusScopeId
+
+        /**
+         * Numeric mode that controls available edit operations.
+         */
+        mode: UiNumericEntryMode
+
+        /**
+         * Initial display text. Defaults to the empty string.
+         */
+        initialText?: string
+
+        /**
+         * Maximum editable text length. Defaults to `8`.
+         */
+        maxLength?: number
+
+        /**
+         * Whether delete may emit a `deleted` result.
+         */
+        deleteEnabled?: boolean
+
+        /**
+         * Optional edit validator.
+         */
+        validate?: UiNumericEntryValidator
 
         /**
          * Style applied to keypad buttons.
@@ -406,6 +399,7 @@ namespace ui {
         private flags_: number
         private deleteContent_: UiControlContentOptions | string
         private onResult_: (result: UiNumericEntryResult) => void
+        private onCompleted_: UiNumericEntryCompletedHandler
 
         /**
          * Creates a keypad from full options or from scope id, initial value,
@@ -416,7 +410,17 @@ namespace ui {
             initialValue?: number | string,
             onCompleted?: UiNumericEntryCompletedHandler,
         ) {
-            options = this.resolveOptions(options, initialValue, onCompleted)
+            if (typeof options == "string") {
+                options = {
+                    modalScopeId: options,
+                    mode: "positiveInteger",
+                    initialText:
+                        initialValue === undefined ? "" : "" + initialValue,
+                }
+                this.onCompleted_ = onCompleted
+            } else {
+                this.onCompleted_ = undefined
+            }
             this.modalScopeId_ = options.modalScopeId
             this.entry_ = this.createEntry(options)
             this.backgroundColor_ =
@@ -432,7 +436,7 @@ namespace ui {
             this.keyRect_ = new Rect()
             this.keyStyle_ =
                 options.keyStyle || UiButtonStyles.LightShadowedWhite
-            this.keyView_ = new UiButtonView({ style: this.keyStyle_ })
+            this.keyView_ = new UiButtonView(this.keyStyle_)
             this.keyContent_ = {}
             this.layoutSpec = {
                 width: { mode: "content" },
@@ -571,6 +575,12 @@ namespace ui {
             }
 
             if (entryResult && this.onResult_) this.onResult_(entryResult)
+            if (
+                entryResult &&
+                entryResult.kind == "completed" &&
+                this.onCompleted_
+            )
+                this.onCompleted_(entryResult.value, entryResult)
             return entryResult
         }
 
@@ -823,34 +833,14 @@ namespace ui {
         private createEntry(
             options: UiNumericEntryModalOptions,
         ): UiNumericEntry {
-            return new UiNumericEntry({
-                mode: options.mode,
-                initialText: options.initialText,
-                maxLength: options.maxLength,
-                deleteEnabled: options.deleteEnabled,
-                cancelEnabled: true,
-                validate: options.validate,
-            })
-        }
-
-        private resolveOptions(
-            options: UiNumericEntryModalOptions | UiFocusScopeId,
-            initialValue?: number | string,
-            onCompleted?: UiNumericEntryCompletedHandler,
-        ): UiNumericEntryModalOptions {
-            if (typeof options != "string") return options
-            return {
-                modalScopeId: options,
-                mode: "positiveInteger",
-                initialText:
-                    initialValue === undefined ? "" : "" + initialValue,
-                onResult: onCompleted
-                    ? result => {
-                          if (result.kind == "completed")
-                              onCompleted(result.value, result)
-                      }
-                    : undefined,
-            }
+            return new UiNumericEntry(
+                options.mode,
+                options.initialText,
+                options.maxLength,
+                options.deleteEnabled,
+                true,
+                options.validate,
+            )
         }
 
         private rowLength(row: number): number {

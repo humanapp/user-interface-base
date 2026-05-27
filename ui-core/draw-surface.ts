@@ -119,10 +119,6 @@ namespace ui {
         /**
          * Measures text in pixels without mutating the surface.
          */
-        measureText(
-            text: string,
-            font?: TextFont,
-            options?: DrawTextOptions,
-        ): Size
+        measureText(text: string, font?: TextFont): Size
     }
 }

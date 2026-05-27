@@ -31,7 +31,6 @@ namespace ui {
         private activeModal_: UiModal<any>
         private modalConstraints_: UiLayoutConstraints
         private rootConstraints_: UiLayoutConstraints
-        private defaultModalOptions_: UiModalOpenOptions
         private modalRect_: Rect
         private modalSize_: UiMeasuredSize
         private entered_: boolean
@@ -41,7 +40,10 @@ namespace ui {
             this.runtime_ = runtime
             this.backgroundColor = undefined
             this.focus_ = new UiFocusState()
-            this.focusInput_ = this.createFocusInputController()
+            this.focusInput_ = new UiFocusInputController(
+                this.focus_,
+                this.options_.scroll,
+            )
             this.roots_ = []
             this.activeModal_ = undefined
             this.modalConstraints_ = {
@@ -51,9 +53,6 @@ namespace ui {
             this.rootConstraints_ = {
                 maxWidth: 0,
                 maxHeight: 0,
-            }
-            this.defaultModalOptions_ = {
-                constraints: this.modalConstraints_,
             }
             this.modalRect_ = new Rect()
             this.modalSize_ = new UiMeasuredSize()
@@ -133,7 +132,10 @@ namespace ui {
         public _enter(): void {
             this.closeModal()
             this.focus_ = new UiFocusState()
-            this.focusInput_ = this.createFocusInputController()
+            this.focusInput_ = new UiFocusInputController(
+                this.focus_,
+                this.options_.scroll,
+            )
             this.entered_ = true
             this.resolveRootConstraints()
             this.resolveModalConstraints()
@@ -152,7 +154,10 @@ namespace ui {
             this.closeModal()
             this.entered_ = false
             this.focus_ = new UiFocusState()
-            this.focusInput_ = this.createFocusInputController()
+            this.focusInput_ = new UiFocusInputController(
+                this.focus_,
+                this.options_.scroll,
+            )
         }
 
         /**
@@ -198,7 +203,7 @@ namespace ui {
         ): UiFocusSetResult {
             if (this.activeModal_) this.closeModal()
             _uiCore.resolveContentAssets(modal, this.assets)
-            this.arrangeModal(modal, options || this.defaultModalOptions_)
+            this.arrangeModal(modal, options)
             this.activeModal_ = modal
             return modal.open(this.focus_, this.focusInput_)
         }
@@ -239,9 +244,10 @@ namespace ui {
         }
 
         private registerRoot<TResult>(root: UiScreenRoot<TResult>): void {
-            if (!isFocusableView(root.view)) return
-            root.view.registerFocusTargets(this.focus_)
-            root.view.registerNavigation(this.focusInput_)
+            const view = <any>root.view
+            if (!view.registerFocusTargets) return
+            view.registerFocusTargets(this.focus_)
+            view.registerNavigation(this.focusInput_)
         }
 
         private arrangeRoot<TResult>(root: UiScreenRoot<TResult>): void {
@@ -328,24 +334,26 @@ namespace ui {
 
         private arrangeModal<TResult>(
             modal: UiModal<TResult>,
-            options: UiModalOpenOptions,
+            options?: UiModalOpenOptions,
         ): void {
-            if (options.rect) {
+            if (options && options.rect) {
                 modal.arrange(options.rect)
                 return
             }
-            if (!options.constraints) return
 
-            modal.measure(options.constraints, this.modalSize_)
+            const constraints = options
+                ? options.constraints
+                : this.modalConstraints_
+            if (!constraints) return
+
+            modal.measure(constraints, this.modalSize_)
             this.modalRect_.set(
                 Math.idiv(
-                    options.constraints.maxWidth -
-                        this.modalSize_.preferredWidth,
+                    constraints.maxWidth - this.modalSize_.preferredWidth,
                     2,
                 ),
                 Math.idiv(
-                    options.constraints.maxHeight -
-                        this.modalSize_.preferredHeight,
+                    constraints.maxHeight - this.modalSize_.preferredHeight,
                     2,
                 ),
                 this.modalSize_.preferredWidth,
@@ -375,8 +383,8 @@ namespace ui {
         ): boolean | undefined {
             for (let i = 0; i < this.roots_.length; i++) {
                 const view = this.roots_[i].view
-                if (!isFocusableView(view)) continue
-                const viewResult = view.handleFocusInput(result)
+                if (!(<any>view).registerFocusTargets) continue
+                const viewResult = (<any>view).handleFocusInput(result)
                 if (viewResult) return this.defaultHandled(viewResult)
             }
             return undefined
@@ -385,7 +393,8 @@ namespace ui {
         private focusFirstRoot(): UiFocusSetResult | undefined {
             for (let i = 0; i < this.roots_.length; i++) {
                 const view = this.roots_[i].view
-                if (isFocusableView(view)) return view.focusDefault(this.focus_)
+                if ((<any>view).registerFocusTargets)
+                    return (<any>view).focusDefault(this.focus_)
             }
             return undefined
         }
@@ -417,13 +426,6 @@ namespace ui {
                     return (<any>result).close === true
             }
             return false
-        }
-
-        private createFocusInputController(): UiFocusInputController {
-            return new UiFocusInputController({
-                focus: this.focus_,
-                scroll: this.options_.scroll,
-            })
         }
 
         private resolveRootConstraints(): void {
@@ -468,16 +470,6 @@ namespace ui {
         }
     }
 
-    function isFocusableView<TResult>(
-        view: UiView<TResult>,
-    ): view is UiFocusableView<TResult> {
-        return !!(<any>view).registerFocusTargets
-    }
-
-    function assertScreenRuntime(runtime: UiRuntime, screen: UiScreen): void {
-        control.assert(screen.runtime == runtime)
-    }
-
     interface UiScreenInput {
         runtime: UiRuntime
         disposed: boolean
@@ -486,6 +478,10 @@ namespace ui {
     interface UiScreenRecord {
         screen: UiScreen
         input: UiScreenInput
+    }
+
+    function assertScreenRuntime(runtime: UiRuntime, screen: UiScreen): void {
+        control.assert(screen.runtime == runtime)
     }
 
     function createScreenInput(runtime: UiRuntime): UiScreenInput {

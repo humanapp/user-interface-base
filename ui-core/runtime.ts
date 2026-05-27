@@ -41,41 +41,6 @@ namespace ui {
         getText(id: string): string
     }
 
-    /**
-     * Frame scheduling hook for integrations with an automatic frame pump.
-     */
-    export interface UiScheduler {
-        /**
-         * Requests that a frame handler run on a scheduled frame.
-         */
-        requestFrame(handler: () => void): void
-    }
-
-    /**
-     * Runtime dependency bundle.
-     */
-    export interface UiRuntimeServices {
-        /**
-         * Required display adapter for frame rendering and commit.
-         */
-        display: UiDisplayAdapter
-
-        /**
-         * Bitmap and text resolver. Missing service uses an empty fallback resolver.
-         */
-        assets?: UiAssetResolver
-
-        /**
-         * Frame scheduler. Missing service requires manual `runFrame()` calls.
-         */
-        scheduler?: UiScheduler
-
-        /**
-         * Palette color used when a screen has no background color. Defaults to `0`.
-         */
-        clearColor?: number
-    }
-
     class UiNoopAssetResolver implements UiAssetResolver {
         private emptyBitmap_: Bitmap
 
@@ -96,17 +61,12 @@ namespace ui {
         }
     }
 
-    class UiManualScheduler implements UiScheduler {
-        public requestFrame(handler: () => void): void {}
-    }
-
     /**
      * Owns screen stack state, queued input, and frame execution.
      */
     export class UiRuntime {
         private display_: UiDisplayAdapter
         private assets_: UiAssetResolver
-        private scheduler_: UiScheduler
         private clearColor_: number
         private stack_: UiScreenStack
         private inputQueue_: UiInputEvent[]
@@ -114,12 +74,14 @@ namespace ui {
         private frameContext_: context.EventContext
         private frameCallback_: context.FrameCallback
 
-        constructor(options: UiRuntimeServices) {
-            this.display_ = options.display
-            this.assets_ = options.assets || new UiNoopAssetResolver()
-            this.scheduler_ = options.scheduler || new UiManualScheduler()
-            this.clearColor_ =
-                options.clearColor !== undefined ? options.clearColor : 0
+        constructor(
+            display: UiDisplayAdapter,
+            assets?: UiAssetResolver,
+            clearColor?: number,
+        ) {
+            this.display_ = display
+            this.assets_ = assets || new UiNoopAssetResolver()
+            this.clearColor_ = clearColor !== undefined ? clearColor : 0
             this.inputQueue_ = []
             this.stack_ = new UiScreenStack(this)
             this.running_ = false
@@ -141,13 +103,6 @@ namespace ui {
          */
         public get assets(): UiAssetResolver {
             return this.assets_
-        }
-
-        /**
-         * Frame scheduling hook.
-         */
-        public get scheduler(): UiScheduler {
-            return this.scheduler_
         }
 
         /**
@@ -243,7 +198,6 @@ namespace ui {
         }
 
         private updateControllerButtons(): void {
-            const now = control.millis()
             const dtms = (context.eventContext().deltaTime * 1000) | 0
             controller.left.__update(dtms)
             controller.right.__update(dtms)

@@ -93,11 +93,19 @@ namespace ui {
     export function moveFocusInRaggedGrid(
         input: UiFocusRaggedGridMoveInput,
     ): UiFocusMoveResult {
-        const currentRow = currentGridRow(input.rows, input.currentTargetId)
-        const currentColumn = currentGridColumn(
-            currentRow >= 0 ? input.rows[currentRow] : undefined,
-            input.currentTargetId,
-        )
+        let currentRow = -1
+        let currentColumn = -1
+        for (let row = 0; row < input.rows.length && currentRow < 0; row++) {
+            const targets = input.rows[row]
+            for (let column = 0; column < targets.length; column++) {
+                const target = targets[column]
+                if (target.id == input.currentTargetId && !target.hidden) {
+                    currentRow = row
+                    currentColumn = column
+                    break
+                }
+            }
+        }
         if (currentRow < 0 || currentColumn < 0)
             return {
                 kind: "stayed",
@@ -153,32 +161,6 @@ namespace ui {
             targetId: input.currentTargetId,
             direction: input.direction,
         }
-    }
-
-    function currentGridRow(
-        rows: UiFocusNavigationTarget[][],
-        targetId: UiFocusId,
-    ): number {
-        for (let row = 0; row < rows.length; row++) {
-            const targets = rows[row]
-            for (let column = 0; column < targets.length; column++) {
-                const target = targets[column]
-                if (target.id == targetId && !target.hidden) return row
-            }
-        }
-        return -1
-    }
-
-    function currentGridColumn(
-        row: UiFocusNavigationTarget[],
-        targetId: UiFocusId,
-    ): number {
-        if (!row) return -1
-        for (let column = 0; column < row.length; column++) {
-            const target = row[column]
-            if (target.id == targetId && !target.hidden) return column
-        }
-        return -1
     }
 
     function horizontalDestinationColumn(

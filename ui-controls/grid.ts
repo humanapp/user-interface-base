@@ -86,9 +86,7 @@ namespace ui {
             this.controlRects_ = []
             this.controlStyle_ = options.controlStyle
             this.labelBounds_ = options.labelBounds
-            this.controlView_ = new UiButtonView({
-                style: options.controlStyle,
-            })
+            this.controlView_ = new UiButtonView(options.controlStyle)
             this.onActivate_ = options.onActivate
         }
 

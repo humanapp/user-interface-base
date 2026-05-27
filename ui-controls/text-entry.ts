@@ -86,9 +86,22 @@ namespace ui {
     }
 
     /**
-     * Options for short text entry.
+     * Result emitted by text entry.
      */
-    export interface UiTextEntryOptions {
+    export type UiTextEntryResult =
+        | { kind: "completed"; text: string }
+        | { kind: "cancelled"; text: string }
+        | { kind: "custom"; text: string }
+
+    /**
+     * Options for a modal text keyboard backed by `UiTextEntry`.
+     */
+    export interface UiTextEntryModalOptions extends UiModalStyle {
+        /**
+         * Modal focus scope owned while the keyboard is open.
+         */
+        modalScopeId: UiFocusScopeId
+
         /**
          * Initial editable text. Defaults to the empty string.
          */
@@ -130,33 +143,9 @@ namespace ui {
         uppercaseOnly?: boolean
 
         /**
-         * Whether `cancel()` may emit a non-committing `cancelled` result.
-         */
-        cancelEnabled?: boolean
-
-        /**
          * Optional edit validator.
          */
         validate?: UiTextEntryValidator
-    }
-
-    /**
-     * Result emitted by text entry.
-     */
-    export type UiTextEntryResult =
-        | { kind: "completed"; text: string }
-        | { kind: "cancelled"; text: string }
-        | { kind: "custom"; text: string }
-
-    /**
-     * Options for a modal text keyboard backed by `UiTextEntry`.
-     */
-    export interface UiTextEntryModalOptions
-        extends UiTextEntryOptions, UiModalStyle {
-        /**
-         * Modal focus scope owned while the keyboard is open.
-         */
-        modalScopeId: UiFocusScopeId
 
         /**
          * Optional title content.
@@ -194,32 +183,32 @@ namespace ui {
         private flags_: number
         private validate_: UiTextEntryValidator
 
-        constructor(options?: UiTextEntryOptions) {
-            options = options || {}
+        constructor(
+            initialText?: string,
+            maxLength?: number,
+            minLength?: number,
+            allowEmpty?: boolean,
+            allowWhitespace?: boolean,
+            allowDigits?: boolean,
+            allowSymbols?: boolean,
+            uppercaseOnly?: boolean,
+            cancelEnabled?: boolean,
+            validate?: UiTextEntryValidator,
+        ) {
             this.flags_ = 0
-            if (options.allowEmpty)
-                this.flags_ |= UI_TEXT_ENTRY_FLAG_ALLOW_EMPTY
-            if (options.allowWhitespace)
+            if (allowEmpty) this.flags_ |= UI_TEXT_ENTRY_FLAG_ALLOW_EMPTY
+            if (allowWhitespace)
                 this.flags_ |= UI_TEXT_ENTRY_FLAG_ALLOW_WHITESPACE
-            if (options.allowDigits !== false)
+            if (allowDigits !== false)
                 this.flags_ |= UI_TEXT_ENTRY_FLAG_ALLOW_DIGITS
-            if (options.allowSymbols)
-                this.flags_ |= UI_TEXT_ENTRY_FLAG_ALLOW_SYMBOLS
-            if (options.uppercaseOnly)
-                this.flags_ |= UI_TEXT_ENTRY_FLAG_UPPERCASE_ONLY
-            if (options.cancelEnabled)
-                this.flags_ |= UI_TEXT_ENTRY_FLAG_CANCEL_ENABLED
-            this.maxLength_ = _uiControls.sanitizeDimension(
-                options.maxLength,
-                16,
-            )
+            if (allowSymbols) this.flags_ |= UI_TEXT_ENTRY_FLAG_ALLOW_SYMBOLS
+            if (uppercaseOnly) this.flags_ |= UI_TEXT_ENTRY_FLAG_UPPERCASE_ONLY
+            if (cancelEnabled) this.flags_ |= UI_TEXT_ENTRY_FLAG_CANCEL_ENABLED
+            this.maxLength_ = _uiControls.sanitizeDimension(maxLength, 16)
             if (this.maxLength_ == 0) this.maxLength_ = 16
-            this.minLength_ = _uiControls.sanitizeDimension(
-                options.minLength,
-                0,
-            )
-            this.validate_ = options.validate
-            this.text_ = this.normalizedEditableText(options.initialText || "")
+            this.minLength_ = _uiControls.sanitizeDimension(minLength, 0)
+            this.validate_ = validate
+            this.text_ = this.normalizedEditableText(initialText || "")
         }
 
         /**
@@ -473,7 +462,7 @@ namespace ui {
                     font: bitmaps.font8,
                     textPlacement: "content",
                 }
-            this.keyView_ = new UiButtonView({ style: this.keyStyle_ })
+            this.keyView_ = new UiButtonView(this.keyStyle_)
             this.keyContent_ = {}
             this.keyValues_ = []
             this.keyXs_ = []
@@ -692,18 +681,18 @@ namespace ui {
         }
 
         private createEntry(options: UiTextEntryModalOptions): UiTextEntry {
-            return new UiTextEntry({
-                initialText: options.initialText,
-                maxLength: options.maxLength,
-                minLength: options.minLength,
-                allowEmpty: options.allowEmpty,
-                allowWhitespace: options.allowWhitespace,
-                allowDigits: options.allowDigits,
-                allowSymbols: options.allowSymbols,
-                uppercaseOnly: options.uppercaseOnly,
-                cancelEnabled: true,
-                validate: options.validate,
-            })
+            return new UiTextEntry(
+                options.initialText,
+                options.maxLength,
+                options.minLength,
+                options.allowEmpty,
+                options.allowWhitespace,
+                options.allowDigits,
+                options.allowSymbols,
+                options.uppercaseOnly,
+                true,
+                options.validate,
+            )
         }
 
         private rebuildKeys(): void {

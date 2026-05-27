@@ -178,12 +178,8 @@ namespace ui {
                 options.titleControlStyle || options.controlStyle
             this.controlRects_ = []
             this.titleControlRects_ = []
-            this.controlView_ = new UiButtonView({
-                style: options.controlStyle,
-            })
-            this.titleControlView_ = new UiButtonView({
-                style: this.titleControlStyle_,
-            })
+            this.controlView_ = new UiButtonView(options.controlStyle)
+            this.titleControlView_ = new UiButtonView(this.titleControlStyle_)
             this.onActivate_ = options.onActivate
             this.onCancel_ = options.onCancel
             this.layoutSpec = _uiControls.defaultLayoutSpec()

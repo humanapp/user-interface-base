@@ -42,10 +42,7 @@ A typical app creates one runtime, pushes the first screen, and starts the
 runtime.
 
 ```ts
-const runtime = new ui.UiRuntime({
-    display: new ui.DisplayShieldFrameAdapter(),
-    clearColor: 1,
-})
+const runtime = new ui.UiRuntime(new ui.DisplayShieldFrameAdapter())
 
 runtime.push(new HelloScreen(runtime))
 runtime.start()
@@ -349,10 +346,11 @@ class AppAssets implements ui.UiAssetResolver {
     }
 }
 
-const runtime = new ui.UiRuntime({
-    display: new ui.DisplayShieldFrameAdapter(),
-    assets: new AppAssets(),
-})
+const runtime = new ui.UiRuntime(
+    new ui.DisplayShieldFrameAdapter(),
+    0,
+    new AppAssets(),
+)
 ```
 
 Screens can also keep bitmaps and strings as fields. Asset resolvers are most

@@ -40,9 +40,9 @@ namespace ui {
     }
 
     /**
-     * Resolver-backed content ids.
+     * Caller-provided control content before resolver lookup.
      */
-    export interface UiReferencedContent {
+    export interface UiControlContentOptions extends UiControlContent {
         /**
          * Resolver-backed bitmap id.
          */
@@ -53,12 +53,6 @@ namespace ui {
          */
         textId?: string
     }
-
-    /**
-     * Caller-provided control content before resolver lookup.
-     */
-    export interface UiControlContentOptions
-        extends UiControlContent, UiReferencedContent {}
 
     /**
      * Shared fields for one rendered control.
@@ -90,11 +84,6 @@ namespace ui {
          * When true, missing resolver-backed bitmaps are not drawn.
          */
         omitMissingBitmap?: boolean
-
-        /**
-         * Requested size for this control.
-         */
-        size?: UiSizeOptions
 
         /**
          * Whether this visible control can receive focus. Omitted values are
@@ -346,24 +335,23 @@ namespace _uiControls {
         focused?: boolean,
         assets?: ui.UiAssetResolver,
     ): void {
-        if (
-            assets &&
-            (control.textId !== undefined ||
-                control.bitmapId !== undefined ||
-                control.focusLabelId !== undefined)
-        )
-            resolveControlContent(control, assets)
         const content = controlContentScratch
-        resolveContent(control, undefined, content)
+        resolveContent(control, assets, content, control.omitMissingBitmap)
         const style = control.style || controlStyle
         if (focused) {
+            const focusLabel =
+                control.focusLabel !== undefined
+                    ? control.focusLabel
+                    : control.focusLabelId !== undefined && assets
+                      ? assets.getText(control.focusLabelId)
+                      : undefined
             buttonView.renderFocus(
                 surface,
                 rect,
                 content,
                 style,
                 labelBounds,
-                control.focusLabel,
+                focusLabel,
             )
         } else {
             buttonView.render(surface, rect, content, style)
