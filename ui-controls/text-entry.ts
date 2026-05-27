@@ -65,25 +65,15 @@ namespace ui {
     /**
      * Optional validator for text entry.
      */
-    export interface UiTextEntryValidator {
-        /**
-         * Reviews a proposed edit before it is committed.
-         */
-        (
-            candidateText: string,
-            action: UiTextEntryEditAction,
-        ): UiEntryValidationResult
-    }
+    export type UiTextEntryValidator = (
+        candidateText: string,
+        action: UiTextEntryEditAction,
+    ) => UiEntryValidationResult
 
     /**
      * Handles a text entry custom action.
      */
-    export interface UiTextEntryCustomActionHandler {
-        /**
-         * Receives current trimmed text and returns replacement text.
-         */
-        (text: string): string
-    }
+    export type UiTextEntryCustomActionHandler = (text: string) => string
 
     /**
      * Result emitted by text entry.
@@ -298,23 +288,12 @@ namespace ui {
          * Renders the current entry text.
          */
         public render(surface: DrawSurface, rect: Rect): void {
-            const background = 1
-            const foreground = 15
-            const padding = 4
-            const font = TEXT_ENTRY_FONT
-            const textSize = surface.measureText(this.text_, font)
-            const textX = Math.max(
-                rect.x + padding,
-                rect.x + rect.width - padding - textSize.width,
+            _uiEntryModal.renderEntryText(
+                surface,
+                rect,
+                this.text_,
+                TEXT_ENTRY_FONT,
             )
-            const textY =
-                rect.y +
-                Math.max(0, Math.idiv(rect.height - textSize.height, 2))
-            surface.drawRoundedRect(rect, 15, background)
-            surface.drawText(this.text_, textX, textY, {
-                color: foreground,
-                font,
-            })
         }
 
         private applyText(
@@ -448,7 +427,9 @@ namespace ui {
                 options.backgroundColor === undefined
                     ? 12
                     : options.backgroundColor
-            this.contentMargin_ = this.contentMargin(options.contentMargin)
+            this.contentMargin_ = _uiEntryModal.contentMargin(
+                options.contentMargin,
+            )
             this.titleGap_ = this.titleGap(options.titleGap)
             this.keyStyle_ =
                 options.keyStyle ||
@@ -588,7 +569,8 @@ namespace ui {
             focus.setScope({
                 id: this.modalScopeId_,
                 parentScopeId: focus.getActiveScopeId(),
-                preferredTargetId: this.targetIdForIndex(
+                preferredTargetId: _uiEntryModal.targetIdForIndex(
+                    this.modalScopeId_,
                     this.firstVisibleKeyIndex(),
                 ),
                 handlesCancel: true,
@@ -654,7 +636,10 @@ namespace ui {
                     fromScopeId: this.modalScopeId_,
                     fromTargetId: request.currentTargetId,
                     toScopeId: this.modalScopeId_,
-                    toTargetId: this.targetIdForIndex(destinationIndex),
+                    toTargetId: _uiEntryModal.targetIdForIndex(
+                        this.modalScopeId_,
+                        destinationIndex,
+                    ),
                 }
 
             return {
@@ -674,10 +659,10 @@ namespace ui {
             focus?: UiFocusState,
         ): void {
             surface.drawRoundedRect(this.finalRect, 15, this.backgroundColor_)
-            this.renderTitle(surface, assets)
+            this.renderTitle(surface)
             this.entry_.render(surface, this.displayRect_)
-            this.renderKeys(surface, assets)
-            this.renderFocus(surface, assets, focus)
+            this.renderKeys(surface)
+            this.renderFocus(surface, focus)
         }
 
         private createEntry(options: UiTextEntryModalOptions): UiTextEntry {
@@ -715,12 +700,7 @@ namespace ui {
                     UI_TEXT_ENTRY_FLAG_ALLOW_SYMBOLS)
             )
                 this.keyValues_[27] = UI_TEXT_ENTRY_KEY_PAGE_DIGITS
-            if (this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_WHITESPACE)
-                this.keyValues_[28] = UI_TEXT_ENTRY_KEY_SPACE
-            if (this.customAction_)
-                this.keyValues_[29] = UI_TEXT_ENTRY_KEY_CUSTOM
-            this.keyValues_[30] = UI_TEXT_ENTRY_KEY_BACKSPACE
-            this.keyValues_[31] = UI_TEXT_ENTRY_KEY_ENTER
+            this.addActionKeys()
         }
 
         private addDigitKeys(): void {
@@ -731,12 +711,7 @@ namespace ui {
                 this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_SYMBOLS
                     ? UI_TEXT_ENTRY_KEY_PAGE_SYMBOLS
                     : UI_TEXT_ENTRY_KEY_PAGE_LETTERS
-            if (this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_WHITESPACE)
-                this.keyValues_[28] = UI_TEXT_ENTRY_KEY_SPACE
-            if (this.customAction_)
-                this.keyValues_[29] = UI_TEXT_ENTRY_KEY_CUSTOM
-            this.keyValues_[30] = UI_TEXT_ENTRY_KEY_BACKSPACE
-            this.keyValues_[31] = UI_TEXT_ENTRY_KEY_ENTER
+            this.addActionKeys()
         }
 
         private addSymbolKeys(): void {
@@ -745,6 +720,10 @@ namespace ui {
             this.keyValues_[26] = UI_TEXT_ENTRY_KEY_PAGE_LETTERS
             if (this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_DIGITS)
                 this.keyValues_[27] = UI_TEXT_ENTRY_KEY_PAGE_DIGITS
+            this.addActionKeys()
+        }
+
+        private addActionKeys(): void {
             if (this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_WHITESPACE)
                 this.keyValues_[28] = UI_TEXT_ENTRY_KEY_SPACE
             if (this.customAction_)
@@ -777,18 +756,9 @@ namespace ui {
 
         private registerTargets(focus: UiFocusState): void {
             for (let i = 0; i < this.keyValues_.length; i++) {
-                const row = this.rowForIndex(i)
-                this.keyRect_.set(
-                    this.keyXs_[i],
-                    this.gridRect_.y +
-                        row *
-                            (UI_TEXT_ENTRY_MODAL_KEY_HEIGHT +
-                                UI_TEXT_ENTRY_MODAL_KEY_GAP),
-                    this.keyWidth(this.keyValues_[i]),
-                    UI_TEXT_ENTRY_MODAL_KEY_HEIGHT,
-                )
+                this.setKeyRect(i)
                 focus.setTarget({
-                    id: this.targetIdForIndex(i),
+                    id: _uiEntryModal.targetIdForIndex(this.modalScopeId_, i),
                     scopeId: this.modalScopeId_,
                     rect: this.keyRect_,
                     hidden: this.keyValues_[i] == UI_TEXT_ENTRY_KEY_SPACER,
@@ -797,10 +767,7 @@ namespace ui {
             }
         }
 
-        private renderTitle(
-            surface: DrawSurface,
-            assets: UiAssetResolver,
-        ): void {
+        private renderTitle(surface: DrawSurface): void {
             if (!this.hasTitle()) return
             this.prepareContent(this.title_)
             this.keyView_.render(
@@ -811,23 +778,11 @@ namespace ui {
             )
         }
 
-        private renderKeys(
-            surface: DrawSurface,
-            assets: UiAssetResolver,
-        ): void {
+        private renderKeys(surface: DrawSurface): void {
             for (let i = 0; i < this.keyValues_.length; i++) {
                 const key = this.keyValues_[i]
                 if (key == UI_TEXT_ENTRY_KEY_SPACER) continue
-                const row = this.rowForIndex(i)
-                this.keyRect_.set(
-                    this.keyXs_[i],
-                    this.gridRect_.y +
-                        row *
-                            (UI_TEXT_ENTRY_MODAL_KEY_HEIGHT +
-                                UI_TEXT_ENTRY_MODAL_KEY_GAP),
-                    this.keyWidth(key),
-                    UI_TEXT_ENTRY_MODAL_KEY_HEIGHT,
-                )
+                this.setKeyRect(i)
                 this.prepareKeyContent(key)
                 this.keyView_.render(
                     surface,
@@ -838,29 +793,16 @@ namespace ui {
             }
         }
 
-        private renderFocus(
-            surface: DrawSurface,
-            assets: UiAssetResolver,
-            focus: UiFocusState,
-        ): void {
-            const activeTargetId =
-                focus && focus.getActiveScopeId() == this.modalScopeId_
-                    ? focus.getActiveTargetId(this.modalScopeId_)
-                    : undefined
-            const index = this.keyIndexForTargetId(activeTargetId)
+        private renderFocus(surface: DrawSurface, focus: UiFocusState): void {
+            const index = _uiEntryModal.activeIndex(
+                focus,
+                this.modalScopeId_,
+                this.keyValues_.length,
+            )
             if (index < 0) return
             const key = this.keyValues_[index]
             if (key == UI_TEXT_ENTRY_KEY_SPACER) return
-            const row = this.rowForIndex(index)
-            this.keyRect_.set(
-                this.keyXs_[index],
-                this.gridRect_.y +
-                    row *
-                        (UI_TEXT_ENTRY_MODAL_KEY_HEIGHT +
-                            UI_TEXT_ENTRY_MODAL_KEY_GAP),
-                this.keyWidth(key),
-                UI_TEXT_ENTRY_MODAL_KEY_HEIGHT,
-            )
+            this.setKeyRect(index)
             this.prepareKeyContent(key)
             this.keyView_.renderFocus(
                 surface,
@@ -977,25 +919,29 @@ namespace ui {
         }
 
         private keyIndexForTargetId(targetId: UiFocusId): number {
-            if (targetId === undefined) return -1
-            const prefix = this.modalScopeId_ + "/"
-            if (
-                targetId.length <= prefix.length ||
-                targetId.substr(0, prefix.length) != prefix
+            return _uiEntryModal.indexForTargetId(
+                this.modalScopeId_,
+                targetId,
+                this.keyValues_.length,
             )
-                return -1
-            let index = 0
-            for (let i = prefix.length; i < targetId.length; i++) {
-                const digit = targetId.charCodeAt(i) - 48
-                if (digit < 0 || digit > 9) return -1
-                index = index * 10 + digit
-            }
-            return index < this.keyValues_.length ? index : -1
         }
 
         private keyValueForTargetId(targetId: UiFocusId): string {
             const index = this.keyIndexForTargetId(targetId)
             return index < 0 ? "" : this.keyValues_[index]
+        }
+
+        private setKeyRect(index: number): void {
+            const row = this.rowForIndex(index)
+            this.keyRect_.set(
+                this.keyXs_[index],
+                this.gridRect_.y +
+                    row *
+                        (UI_TEXT_ENTRY_MODAL_KEY_HEIGHT +
+                            UI_TEXT_ENTRY_MODAL_KEY_GAP),
+                this.keyWidth(this.keyValues_[index]),
+                UI_TEXT_ENTRY_MODAL_KEY_HEIGHT,
+            )
         }
 
         private firstVisibleKeyIndex(): number {
@@ -1065,10 +1011,6 @@ namespace ui {
             return -1
         }
 
-        private targetIdForIndex(index: number): UiFocusId {
-            return this.modalScopeId_ + "/" + index
-        }
-
         private rowX(row: number): number {
             return (
                 this.gridRect_.x +
@@ -1096,16 +1038,13 @@ namespace ui {
         }
 
         private isCharacterKey(key: string): boolean {
-            if (key.length != 1) return false
-            if (key >= "a" && key <= "z") return true
-            if (key >= "0" && key <= "9") return true
-            return TEXT_ENTRY_SYMBOLS.indexOf(key) >= 0
+            return key >= " "
         }
 
         private keyWidth(key: string): number {
             if (key == UI_TEXT_ENTRY_KEY_SPACE)
                 return UI_TEXT_ENTRY_MODAL_SPACE_KEY_WIDTH
-            if (this.isCharacterKey(key)) return UI_TEXT_ENTRY_MODAL_KEY_WIDTH
+            if (key >= " ") return UI_TEXT_ENTRY_MODAL_KEY_WIDTH
             return UI_TEXT_ENTRY_MODAL_ACTION_KEY_WIDTH
         }
 
@@ -1127,11 +1066,6 @@ namespace ui {
             while (start < end && text.charAt(start) == " ") start++
             while (end > start && text.charAt(end - 1) == " ") end--
             return text.substr(start, end - start)
-        }
-
-        private contentMargin(value: number): number {
-            if (value !== undefined) return Math.max(0, value)
-            return 4
         }
 
         private titleGap(value: number): number {

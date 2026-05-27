@@ -1692,7 +1692,7 @@ namespace ui {
         simpleFocus.setScope({ id: "parent-simple" })
         simpleFocus.setActiveScope("parent-simple")
         simpleModal.open(simpleFocus, simpleController)
-        simpleFocus.setActiveTarget("numeric-simple", "numeric-simple/14")
+        simpleFocus.setActiveTarget("numeric-simple", "numeric-simple/15")
         const simpleResult = simpleModal.handleFocusInput(
             simpleController.handleInput({ action: "activate" }),
         )
@@ -1743,19 +1743,19 @@ namespace ui {
         )
         modalController.handleInput({ action: "up" })
         control.assert(
-            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/7",
+            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/0",
             "numeric modal top row starts with seven",
         )
-        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/1")
+        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/8")
         modalController.handleInput({ action: "down" })
         control.assert(
-            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/0",
+            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/13",
             "numeric modal down skips left spacer",
         )
-        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/3")
+        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/10")
         modalController.handleInput({ action: "down" })
         control.assert(
-            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/14",
+            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/15",
             "numeric modal down skips right spacer",
         )
         const modalCancel = modal.handleFocusInput(
@@ -1822,21 +1822,21 @@ namespace ui {
             deleteModalSurface.log.indexOf("bitmap:2x1;") >= 0,
             "numeric modal delete icon",
         )
-        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/1")
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/8")
         deleteController.handleInput({ action: "down" })
         control.assert(
             deleteFocus.getActiveTargetId("numeric-delete") ==
-                "numeric-delete/11",
+                "numeric-delete/12",
             "numeric modal decimal sign key below one",
         )
-        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/3")
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/10")
         deleteController.handleInput({ action: "down" })
         control.assert(
             deleteFocus.getActiveTargetId("numeric-delete") ==
-                "numeric-delete/10",
+                "numeric-delete/14",
             "numeric modal decimal point key below three",
         )
-        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/13")
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/11")
         const deleteResult = deleteModal.handleFocusInput(
             deleteController.handleInput({ action: "activate" }),
         )

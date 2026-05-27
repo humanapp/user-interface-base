@@ -28,18 +28,13 @@ namespace ui {
         | "completed"
 
     /**
-     * Optional validator for numeric entry text.
+     * Reviews a proposed numeric edit before it is committed.
      */
-    export interface UiNumericEntryValidator {
-        /**
-         * Reviews a proposed edit before it is committed.
-         */
-        (
-            mode: UiNumericEntryMode,
-            candidateText: string,
-            action: UiNumericEntryEditAction,
-        ): UiNumericEntryValidationResult
-    }
+    export type UiNumericEntryValidator = (
+        mode: UiNumericEntryMode,
+        candidateText: string,
+        action: UiNumericEntryEditAction,
+    ) => UiNumericEntryValidationResult
 
     /**
      * Completion result emitted by numeric entry.
@@ -191,23 +186,12 @@ namespace ui {
          * Renders the current entry text.
          */
         public render(surface: DrawSurface, rect: Rect): void {
-            const background = 1
-            const foreground = 15
-            const padding = 4
-            const font = NUMERIC_ENTRY_FONT
-            const textSize = surface.measureText(this.text_, font)
-            const textX = Math.max(
-                rect.x + padding,
-                rect.x + rect.width - padding - textSize.width,
+            _uiEntryModal.renderEntryText(
+                surface,
+                rect,
+                this.text_,
+                NUMERIC_ENTRY_FONT,
             )
-            const textY =
-                rect.y +
-                Math.max(0, Math.idiv(rect.height - textSize.height, 2))
-            surface.drawRoundedRect(rect, 15, background)
-            surface.drawText(this.text_, textX, textY, {
-                color: foreground,
-                font,
-            })
         }
 
         private applyText(
@@ -319,6 +303,77 @@ namespace ui {
         frame: "roundedRect",
     }
 
+    export namespace _uiEntryModal {
+        export function renderEntryText(
+            surface: DrawSurface,
+            rect: Rect,
+            text: string,
+            font: TextFont,
+        ): void {
+            const background = 1
+            const foreground = 15
+            const padding = 4
+            const textSize = surface.measureText(text, font)
+            const textX = Math.max(
+                rect.x + padding,
+                rect.x + rect.width - padding - textSize.width,
+            )
+            const textY =
+                rect.y +
+                Math.max(0, Math.idiv(rect.height - textSize.height, 2))
+            surface.drawRoundedRect(rect, 15, background)
+            surface.drawText(text, textX, textY, {
+                color: foreground,
+                font,
+            })
+        }
+
+        export function contentMargin(value: number): number {
+            if (value !== undefined) return Math.max(0, value)
+            return 4
+        }
+
+        export function targetIdForIndex(
+            scopeId: UiFocusScopeId,
+            index: number,
+        ): UiFocusId {
+            return scopeId + "/" + index
+        }
+
+        export function indexForTargetId(
+            scopeId: UiFocusScopeId,
+            targetId: UiFocusId,
+            count: number,
+        ): number {
+            if (targetId === undefined) return -1
+            const prefix = scopeId + "/"
+            if (
+                targetId.length <= prefix.length ||
+                targetId.substr(0, prefix.length) != prefix
+            )
+                return -1
+            let index = 0
+            for (let i = prefix.length; i < targetId.length; i++) {
+                const digit = targetId.charCodeAt(i) - 48
+                if (digit < 0 || digit > 9) return -1
+                index = index * 10 + digit
+            }
+            return index < count ? index : -1
+        }
+
+        export function activeIndex(
+            focus: UiFocusState,
+            scopeId: UiFocusScopeId,
+            count: number,
+        ): number {
+            const activeTargetId =
+                focus && focus.getActiveScopeId() == scopeId
+                    ? focus.getActiveTargetId(scopeId)
+                    : undefined
+            return indexForTargetId(scopeId, activeTargetId, count)
+        }
+    }
+
     /**
      * Options for a modal numeric keypad backed by `UiNumericEntry`.
      */
@@ -372,9 +427,10 @@ namespace ui {
     /**
      * Receives the completed numeric value from the compact modal constructor.
      */
-    export interface UiNumericEntryCompletedHandler {
-        (value: number, result: UiNumericEntryCompletedResult): void
-    }
+    export type UiNumericEntryCompletedHandler = (
+        value: number,
+        result: UiNumericEntryCompletedResult,
+    ) => void
 
     /**
      * Modal numeric keypad for decimal and positive-integer entry.
@@ -427,7 +483,9 @@ namespace ui {
                 options.backgroundColor === undefined
                     ? 12
                     : options.backgroundColor
-            this.contentMargin_ = this.contentMargin(options.contentMargin)
+            this.contentMargin_ = _uiEntryModal.contentMargin(
+                options.contentMargin,
+            )
             this.flags_ = 0
             if (options.deleteEnabled)
                 this.flags_ |= UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED
@@ -540,7 +598,10 @@ namespace ui {
             focus.setScope({
                 id: this.modalScopeId_,
                 parentScopeId: focus.getActiveScopeId(),
-                preferredTargetId: this.targetIdForKey(1),
+                preferredTargetId: _uiEntryModal.targetIdForIndex(
+                    this.modalScopeId_,
+                    8,
+                ),
                 handlesCancel: true,
                 modal: true,
             })
@@ -601,9 +662,8 @@ namespace ui {
             let currentPhysicalColumn = -1
             let rowStart = 0
             for (let row = 0; row < 4; row++) {
-                const rowLength = this.rowLength(row)
                 let navigationColumn = 0
-                for (let i = 0; i < rowLength; i++) {
+                for (let i = 0; i < 4; i++) {
                     const index = rowStart + i
                     if (this.keyValues_[index] != UI_NUMERIC_ENTRY_KEY_SPACER) {
                         if (index == currentIndex) {
@@ -614,15 +674,14 @@ namespace ui {
                         navigationColumn++
                     }
                 }
-                rowStart += rowLength
+                rowStart += 4
             }
             let destinationIndex = -1
 
             if (request.direction == "left" || request.direction == "right") {
-                const start = this.rowStart(currentRow)
-                const length = this.rowLength(currentRow)
+                const start = currentRow * 4
                 let visibleLength = 0
-                for (let i = 0; i < length; i++) {
+                for (let i = 0; i < 4; i++) {
                     if (
                         this.keyValues_[start + i] !=
                         UI_NUMERIC_ENTRY_KEY_SPACER
@@ -635,7 +694,7 @@ namespace ui {
                     if (column < 0) column = visibleLength - 1
                     else if (column >= visibleLength) column = 0
                     let navigationColumn = 0
-                    for (let i = 0; i < length; i++) {
+                    for (let i = 0; i < 4; i++) {
                         const index = start + i
                         if (
                             this.keyValues_[index] !=
@@ -665,8 +724,9 @@ namespace ui {
                     fromScopeId: this.modalScopeId_,
                     fromTargetId: request.currentTargetId,
                     toScopeId: this.modalScopeId_,
-                    toTargetId: this.targetIdForKey(
-                        this.keyValues_[destinationIndex],
+                    toTargetId: _uiEntryModal.targetIdForIndex(
+                        this.modalScopeId_,
+                        destinationIndex,
                     ),
                 }
 
@@ -690,12 +750,11 @@ namespace ui {
             row: number,
             physicalColumn: number,
         ): number {
-            const start = this.rowStart(row)
-            const length = this.rowLength(row)
+            const start = row * 4
             let bestIndex = -1
             let bestColumn = -1
             let bestDistance = 0
-            for (let i = 0; i < length; i++) {
+            for (let i = 0; i < 4; i++) {
                 const index = start + i
                 if (this.keyValues_[index] == UI_NUMERIC_ENTRY_KEY_SPACER)
                     continue
@@ -725,8 +784,8 @@ namespace ui {
         ): void {
             surface.drawRoundedRect(this.finalRect, 15, this.backgroundColor_)
             this.entry_.render(surface, this.displayRect_)
-            this.renderKeys(surface, assets)
-            this.renderFocus(surface, assets, focus)
+            this.renderKeys(surface)
+            this.renderFocus(surface, focus)
         }
 
         private registerTargets(focus: UiFocusState): void {
@@ -735,7 +794,7 @@ namespace ui {
                 if (key == UI_NUMERIC_ENTRY_KEY_SPACER) continue
                 this.setKeyRect(i)
                 focus.setTarget({
-                    id: this.targetIdForKey(key),
+                    id: _uiEntryModal.targetIdForIndex(this.modalScopeId_, i),
                     scopeId: this.modalScopeId_,
                     rect: this.keyRect_,
                     activatable: true,
@@ -743,10 +802,7 @@ namespace ui {
             }
         }
 
-        private renderKeys(
-            surface: DrawSurface,
-            assets: UiAssetResolver,
-        ): void {
+        private renderKeys(surface: DrawSurface): void {
             for (let i = 0; i < this.keyValues_.length; i++) {
                 const key = this.keyValues_[i]
                 if (key == UI_NUMERIC_ENTRY_KEY_SPACER) continue
@@ -761,16 +817,12 @@ namespace ui {
             }
         }
 
-        private renderFocus(
-            surface: DrawSurface,
-            assets: UiAssetResolver,
-            focus: UiFocusState,
-        ): void {
-            const activeTargetId =
-                focus && focus.getActiveScopeId() == this.modalScopeId_
-                    ? focus.getActiveTargetId(this.modalScopeId_)
-                    : undefined
-            const index = this.keyIndexForTargetId(activeTargetId)
+        private renderFocus(surface: DrawSurface, focus: UiFocusState): void {
+            const index = _uiEntryModal.activeIndex(
+                focus,
+                this.modalScopeId_,
+                this.keyValues_.length,
+            )
             if (index < 0) return
             const key = this.keyValues_[index]
             this.setKeyRect(index)
@@ -808,26 +860,30 @@ namespace ui {
         private createKeyValues(
             mode: UiNumericEntryMode,
         ): UiNumericEntryModalKeyValue[] {
-            const keys: UiNumericEntryModalKeyValue[] = []
-            keys.push(7)
-            keys.push(8)
-            keys.push(9)
-            keys.push(UI_NUMERIC_ENTRY_KEY_BACKSPACE)
-            keys.push(4)
-            keys.push(5)
-            keys.push(6)
-            keys.push(1)
-            keys.push(2)
-            keys.push(3)
-            if (this.flags_ & UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED)
-                keys.push(UI_NUMERIC_ENTRY_KEY_DELETE)
-            if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN)
-            else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
-            keys.push(0)
-            if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT)
-            else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
-            keys.push(UI_NUMERIC_ENTRY_KEY_ENTER)
-            return keys
+            return [
+                7,
+                8,
+                9,
+                UI_NUMERIC_ENTRY_KEY_BACKSPACE,
+                4,
+                5,
+                6,
+                UI_NUMERIC_ENTRY_KEY_SPACER,
+                1,
+                2,
+                3,
+                this.flags_ & UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED
+                    ? UI_NUMERIC_ENTRY_KEY_DELETE
+                    : UI_NUMERIC_ENTRY_KEY_SPACER,
+                mode == "decimal"
+                    ? UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN
+                    : UI_NUMERIC_ENTRY_KEY_SPACER,
+                0,
+                mode == "decimal"
+                    ? UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT
+                    : UI_NUMERIC_ENTRY_KEY_SPACER,
+                UI_NUMERIC_ENTRY_KEY_ENTER,
+            ]
         }
 
         private createEntry(
@@ -843,43 +899,12 @@ namespace ui {
             )
         }
 
-        private rowLength(row: number): number {
-            if (row == 0 || row == 3) return 4
-            if (row == 1) return 3
-            return this.flags_ & UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED ? 4 : 3
-        }
-
-        private rowStart(row: number): number {
-            if (row == 0) return 0
-            if (row == 1) return 4
-            if (row == 2) return 7
-            return this.flags_ & UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED ? 11 : 10
-        }
-
-        private targetIdForKey(key: UiNumericEntryModalKeyValue): UiFocusId {
-            return this.modalScopeId_ + "/" + key
-        }
-
         private keyIndexForTargetId(targetId: UiFocusId): number {
-            if (targetId === undefined) return -1
-            const prefix = this.modalScopeId_ + "/"
-            if (
-                targetId.length <= prefix.length ||
-                targetId.substr(0, prefix.length) != prefix
+            return _uiEntryModal.indexForTargetId(
+                this.modalScopeId_,
+                targetId,
+                this.keyValues_.length,
             )
-                return -1
-            let targetKey = 0
-            for (let i = prefix.length; i < targetId.length; i++) {
-                const digit = targetId.charCodeAt(i) - 48
-                if (digit < 0 || digit > 9) return -1
-                targetKey = targetKey * 10 + digit
-            }
-            for (let i = 0; i < this.keyValues_.length; i++) {
-                const key = this.keyValues_[i]
-                if (key != UI_NUMERIC_ENTRY_KEY_SPACER && key == targetKey)
-                    return i
-            }
-            return -1
         }
 
         private keyValueForTargetId(
@@ -892,8 +917,8 @@ namespace ui {
         }
 
         private setKeyRect(index: number): void {
-            const row = this.rowForIndex(index)
-            const column = index - this.rowStart(row)
+            const row = Math.idiv(index, 4)
+            const column = index - row * 4
             this.keyRect_.set(
                 this.gridRect_.x +
                     column *
@@ -906,13 +931,6 @@ namespace ui {
                 UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
                 UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
             )
-        }
-
-        private rowForIndex(index: number): number {
-            if (index < 4) return 0
-            if (index < 7) return 1
-            if (index < this.rowStart(3)) return 2
-            return 3
         }
 
         private keyStyleForKey(
@@ -955,9 +973,5 @@ namespace ui {
             return "OK"
         }
 
-        private contentMargin(value: number): number {
-            if (value !== undefined) return Math.max(0, value)
-            return 4
-        }
     }
 }
