@@ -1,17 +1,13 @@
 namespace ui {
     const LABEL_DEFAULT_FONT = bitmaps.font8
+    const LABEL_CONTENT_GAP = 3
 
     /**
-     * Options for one passive text label.
+     * Options for one passive text or bitmap label.
      */
-    export interface UiLabelOptions {
+    export interface UiLabelOptions extends UiButtonContentOptions {
         /**
-         * Text drawn by this label.
-         */
-        text: string
-
-        /**
-         * Requested label size. Omitted axes use the rendered text size.
+         * Requested label size. Omitted axes use literal content size.
          */
         size?: UiSizeOptions
 
@@ -32,6 +28,16 @@ namespace ui {
     }
 
     /**
+     * Creates a passive text or bitmap label.
+     */
+    export function label(
+        options: UiLabelOptions | string,
+        color?: number,
+    ): UiLabel {
+        return new UiLabel(options, color)
+    }
+
+    /**
      * Passive screen-managed label with retained text, position, and style.
      */
     export class UiLabel implements UiView<undefined> {
@@ -39,6 +45,7 @@ namespace ui {
         public readonly finalRect: Rect
         public layoutDirty: boolean
         private text_: string
+        private content_: UiButtonContentOptions
         private color_: number
         private backgroundColor_: number
         private font_: TextFont
@@ -49,8 +56,10 @@ namespace ui {
          * Creates a label from full options or from text and color.
          */
         constructor(options: UiLabelOptions | string, color?: number) {
+            const source = options
             options = this.resolveOptions(options, color)
             this.text_ = options.text || ""
+            this.content_ = typeof source == "string" ? undefined : options
             this.color_ = options.color !== undefined ? options.color : 1
             this.backgroundColor_ = options.backgroundColor
             this.font_ = options.font || LABEL_DEFAULT_FONT
@@ -72,7 +81,14 @@ namespace ui {
          * Updates the visible label text and returns this label.
          */
         public setText(text: string): UiLabel {
+            const content = this.content_
             this.text_ = text || ""
+            if (content)
+                this.content_ = {
+                    text: this.text_,
+                    bitmap: content.bitmap,
+                    bitmapId: content.bitmapId,
+                }
             this.invalidateLayout()
             return this
         }
@@ -129,13 +145,32 @@ namespace ui {
         /**
          * Renders the label through the supplied draw surface.
          */
-        public render(surface: DrawSurface): void {
+        public render(surface: DrawSurface, assets?: UiAssetResolver): void {
             if (this.backgroundColor_ !== undefined)
                 surface.fillRect(this.finalRect, this.backgroundColor_)
-            surface.drawText(this.text_, this.finalRect.x, this.finalRect.y, {
-                color: this.color_,
-                font: this.font_,
-            })
+            const content = this.content_
+            const bitmap =
+                content && content.bitmap
+                    ? content.bitmap
+                    : assets && content && content.bitmapId !== undefined
+                      ? assets.getBitmap(content.bitmapId)
+                      : undefined
+            const text =
+                content && content.text !== undefined
+                    ? content.text
+                    : assets && content && content.textId !== undefined
+                      ? assets.getText(content.textId)
+                      : this.text_
+            let textX = this.finalRect.x
+            if (bitmap) {
+                surface.drawBitmap(bitmap, this.finalRect.x, this.finalRect.y)
+                textX += bitmap.width + (text.length ? LABEL_CONTENT_GAP : 0)
+            }
+            if (text.length > 0)
+                surface.drawText(text, textX, this.finalRect.y, {
+                    color: this.color_,
+                    font: this.font_,
+                })
         }
 
         /**
@@ -162,11 +197,23 @@ namespace ui {
         }
 
         private preferredWidth(): number {
-            return this.text_.length * this.font_.charWidth
+            const textWidth = this.text_.length * this.font_.charWidth
+            const bitmap =
+                this.content_ && this.content_.bitmap
+                    ? this.content_.bitmap
+                    : undefined
+            const bitmapWidth = bitmap ? bitmap.width : 0
+            if (textWidth > 0 && bitmapWidth > 0)
+                return bitmapWidth + LABEL_CONTENT_GAP + textWidth
+            return bitmapWidth + textWidth
         }
 
         private preferredHeight(): number {
-            return this.font_.charHeight
+            const bitmap =
+                this.content_ && this.content_.bitmap
+                    ? this.content_.bitmap
+                    : undefined
+            return Math.max(this.font_.charHeight, bitmap ? bitmap.height : 0)
         }
 
         private controlDimension(value: number, preferred: number): number {

@@ -14,10 +14,7 @@ namespace ui {
     /**
      * Physical or synthetic source that produced a semantic input action.
      */
-    export type UiInputSource =
-        | "controller"
-        | "board"
-        | "synthetic"
+    export type UiInputSource = "controller" | "board" | "synthetic"
 
     /**
      * Phase for pressable input actions. Missing phase is treated as `pressed`.

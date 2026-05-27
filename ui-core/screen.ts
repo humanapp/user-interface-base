@@ -698,28 +698,13 @@ namespace ui {
             action: UiInputAction,
         ): void {
             context.onEvent(ControllerButtonEvent.Pressed, buttonId, () => {
-                dispatchScreenInput(
-                    input,
-                    action,
-                    "controller",
-                    "pressed",
-                )
+                dispatchScreenInput(input, action, "controller", "pressed")
             })
             context.onEvent(ControllerButtonEvent.Released, buttonId, () => {
-                dispatchScreenInput(
-                    input,
-                    action,
-                    "controller",
-                    "released",
-                )
+                dispatchScreenInput(input, action, "controller", "released")
             })
             context.onEvent(ControllerButtonEvent.Repeated, buttonId, () => {
-                dispatchScreenInput(
-                    input,
-                    action,
-                    "controller",
-                    "repeated",
-                )
+                dispatchScreenInput(input, action, "controller", "repeated")
             })
         }
     }

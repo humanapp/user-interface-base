@@ -329,11 +329,6 @@ namespace ui {
 
     type UiNumericEntryModalKeyValue = number
 
-    /**
-     * Resolver-backed icon for a numeric entry key.
-     */
-    export type UiNumericEntryKeyIcon = string | number
-
     const UI_NUMERIC_ENTRY_MODAL_DISPLAY_HEIGHT = 18
     const UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP = 5
     const UI_NUMERIC_ENTRY_MODAL_KEY_SIZE = 18
@@ -371,9 +366,9 @@ namespace ui {
         keyStyle?: UiButtonStyle
 
         /**
-         * Optional icon for the delete key shown when `deleteEnabled` is true.
+         * Optional delete key content shown when `deleteEnabled` is true.
          */
-        deleteIcon?: UiNumericEntryKeyIcon
+        deleteContent?: UiButtonContentOptions | string
 
         /**
          * Receives completed or cancelled numeric entry results.
@@ -409,7 +404,7 @@ namespace ui {
         private backgroundColor_: number
         private contentMargin_: number
         private flags_: number
-        private deleteIcon_: UiNumericEntryKeyIcon
+        private deleteContent_: UiButtonContentOptions | string
         private onResult_: (result: UiNumericEntryResult) => void
 
         /**
@@ -432,7 +427,7 @@ namespace ui {
             this.flags_ = 0
             if (options.deleteEnabled)
                 this.flags_ |= UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED
-            this.deleteIcon_ = options.deleteIcon
+            this.deleteContent_ = options.deleteContent
             this.keyValues_ = this.createKeyValues(options.mode)
             this.keyRect_ = new Rect()
             this.keyStyle_ =
@@ -936,10 +931,23 @@ namespace ui {
             this.keyContent_.bitmap = undefined
             if (
                 key == UI_NUMERIC_ENTRY_KEY_DELETE &&
-                this.deleteIcon_ !== undefined
+                this.deleteContent_ !== undefined
             ) {
-                this.keyContent_.text = ""
-                this.keyContent_.bitmap = assets.getBitmap(this.deleteIcon_)
+                const content = this.deleteContent_
+                if (typeof content == "string") {
+                    this.keyContent_.text = content
+                } else {
+                    if (content.text !== undefined)
+                        this.keyContent_.text = content.text
+                    else if (content.textId !== undefined)
+                        this.keyContent_.text = assets.getText(content.textId)
+                    else this.keyContent_.text = ""
+                    if (content.bitmap) this.keyContent_.bitmap = content.bitmap
+                    else if (content.bitmapId !== undefined)
+                        this.keyContent_.bitmap = assets.getBitmap(
+                            content.bitmapId,
+                        )
+                }
             } else {
                 this.keyContent_.text = this.keyTextForKey(key)
             }

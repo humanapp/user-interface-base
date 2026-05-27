@@ -92,6 +92,58 @@ namespace ui {
     }
 
     /**
+     * Caller-provided button content before resolver lookup.
+     */
+    export interface UiButtonContentOptions {
+        /**
+         * Literal display text.
+         */
+        text?: string
+
+        /**
+         * Resolver-backed display text id.
+         */
+        textId?: string
+
+        /**
+         * Literal bitmap content.
+         */
+        bitmap?: Bitmap
+
+        /**
+         * Resolver-backed bitmap id.
+         */
+        bitmapId?: string | number
+    }
+
+    /**
+     * Creates a button control whose value is its id.
+     */
+    export function button<T extends string>(
+        id: T,
+        content?: UiButtonContentOptions | string,
+        onActivate?: () => void,
+    ): UiControl<T> {
+        const control: UiControl<T> = {
+            id,
+            value: id,
+        }
+        if (onActivate)
+            control.onActivate = () => {
+                onActivate()
+            }
+        if (typeof content == "object") {
+            control.text = content.text
+            control.textId = content.textId
+            control.bitmap = content.bitmap
+            control.bitmapId = content.bitmapId
+        } else {
+            control.text = content
+        }
+        return control
+    }
+
+    /**
      * Creates a button style by copying defined fields from each style in order.
      */
     export function buttonStyle(

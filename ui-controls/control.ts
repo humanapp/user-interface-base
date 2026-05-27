@@ -27,7 +27,9 @@ namespace ui {
     /**
      * Shared fields for one rendered control.
      */
-    export interface UiControlFields<T = string> {
+    export interface UiControlFields<
+        T = string,
+    > extends UiButtonContentOptions {
         /**
          * Stable caller id for this control.
          */
@@ -39,16 +41,6 @@ namespace ui {
         value?: T
 
         /**
-         * Visible label text. Takes precedence over `textId`.
-         */
-        text?: string
-
-        /**
-         * Resolver-backed label id used when `text` is omitted.
-         */
-        textId?: string
-
-        /**
          * Focus label text. Takes precedence over `focusLabelId`.
          */
         focusLabel?: string
@@ -57,16 +49,6 @@ namespace ui {
          * Resolver-backed focus label id used when `focusLabel` is omitted.
          */
         focusLabelId?: string
-
-        /**
-         * Bitmap drawn for this control. Takes precedence over `bitmapId`.
-         */
-        bitmap?: Bitmap
-
-        /**
-         * Resolver-backed bitmap id used when `bitmap` is omitted.
-         */
-        bitmapId?: string | number
 
         /**
          * When true, missing resolver-backed bitmaps are not drawn.
@@ -174,42 +156,6 @@ namespace ui {
          * Space between adjacent columns.
          */
         columnGap?: number
-    }
-
-    /**
-     * Creates a bitmap-backed button control whose value is its id.
-     *
-     * Use this for simple action controls where focus, layout, and rendering are
-     * owned by a row, grid, picker, or toggle collection.
-     */
-    export function button<T extends string>(
-        id: T,
-        bitmapId: string | number,
-        textId?: string,
-        onActivate?: () => void,
-    ): UiControl<T> {
-        return {
-            id,
-            value: id,
-            bitmapId,
-            textId,
-            onActivate: onActivate
-                ? () => {
-                      onActivate()
-                  }
-                : undefined,
-        }
-    }
-
-    /**
-     * Creates a bitmap-only button control whose value is its id.
-     */
-    export function iconButton<T extends string>(
-        id: T,
-        bitmapId: string | number,
-        onActivate?: () => void,
-    ): UiControl<T> {
-        return button(id, bitmapId, undefined, onActivate)
     }
 }
 

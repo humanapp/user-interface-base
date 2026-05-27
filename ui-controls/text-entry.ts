@@ -149,31 +149,6 @@ namespace ui {
         | { kind: "custom"; text: string }
 
     /**
-     * Caller-provided button content before resolver lookup.
-     */
-    export interface UiButtonContentOptions {
-        /**
-         * Literal display text.
-         */
-        text?: string
-
-        /**
-         * Resolver-backed display text id.
-         */
-        textId?: string
-
-        /**
-         * Literal bitmap content.
-         */
-        bitmap?: Bitmap
-
-        /**
-         * Resolver-backed bitmap id.
-         */
-        bitmapId?: string | number
-    }
-
-    /**
      * Options for a modal text keyboard backed by `UiTextEntry`.
      */
     export interface UiTextEntryModalOptions

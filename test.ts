@@ -1076,6 +1076,27 @@ namespace ui {
             surface.log.indexOf("line:9;") >= 0,
             "single button focus render",
         )
+        const resolvedLabel = label({
+            textId: "knownText",
+            bitmapId: "known",
+            color: 7,
+            size: { width: 40, height: 8 },
+        })
+        resolvedLabel.arrange(new Rect(0, 0, 40, 8))
+        surface.log = ""
+        resolvedLabel.render(surface, new ControlSmokeAssets())
+        control.assert(
+            surface.log.indexOf("bitmap:2x1;") >= 0,
+            "label bitmap id render",
+        )
+        control.assert(
+            surface.log.indexOf("text:resolved;") >= 0,
+            "label text id render",
+        )
+        control.assert(
+            surface.log.indexOf("textColor:7;") >= 0,
+            "label text color",
+        )
         const singleActivate = single.handleFocusInput(
             controller.handleInput({ action: "activate" }),
         )
@@ -1111,7 +1132,7 @@ namespace ui {
         let cancelled = ""
         const picker = new UiPicker<string>({
             modalScopeId: "confirm",
-            title: "Save changes?",
+            title: { text: "Save changes?", bitmapId: "known" },
             controls: [
                 { id: "cancel", value: "cancel", text: "Cancel" },
                 { id: "ok", value: "ok", text: "OK", selected: true },
@@ -1157,6 +1178,10 @@ namespace ui {
         control.assert(
             surface.log.indexOf("text:Save changes?;") >= 0,
             "picker title render",
+        )
+        control.assert(
+            surface.log.indexOf("bitmap:2x1;") >= 0,
+            "picker title bitmap render",
         )
         control.assert(
             surface.log.indexOf("textColor:1;") >= 0,
@@ -1731,7 +1756,7 @@ namespace ui {
             mode: "decimal",
             initialText: "7",
             deleteEnabled: true,
-            deleteIcon: "known",
+            deleteContent: { bitmapId: "known" },
             onResult: result => {
                 deleteModalResult = result
             },

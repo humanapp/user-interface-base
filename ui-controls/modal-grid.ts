@@ -10,19 +10,9 @@ namespace ui {
         modalScopeId: UiFocusScopeId
 
         /**
-         * Visible modal title. Takes precedence over `titleId`.
+         * Optional title content.
          */
-        title?: string
-
-        /**
-         * Resolver-backed modal title id.
-         */
-        titleId?: string
-
-        /**
-         * Static bitmap or resolver-backed bitmap id drawn in the title bar.
-         */
-        titleBitmap?: Bitmap | string
+        title?: UiButtonContentOptions | string
 
         /**
          * Caller-owned controls rendered at the right edge of the title bar.
@@ -118,9 +108,7 @@ namespace ui {
         public readonly finalRect: Rect
         public layoutDirty: boolean
         private modalScopeId_: UiFocusScopeId
-        private title_: string
-        private titleId_: string
-        private titleBitmap_: Bitmap | string
+        private title_: UiButtonContentOptions | string
         private closeOnActivate_: boolean
         private style_: UiModalStyle
         private controls_: UiControl<T>[]
@@ -149,7 +137,7 @@ namespace ui {
          */
         constructor(
             options: UiPickerOptions<T> | UiFocusScopeId,
-            title?: string,
+            title?: UiButtonContentOptions | string,
             choices?: UiPickerChoice<T>[],
             onActivate?: UiControlActivateHandler<T>,
             onCancel?: UiPickerCancelHandler,
@@ -163,8 +151,6 @@ namespace ui {
             )
             this.modalScopeId_ = options.modalScopeId
             this.title_ = options.title
-            this.titleId_ = options.titleId
-            this.titleBitmap_ = options.titleBitmap
             this.closeOnActivate_ = options.closeOnActivate !== false
             this.style_ = options.modalStyle || UiModalStyles.Default
             this.controls_ = options.controls
@@ -315,9 +301,11 @@ namespace ui {
          * Returns the resolved title text.
          */
         public resolveTitleText(assets: UiAssetResolver): string {
-            if (this.title_ !== undefined) return this.title_
-            if (this.titleId_ !== undefined)
-                return assets.getText(this.titleId_)
+            if (this.title_ === undefined) return ""
+            if (typeof this.title_ == "string") return this.title_
+            if (this.title_.text !== undefined) return this.title_.text
+            if (this.title_.textId !== undefined)
+                return assets.getText(this.title_.textId)
             return ""
         }
 
@@ -380,11 +368,16 @@ namespace ui {
         ): void {
             drawModalPanel(surface, this.finalRect, this.style_)
             const title = this.resolveTitleText(assets)
-            const titleBitmap = this.resolveTitleBitmap(assets)
+            let bitmap: Bitmap = undefined
+            if (this.title_ !== undefined && typeof this.title_ != "string") {
+                if (this.title_.bitmap) bitmap = this.title_.bitmap
+                else if (this.title_.bitmapId !== undefined)
+                    bitmap = assets.getBitmap(this.title_.bitmapId)
+            }
             let titleX = this.finalRect.x + 4
-            if (titleBitmap) {
-                surface.drawBitmap(titleBitmap, titleX, this.finalRect.y + 4)
-                titleX += titleBitmap.width + 2
+            if (bitmap) {
+                surface.drawBitmap(bitmap, titleX, this.finalRect.y + 4)
+                titleX += bitmap.width + 2
             }
             if (title.length > 0)
                 surface.drawText(title, titleX, this.finalRect.y + 4, {
@@ -428,7 +421,7 @@ namespace ui {
 
         private resolveOptions(
             options: UiPickerOptions<T> | UiFocusScopeId,
-            title?: string,
+            title?: UiButtonContentOptions | string,
             choices?: UiPickerChoice<T>[],
             onActivate?: UiControlActivateHandler<T>,
             onCancel?: UiPickerCancelHandler,
@@ -505,12 +498,7 @@ namespace ui {
                     this.titleControlHeight_ +
                     this.titleGap()
                 )
-            if (
-                !this.showTitleBar() &&
-                this.title_ === undefined &&
-                this.titleId_ === undefined &&
-                this.titleBitmap_ === undefined
-            )
+            if (!this.showTitleBar() && this.title_ === undefined)
                 return this.contentMargin()
             return 16 + this.titleGap()
         }
@@ -533,15 +521,6 @@ namespace ui {
             return this.style_ && this.style_.color !== undefined
                 ? this.style_.color
                 : 1
-        }
-
-        private resolveTitleBitmap(
-            assets: UiAssetResolver,
-        ): Bitmap | undefined {
-            if (this.titleBitmap_ === undefined) return undefined
-            if (typeof this.titleBitmap_ == "string")
-                return assets.getBitmap(this.titleBitmap_)
-            return this.titleBitmap_
         }
 
         private showTitleBar(): boolean {
@@ -814,9 +793,13 @@ namespace ui {
 
         private titleBandContentWidth(): number {
             let width = this.titleTextWidth()
-            if (this.titleBitmap_ && typeof this.titleBitmap_ != "string") {
+            const bitmap =
+                this.title_ !== undefined && typeof this.title_ != "string"
+                    ? this.title_.bitmap
+                    : undefined
+            if (bitmap) {
                 if (width > 0) width += 2
-                width += this.titleBitmap_.width
+                width += bitmap.width
             }
             if (width > 0 && this.hasTitleControls()) width += 2
             return width + this.titleControlContentWidth()
@@ -824,7 +807,9 @@ namespace ui {
 
         private titleTextWidth(): number {
             if (this.title_ === undefined) return 0
-            return this.title_.length * bitmaps.font8.charWidth
+            const title =
+                typeof this.title_ == "string" ? this.title_ : this.title_.text
+            return title ? title.length * bitmaps.font8.charWidth : 0
         }
     }
 }
