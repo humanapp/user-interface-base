@@ -265,7 +265,7 @@ namespace ui {
             const textWidth = font.charWidth * text.length
             const textHeight = font.charHeight
             const padding = BUTTON_FOCUS_LABEL_PADDING
-            const centerX = rect.x + Math.idiv(rect.width, 2)
+            const centerX = _uiLayout.rectCenterX(rect)
             const labelGap =
                 style.focusLabelGap !== undefined ? style.focusLabelGap : 0
             const labelTop =

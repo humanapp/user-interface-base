@@ -222,6 +222,7 @@ namespace _uiControls {
         scopeId: string,
         targetId: string,
     ): string | undefined {
+        if (targetId === undefined) return undefined
         const prefix = scopeId + "/"
         if (targetId.substr(0, prefix.length) != prefix) return undefined
         return targetId.substr(prefix.length)
@@ -363,14 +364,14 @@ namespace _uiControls {
         labelBounds?: ui.Rect,
         focused?: boolean,
     ): void {
-        const content: ui.UiButtonContent = {
-            text:
-                control.text !== undefined
-                    ? control.text
-                    : control.textId !== undefined
-                      ? assets.getText(control.textId)
-                      : "",
-        }
+        const content = controlContentScratch
+        content.bitmap = undefined
+        content.text =
+            control.text !== undefined
+                ? control.text
+                : control.textId !== undefined
+                  ? assets.getText(control.textId)
+                  : ""
         if (control.bitmap) content.bitmap = control.bitmap
         else if (control.bitmapId !== undefined)
             content.bitmap = assets.getBitmap(
@@ -398,6 +399,7 @@ namespace _uiControls {
         }
     }
 
+    const controlContentScratch: ui.UiButtonContent = {}
     const labelBoundsScratch = new ui.Rect()
 
     export function resolveLabelBounds(
@@ -427,13 +429,14 @@ namespace _uiControls {
         controls: ui.UiControl<T>[],
         activeTargetId: ui.UiFocusId,
     ): number {
-        if (activeTargetId === undefined) return -1
+        const controlId = controlIdFromTargetId(scopeId, activeTargetId)
+        if (controlId === undefined) return -1
         for (let i = 0; i < controls.length; i++) {
             const control = controls[i]
             if (
                 isVisible(control) &&
                 isFocusable(control) &&
-                activeTargetId == targetId(scopeId, control.id)
+                control.id == controlId
             )
                 return i
         }

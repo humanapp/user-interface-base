@@ -390,6 +390,7 @@ namespace ui {
                 case "activated":
                 case "cancelled":
                 case "closed":
+                case "custom":
                 case "deleted":
                 case "completed":
                     return true
@@ -402,6 +403,7 @@ namespace ui {
             switch (kind) {
                 case "cancelled":
                 case "closed":
+                case "custom":
                 case "deleted":
                 case "completed":
                     return true

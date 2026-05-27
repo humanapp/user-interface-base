@@ -219,13 +219,11 @@ namespace ui {
         let bestColumn = -1
         let bestDistance = 0
         const current = input.rows[currentRow][currentColumn]
-        const sourceX = current.rect.x + Math.idiv(current.rect.width, 2)
+        const sourceX = _uiLayout.rectCenterX(current.rect)
         for (let column = 0; column < row.length; column++) {
             const target = row[column]
             if (target.hidden) continue
-            const dx = Math.abs(
-                target.rect.x + Math.idiv(target.rect.width, 2) - sourceX,
-            )
+            const dx = Math.abs(_uiLayout.rectCenterX(target.rect) - sourceX)
             if (bestColumn < 0 || dx < bestDistance) {
                 bestColumn = column
                 bestDistance = dx

@@ -1,5 +1,7 @@
 namespace ui {
     const NUMERIC_ENTRY_FONT = bitmaps.font8
+    const UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED = 1
+    const UI_NUMERIC_ENTRY_FLAG_CANCEL_ENABLED = 2
 
     /**
      * Numeric entry editing mode.
@@ -99,19 +101,21 @@ namespace ui {
         private mode_: UiNumericEntryMode
         private text_: string
         private maxLength_: number
-        private deleteEnabled_: boolean
-        private cancelEnabled_: boolean
+        private flags_: number
         private validate_: UiNumericEntryValidator
 
         constructor(options: UiNumericEntryOptions) {
             this.mode_ = options.mode
             this.text_ = options.initialText || ""
+            this.flags_ = 0
+            if (options.deleteEnabled)
+                this.flags_ |= UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED
+            if (options.cancelEnabled)
+                this.flags_ |= UI_NUMERIC_ENTRY_FLAG_CANCEL_ENABLED
             this.maxLength_ = _uiControls.sanitizeDimension(
                 options.maxLength,
                 8,
             )
-            this.deleteEnabled_ = options.deleteEnabled || false
-            this.cancelEnabled_ = options.cancelEnabled || false
             this.validate_ = options.validate
             if (this.maxLength_ == 0) this.maxLength_ = 8
             this.text_ = this.text_.substr(0, this.maxLength_)
@@ -200,7 +204,8 @@ namespace ui {
          * Emits a non-committing cancellation when enabled.
          */
         public cancel(): UiNumericEntryResult {
-            if (!this.cancelEnabled_) return undefined
+            if (!(this.flags_ & UI_NUMERIC_ENTRY_FLAG_CANCEL_ENABLED))
+                return undefined
             return { kind: "cancelled", mode: this.mode_, text: this.text_ }
         }
 
@@ -208,7 +213,8 @@ namespace ui {
          * Emits a delete result when enabled.
          */
         public createDeleteResult(): UiNumericEntryResult {
-            if (!this.deleteEnabled_) return undefined
+            if (!(this.flags_ & UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED))
+                return undefined
             return { kind: "deleted", mode: this.mode_ }
         }
 
@@ -394,7 +400,7 @@ namespace ui {
         private modalScopeId_: UiFocusScopeId
         private entry_: UiNumericEntry
         private keyValues_: UiNumericEntryModalKeyValue[]
-        private controlRects_: Rect[]
+        private keyRect_: Rect
         private keyStyle_: UiButtonStyle
         private keyView_: UiButtonView
         private keyContent_: UiButtonContent
@@ -402,7 +408,7 @@ namespace ui {
         private gridRect_: Rect
         private backgroundColor_: number
         private contentMargin_: number
-        private deleteEnabled_: boolean
+        private flags_: number
         private deleteIcon_: UiNumericEntryKeyIcon
         private onResult_: (result: UiNumericEntryResult) => void
 
@@ -423,10 +429,12 @@ namespace ui {
                     ? 12
                     : options.backgroundColor
             this.contentMargin_ = this.contentMargin(options.contentMargin)
-            this.deleteEnabled_ = options.deleteEnabled || false
+            this.flags_ = 0
+            if (options.deleteEnabled)
+                this.flags_ |= UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED
             this.deleteIcon_ = options.deleteIcon
             this.keyValues_ = this.createKeyValues(options.mode)
-            this.controlRects_ = []
+            this.keyRect_ = new Rect()
             this.keyStyle_ =
                 options.keyStyle || UiButtonStyles.LightShadowedWhite
             this.keyView_ = new UiButtonView({ style: this.keyStyle_ })
@@ -495,7 +503,6 @@ namespace ui {
                         UI_NUMERIC_ENTRY_MODAL_DISPLAY_GAP,
                 ),
             )
-            this.arrangeKeys()
             this.clearLayoutInvalidation()
         }
 
@@ -706,42 +713,15 @@ namespace ui {
             this.renderFocus(surface, assets, focus)
         }
 
-        private arrangeKeys(): void {
-            this.ensureKeyRects()
-            let index = 0
-            for (let row = 0; row < 4; row++) {
-                const rowLength = this.rowLength(row)
-                for (
-                    let column = 0;
-                    column < rowLength && index < this.keyValues_.length;
-                    column++
-                ) {
-                    this.controlRects_[index].set(
-                        this.gridRect_.x +
-                            column *
-                                (UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
-                                    UI_NUMERIC_ENTRY_MODAL_KEY_GAP),
-                        this.gridRect_.y +
-                            row *
-                                (UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
-                                    UI_NUMERIC_ENTRY_MODAL_KEY_GAP),
-                        UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
-                        UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
-                    )
-                    index++
-                }
-            }
-        }
-
         private registerTargets(focus: UiFocusState): void {
-            this.ensureKeyRects()
             for (let i = 0; i < this.keyValues_.length; i++) {
                 const key = this.keyValues_[i]
                 if (key == UI_NUMERIC_ENTRY_KEY_SPACER) continue
+                this.setKeyRect(i)
                 focus.setTarget({
                     id: this.targetIdForKey(key),
                     scopeId: this.modalScopeId_,
-                    rect: this.controlRects_[i],
+                    rect: this.keyRect_,
                     activatable: true,
                 })
             }
@@ -754,10 +734,11 @@ namespace ui {
             for (let i = 0; i < this.keyValues_.length; i++) {
                 const key = this.keyValues_[i]
                 if (key == UI_NUMERIC_ENTRY_KEY_SPACER) continue
+                this.setKeyRect(i)
                 this.prepareKeyContent(key, assets)
                 this.keyView_.render(
                     surface,
-                    this.controlRects_[i],
+                    this.keyRect_,
                     this.keyContent_,
                     this.keyStyleForKey(key),
                 )
@@ -776,21 +757,15 @@ namespace ui {
             const index = this.keyIndexForTargetId(activeTargetId)
             if (index < 0) return
             const key = this.keyValues_[index]
+            this.setKeyRect(index)
             this.prepareKeyContent(key, assets)
             this.keyView_.renderFocus(
                 surface,
-                this.controlRects_[index],
+                this.keyRect_,
                 this.keyContent_,
                 this.keyStyleForKey(key),
                 undefined,
             )
-        }
-
-        private ensureKeyRects(): void {
-            while (this.controlRects_.length < this.keyValues_.length)
-                this.controlRects_.push(new Rect())
-            while (this.controlRects_.length > this.keyValues_.length)
-                this.controlRects_.pop()
         }
 
         private applyKey(
@@ -828,7 +803,8 @@ namespace ui {
             keys.push(1)
             keys.push(2)
             keys.push(3)
-            if (this.deleteEnabled_) keys.push(UI_NUMERIC_ENTRY_KEY_DELETE)
+            if (this.flags_ & UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED)
+                keys.push(UI_NUMERIC_ENTRY_KEY_DELETE)
             if (mode == "decimal") keys.push(UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN)
             else keys.push(UI_NUMERIC_ENTRY_KEY_SPACER)
             keys.push(0)
@@ -874,28 +850,37 @@ namespace ui {
         private rowLength(row: number): number {
             if (row == 0 || row == 3) return 4
             if (row == 1) return 3
-            return this.deleteEnabled_ ? 4 : 3
+            return this.flags_ & UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED ? 4 : 3
         }
 
         private rowStart(row: number): number {
             if (row == 0) return 0
             if (row == 1) return 4
             if (row == 2) return 7
-            return this.deleteEnabled_ ? 11 : 10
+            return this.flags_ & UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED ? 11 : 10
         }
 
         private targetIdForKey(key: UiNumericEntryModalKeyValue): UiFocusId {
-            return this.modalScopeId_ + "/" + this.keyIdForKey(key)
+            return this.modalScopeId_ + "/" + key
         }
 
         private keyIndexForTargetId(targetId: UiFocusId): number {
             if (targetId === undefined) return -1
+            const prefix = this.modalScopeId_ + "/"
+            if (
+                targetId.length <= prefix.length ||
+                targetId.substr(0, prefix.length) != prefix
+            )
+                return -1
+            let targetKey = 0
+            for (let i = prefix.length; i < targetId.length; i++) {
+                const digit = targetId.charCodeAt(i) - 48
+                if (digit < 0 || digit > 9) return -1
+                targetKey = targetKey * 10 + digit
+            }
             for (let i = 0; i < this.keyValues_.length; i++) {
                 const key = this.keyValues_[i]
-                if (
-                    key != UI_NUMERIC_ENTRY_KEY_SPACER &&
-                    targetId == this.targetIdForKey(key)
-                )
+                if (key != UI_NUMERIC_ENTRY_KEY_SPACER && key == targetKey)
                     return i
             }
             return -1
@@ -910,13 +895,28 @@ namespace ui {
                 : this.keyValues_[index]
         }
 
-        private keyIdForKey(key: UiNumericEntryModalKeyValue): string {
-            if (key >= 0 && key <= 9) return "digit-" + key
-            if (key == UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT) return "decimalPoint"
-            if (key == UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN) return "toggleSign"
-            if (key == UI_NUMERIC_ENTRY_KEY_BACKSPACE) return "backspace"
-            if (key == UI_NUMERIC_ENTRY_KEY_DELETE) return "delete"
-            return "enter"
+        private setKeyRect(index: number): void {
+            const row = this.rowForIndex(index)
+            const column = index - this.rowStart(row)
+            this.keyRect_.set(
+                this.gridRect_.x +
+                    column *
+                        (UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
+                            UI_NUMERIC_ENTRY_MODAL_KEY_GAP),
+                this.gridRect_.y +
+                    row *
+                        (UI_NUMERIC_ENTRY_MODAL_KEY_SIZE +
+                            UI_NUMERIC_ENTRY_MODAL_KEY_GAP),
+                UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
+                UI_NUMERIC_ENTRY_MODAL_KEY_SIZE,
+            )
+        }
+
+        private rowForIndex(index: number): number {
+            if (index < 4) return 0
+            if (index < 7) return 1
+            if (index < this.rowStart(3)) return 2
+            return 3
         }
 
         private keyStyleForKey(

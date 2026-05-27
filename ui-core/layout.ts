@@ -446,6 +446,10 @@ namespace _uiLayout {
         return containerStart
     }
 
+    export function rectCenterX(rect: ui.Rect): number {
+        return rect.x + Math.idiv(rect.width, 2)
+    }
+
     export function copyEdgeInsets(
         target: ui.UiLayoutEdgeInsets,
         padding: number | ui.UiLayoutEdgeInsets | undefined,

@@ -332,8 +332,7 @@ mkc build
 
 ## More Examples
 
-These examples show small patterns you can copy into an app. They start with
-reusable controls, then move into custom drawing for app-specific screens.
+These examples show more small patterns you can copy into an app.
 
 ### Using App-Owned Bitmaps Or Text in UI
 
@@ -417,6 +416,62 @@ class SaveScreen extends ui.UiScreen {
         )
 
         this.openModal(modal)
+    }
+}
+```
+
+### Text Entry Modal
+
+Use `UiTextEntryModal` for short strings such as names, labels, or titles. The
+modal owns the compact keyboard, and the screen updates its state when the modal
+returns a completed result.
+
+```ts
+class NameEntryScreen extends ui.UiScreen {
+    private name: string
+    private nameLabel: ui.UiLabel
+
+    constructor() {
+        super()
+        this.name = ""
+        this.backgroundColor = 8
+        this.add(new ui.UiLabel("Player", 1), { x: 8, y: 8 })
+        this.nameLabel = new ui.UiLabel("No name", 7)
+        this.add(this.nameLabel, { x: 8, y: 24 })
+        this.add(new ui.UiLabel("Press A to enter", 1), {
+            centerX: 80,
+            y: 108,
+        })
+    }
+
+    public handleInput(event: ui.UiInputEvent): boolean | undefined {
+        if (event.action == "activate" && event.phase != "released") {
+            this.openNameEditor()
+            return true
+        }
+
+        return undefined
+    }
+
+    private openNameEditor(): void {
+        this.openModal(
+            new ui.UiTextEntryModal({
+                modalScopeId: "name-editor",
+                title: "Enter your name:",
+                initialText: this.name,
+                allowWhitespace: true,
+                allowSymbols: true,
+                maxLength: 16,
+                onResult: result => {
+                    if (result.kind == "completed") {
+                        this.name = result.text
+                        this.nameLabel.setText(
+                            this.name.length ? this.name : "No name",
+                        )
+                    }
+                },
+            }),
+        )
     }
 }
 ```

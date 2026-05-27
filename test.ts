@@ -840,6 +840,7 @@ namespace ui {
 
     type ControlSmokeActionModalResult =
         | { kind: "completed"; modalScopeId: UiFocusScopeId }
+        | { kind: "custom"; modalScopeId: UiFocusScopeId }
         | { kind: "keepOpen"; modalScopeId: UiFocusScopeId }
 
     class ControlSmokeActionModal implements UiModal<ControlSmokeActionModalResult> {
@@ -1026,6 +1027,19 @@ namespace ui {
         control.assert(
             surface.log.indexOf("text:go;") >= 0,
             "control focus label text",
+        )
+        control.assert(
+            _uiControls.focusedControlOverlayIndex(
+                "missing-active",
+                [
+                    {
+                        id: "control",
+                        value: "control",
+                    },
+                ],
+                undefined,
+            ) == -1,
+            "control focus overlay accepts missing target",
         )
 
         let activated = ""
@@ -1393,6 +1407,21 @@ namespace ui {
         )
         screen.closeModal(keepOpenModal)
 
+        const customModal = new ControlSmokeActionModal(
+            "screen-custom-modal",
+            "custom",
+        )
+        screen.openModal(customModal)
+        control.assert(screen.hasModal, "screen controller has custom modal")
+        control.assert(
+            screen.routeInput({ action: "activate" }),
+            "screen controller custom modal input handled",
+        )
+        control.assert(
+            !screen.hasModal,
+            "screen controller custom modal closes",
+        )
+
         screen.exit()
     }
 
@@ -1605,7 +1634,7 @@ namespace ui {
         simpleFocus.setScope({ id: "parent-simple" })
         simpleFocus.setActiveScope("parent-simple")
         simpleModal.open(simpleFocus, simpleController)
-        simpleFocus.setActiveTarget("numeric-simple", "numeric-simple/enter")
+        simpleFocus.setActiveTarget("numeric-simple", "numeric-simple/14")
         const simpleResult = simpleModal.handleFocusInput(
             simpleController.handleInput({ action: "activate" }),
         )
@@ -1653,28 +1682,24 @@ namespace ui {
         )
         modalController.handleInput({ action: "up" })
         control.assert(
-            modalFocus.getActiveTargetId("numeric-modal") ==
-                "numeric-modal/digit-4",
+            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/4",
             "numeric modal one row above one",
         )
         modalController.handleInput({ action: "up" })
         control.assert(
-            modalFocus.getActiveTargetId("numeric-modal") ==
-                "numeric-modal/digit-7",
+            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/7",
             "numeric modal top row starts with seven",
         )
-        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/digit-1")
+        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/1")
         modalController.handleInput({ action: "down" })
         control.assert(
-            modalFocus.getActiveTargetId("numeric-modal") ==
-                "numeric-modal/digit-0",
+            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/0",
             "numeric modal down skips left spacer",
         )
-        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/digit-3")
+        modalFocus.setActiveTarget("numeric-modal", "numeric-modal/3")
         modalController.handleInput({ action: "down" })
         control.assert(
-            modalFocus.getActiveTargetId("numeric-modal") ==
-                "numeric-modal/enter",
+            modalFocus.getActiveTargetId("numeric-modal") == "numeric-modal/14",
             "numeric modal down skips right spacer",
         )
         const modalCancel = modal.handleFocusInput(
@@ -1742,21 +1767,21 @@ namespace ui {
             deleteModalSurface.log.indexOf("bitmap:2x1;") >= 0,
             "numeric modal delete icon",
         )
-        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/digit-1")
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/1")
         deleteController.handleInput({ action: "down" })
         control.assert(
             deleteFocus.getActiveTargetId("numeric-delete") ==
-                "numeric-delete/toggleSign",
+                "numeric-delete/11",
             "numeric modal decimal sign key below one",
         )
-        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/digit-3")
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/3")
         deleteController.handleInput({ action: "down" })
         control.assert(
             deleteFocus.getActiveTargetId("numeric-delete") ==
-                "numeric-delete/decimalPoint",
+                "numeric-delete/10",
             "numeric modal decimal point key below three",
         )
-        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/delete")
+        deleteFocus.setActiveTarget("numeric-delete", "numeric-delete/13")
         const deleteResult = deleteModal.handleFocusInput(
             deleteController.handleInput({ action: "activate" }),
         )
@@ -1767,6 +1792,383 @@ namespace ui {
         control.assert(
             deleteModalResult && deleteModalResult.kind == "deleted",
             "numeric modal delete callback",
+        )
+    }
+
+    /**
+     * Smoke harness for text entry edit rules and typed results.
+     */
+    export function runTextEntrySmokeTest(): void {
+        const filtered = new UiTextEntry({
+            initialText: " Ab 12 !# ",
+            maxLength: 6,
+        })
+        control.assert(filtered.text == "Ab12", "text filters initial default")
+        control.assert(filtered.maxLength == 6, "text max length option")
+        control.assert(filtered.minLength == 0, "text min length default")
+
+        const whitespace = new UiTextEntry({
+            initialText: " Ada ",
+            allowWhitespace: true,
+        })
+        const whitespaceResult = whitespace.enter()
+        control.assert(
+            whitespaceResult.kind == "completed",
+            "text whitespace completes",
+        )
+        control.assert(
+            (<any>whitespaceResult).text == "Ada",
+            "text completion trims",
+        )
+
+        const emptyRejected = new UiTextEntry({
+            allowWhitespace: true,
+            initialText: "   ",
+        })
+        control.assert(
+            emptyRejected.enter() === undefined,
+            "text rejects empty default",
+        )
+        const emptyAccepted = new UiTextEntry({
+            allowEmpty: true,
+            initialText: "   ",
+            allowWhitespace: true,
+        })
+        control.assert(
+            (<any>emptyAccepted.enter()).text == "",
+            "text allow empty",
+        )
+
+        const minLength = new UiTextEntry({
+            initialText: "ab",
+            minLength: 3,
+        })
+        control.assert(
+            minLength.enter() === undefined,
+            "text rejects short completion",
+        )
+        minLength.inputCharacter("c")
+        control.assert(
+            (<any>minLength.enter()).text == "abc",
+            "text accepts min length",
+        )
+
+        const capability = new UiTextEntry({
+            allowDigits: false,
+            allowSymbols: true,
+            allowWhitespace: true,
+            uppercaseOnly: true,
+            initialText: "a1- b?",
+        })
+        control.assert(
+            capability.text == "A- B?",
+            "text capability normalization",
+        )
+        capability.inputCharacter("z")
+        capability.inputCharacter("7")
+        capability.inputCharacter("#")
+        control.assert(capability.text == "A- B?Z#", "text capability edits")
+
+        const maxLength = new UiTextEntry({ maxLength: 3 })
+        maxLength.inputCharacter("a")
+        maxLength.inputCharacter("b")
+        maxLength.inputCharacter("c")
+        maxLength.inputCharacter("d")
+        control.assert(maxLength.text == "abc", "text max length")
+        maxLength.backspace()
+        control.assert(maxLength.text == "ab", "text backspace")
+
+        const noCancel = new UiTextEntry()
+        control.assert(
+            noCancel.cancel() === undefined,
+            "text cancel absent by default",
+        )
+        const cancel = new UiTextEntry({
+            cancelEnabled: true,
+            allowWhitespace: true,
+            initialText: " Ada ",
+        })
+        const cancelResult = cancel.cancel()
+        control.assert(cancelResult.kind == "cancelled", "text cancel enabled")
+        control.assert((<any>cancelResult).text == "Ada", "text cancel trims")
+
+        let validateLog = ""
+        const rejected = new UiTextEntry({
+            validate: (candidate: string, action: UiTextEntryEditAction) => {
+                validateLog += action + ":" + candidate + ";"
+                return candidate == "x" ? "rejected" : "accepted"
+            },
+        })
+        rejected.inputCharacter("x")
+        control.assert(rejected.text == "", "text validator rejects")
+        rejected.inputCharacter("y")
+        control.assert(rejected.text == "y", "text validator accepts")
+        control.assert(
+            validateLog.indexOf("character:x;") >= 0,
+            "text validator sees character",
+        )
+
+        const completed = new UiTextEntry({
+            validate: (candidate: string, action: UiTextEntryEditAction) => {
+                if (candidate == "ok" && action == "custom") return "completed"
+                return "accepted"
+            },
+        })
+        const completedResult = completed.replaceText("ok")
+        control.assert(
+            completedResult.kind == "completed",
+            "text custom validator completes",
+        )
+        control.assert(
+            (<any>completedResult).text == "ok",
+            "text custom completed text",
+        )
+
+        const custom = new UiTextEntry({
+            allowSymbols: true,
+            maxLength: 4,
+            validate: (candidate: string, action: UiTextEntryEditAction) => {
+                if (action == "custom" && candidate == "bad") return "rejected"
+                return "accepted"
+            },
+        })
+        custom.inputCharacter("a")
+        custom.replaceText("bad")
+        control.assert(custom.text == "a", "text rejected custom unchanged")
+        custom.replaceText("long-name!")
+        control.assert(custom.text == "long", "text custom normalization")
+
+        const displaySurface = new ControlSmokeSurface()
+        const displayEntry = new UiTextEntry({ initialText: "Name" })
+        displayEntry.render(displaySurface, new Rect(0, 0, 40, 18))
+        control.assert(
+            displaySurface.log.indexOf("rounded:15:1;") >= 0,
+            "text display rounded border",
+        )
+        control.assert(
+            displaySurface.log.indexOf("text:Name;") >= 0,
+            "text display rendered text",
+        )
+
+        let modalResult: UiTextEntryResult = undefined
+        const modal = new UiTextEntryModal({
+            modalScopeId: "text-modal",
+            title: { text: "Name", bitmapId: "known" },
+            allowDigits: true,
+            allowSymbols: true,
+            allowWhitespace: true,
+            customAction: { textId: "knownText" },
+            onResult: result => {
+                modalResult = result
+            },
+        })
+        const modalMeasured = new UiMeasuredSize()
+        modal.measure({ maxWidth: 160, maxHeight: 120 }, modalMeasured)
+        control.assert(
+            modalMeasured.preferredWidth == 160,
+            "text modal measured width",
+        )
+        control.assert(
+            modalMeasured.preferredHeight == 78,
+            "text modal measured height",
+        )
+        modal.arrange(new Rect(0, 0, 160, 78))
+        const modalFocus = new UiFocusState()
+        const modalController = new UiFocusInputController({
+            focus: modalFocus,
+        })
+        modalFocus.setScope({ id: "text-parent" })
+        modalFocus.setActiveScope("text-parent")
+        modal.open(modalFocus, modalController)
+        control.assert(
+            modalFocus.getActiveTargetId("text-modal") == "text-modal/0",
+            "text modal preferred target",
+        )
+        const modalSurface = new ControlSmokeSurface()
+        modal.render(modalSurface, new ControlSmokeAssets(), modalFocus)
+        control.assert(
+            modalSurface.log.indexOf("text:Name;") >= 0,
+            "text modal title text",
+        )
+        control.assert(
+            modalSurface.log.indexOf("bitmap:2x1;") >= 0,
+            "text modal title bitmap",
+        )
+        control.assert(
+            modalSurface.log.indexOf("text:resolved;") >= 0,
+            "text modal custom text id",
+        )
+        const verticalMove = modal.move({
+            scopeId: "text-modal",
+            currentTargetId: "text-modal/17",
+            direction: "down",
+        })
+        control.assert(
+            verticalMove.kind == "moved" &&
+                verticalMove.toTargetId == "text-modal/28",
+            "text modal vertical navigation uses nearest key",
+        )
+
+        modal.handleFocusInput(
+            modalController.handleInput({ action: "activate" }),
+        )
+        modalFocus.setActiveTarget("text-modal", "text-modal/26")
+        modal.handleFocusInput(
+            modalController.handleInput({ action: "activate" }),
+        )
+        modalFocus.setActiveTarget("text-modal", "text-modal/1")
+        modal.handleFocusInput(
+            modalController.handleInput({ action: "activate" }),
+        )
+        modalFocus.setActiveTarget("text-modal", "text-modal/31")
+        const modalCompleted = modal.handleFocusInput(
+            modalController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            modalCompleted.kind == "completed",
+            "text modal completed result",
+        )
+        control.assert(
+            (<any>modalCompleted).text == "aB",
+            "text modal shift toggle result",
+        )
+        control.assert(
+            modalResult && (<any>modalResult).text == "aB",
+            "text modal completed callback",
+        )
+
+        let pageResult: UiTextEntryResult = undefined
+        const pageModal = new UiTextEntryModal({
+            modalScopeId: "text-page-modal",
+            allowDigits: true,
+            allowSymbols: true,
+            allowWhitespace: true,
+            onResult: result => {
+                pageResult = result
+            },
+        })
+        pageModal.measure({ maxWidth: 160, maxHeight: 120 }, modalMeasured)
+        control.assert(
+            modalMeasured.preferredHeight == 67,
+            "text titleless modal measured height",
+        )
+        pageModal.arrange(new Rect(0, 0, 160, 67))
+        const pageFocus = new UiFocusState()
+        const pageController = new UiFocusInputController({ focus: pageFocus })
+        pageFocus.setScope({ id: "text-page-parent" })
+        pageFocus.setActiveScope("text-page-parent")
+        pageModal.open(pageFocus, pageController)
+        pageFocus.setActiveTarget("text-page-modal", "text-page-modal/27")
+        pageModal.handleFocusInput(
+            pageController.handleInput({ action: "activate" }),
+        )
+        pageFocus.setActiveTarget("text-page-modal", "text-page-modal/0")
+        pageModal.handleFocusInput(
+            pageController.handleInput({ action: "activate" }),
+        )
+        pageFocus.setActiveTarget("text-page-modal", "text-page-modal/27")
+        pageModal.handleFocusInput(
+            pageController.handleInput({ action: "activate" }),
+        )
+        pageFocus.setActiveTarget("text-page-modal", "text-page-modal/0")
+        pageModal.handleFocusInput(
+            pageController.handleInput({ action: "activate" }),
+        )
+        pageFocus.setActiveTarget("text-page-modal", "text-page-modal/26")
+        pageModal.handleFocusInput(
+            pageController.handleInput({ action: "activate" }),
+        )
+        pageFocus.setActiveTarget("text-page-modal", "text-page-modal/0")
+        pageModal.handleFocusInput(
+            pageController.handleInput({ action: "activate" }),
+        )
+        pageFocus.setActiveTarget("text-page-modal", "text-page-modal/28")
+        pageModal.handleFocusInput(
+            pageController.handleInput({ action: "activate" }),
+        )
+        pageFocus.setActiveTarget("text-page-modal", "text-page-modal/31")
+        const pageCompleted = pageModal.handleFocusInput(
+            pageController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            pageCompleted.kind == "completed",
+            "text modal page completed result",
+        )
+        control.assert(
+            (<any>pageCompleted).text == "1-a",
+            "text modal page switching result",
+        )
+        control.assert(
+            pageResult && (<any>pageResult).text == "1-a",
+            "text modal page callback",
+        )
+
+        const customModal = new UiTextEntryModal({
+            modalScopeId: "text-custom-modal",
+            customAction: "Gen",
+            onCustomAction: text => {
+                return "Ada"
+            },
+        })
+        customModal.arrange(new Rect(0, 0, 160, 67))
+        const customFocus = new UiFocusState()
+        const customController = new UiFocusInputController({
+            focus: customFocus,
+        })
+        customFocus.setScope({ id: "text-custom-parent" })
+        customFocus.setActiveScope("text-custom-parent")
+        customModal.open(customFocus, customController)
+        customFocus.setActiveTarget("text-custom-modal", "text-custom-modal/29")
+        control.assert(
+            customModal.handleFocusInput(
+                customController.handleInput({ action: "activate" }),
+            ) === undefined,
+            "text modal custom handler keeps open",
+        )
+        customFocus.setActiveTarget("text-custom-modal", "text-custom-modal/31")
+        const customCompleted = customModal.handleFocusInput(
+            customController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            (<any>customCompleted).text == "Ada",
+            "text modal custom handler replacement",
+        )
+
+        let customResult: UiTextEntryResult = undefined
+        const customResultModal = new UiTextEntryModal({
+            modalScopeId: "text-custom-result",
+            initialText: "Skip",
+            customAction: "Skip",
+            onResult: result => {
+                customResult = result
+            },
+        })
+        customResultModal.arrange(new Rect(0, 0, 160, 67))
+        const customResultFocus = new UiFocusState()
+        const customResultController = new UiFocusInputController({
+            focus: customResultFocus,
+        })
+        customResultFocus.setScope({ id: "text-custom-result-parent" })
+        customResultFocus.setActiveScope("text-custom-result-parent")
+        customResultModal.open(customResultFocus, customResultController)
+        customResultFocus.setActiveTarget(
+            "text-custom-result",
+            "text-custom-result/29",
+        )
+        const directCustomResult = customResultModal.handleFocusInput(
+            customResultController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            directCustomResult.kind == "custom",
+            "text modal custom direct result",
+        )
+        control.assert(
+            (<any>directCustomResult).text == "Skip",
+            "text modal custom direct text",
+        )
+        control.assert(
+            customResult && customResult.kind == "custom",
+            "text modal custom callback",
         )
     }
 }
@@ -1780,5 +2182,6 @@ ui.runControlButtonSmokeTest()
 ui.runPickerSmokeTest()
 ui.runScreenControllerSmokeTest()
 ui.runNumericEntrySmokeTest()
+ui.runTextEntrySmokeTest()
 
 control.__log(1, "All tests passed!")
