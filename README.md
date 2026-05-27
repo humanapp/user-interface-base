@@ -108,8 +108,7 @@ Input events can also include a `source` such as `microbitButton`,
 `phase` when release events or key repeat should behave differently from the
 initial press.
 
-Call `runtime.dispatchInput()` from hardware callbacks, test code, or adapter
-code. The runtime queues those events and delivers them on the next frame. When
+Call `runtime.dispatchInput()` from event callbacks or other application code. The runtime queues those events and delivers them on the next frame. When
 no modal is open, the active screen gets first chance through `handleInput()`,
 then the runtime tries focus routing when the screen returns `undefined`.
 
