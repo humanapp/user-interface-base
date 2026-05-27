@@ -96,7 +96,7 @@ Returning `true` from `handleInput` means the screen handled the event.
 Returning `undefined` lets **micro:bit apps UI** try focus routing. While a
 modal is open, the modal receives input before the screen.
 
-## 4. Input
+## 4. Handle Semantic Input
 
 The runtime works with semantic actions, not specific buttons. A
 `UiInputEvent` names what the user meant to do: `up`, `down`, `left`, `right`,
