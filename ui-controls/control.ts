@@ -473,15 +473,8 @@ namespace _uiCore {
         view: ui.UiView<any>,
         assets: ui.UiAssetResolver,
     ): void {
-        if (view instanceof ui.UiButton)
-            (<ui.UiButton<any>>view)._resolveContentAssets(assets)
-        else if (view instanceof ui.UiLabel)
-            (<ui.UiLabel>view)._resolveContentAssets(assets)
-        else if (view instanceof ui.UiPicker)
-            (<ui.UiPicker<any>>view)._resolveContentAssets(assets)
-        else if (view instanceof ui.UiNumericEntryModal)
-            (<ui.UiNumericEntryModal>view)._resolveContentAssets(assets)
-        else if (view instanceof ui.UiTextEntryModal)
-            (<ui.UiTextEntryModal>view)._resolveContentAssets(assets)
+        const resolvedView = <any>view
+        if (resolvedView._resolveContentAssets)
+            resolvedView._resolveContentAssets(assets)
     }
 }
