@@ -1,8 +1,29 @@
 namespace ui {
     /**
+     * Control record with row-local spacing options.
+     */
+    export interface UiRowControl<T> extends UiControl<T> {
+        /**
+         * Extra space inserted before this control. Added to the row gap for
+         * non-first controls.
+         */
+        gapBefore?: number
+
+        /**
+         * Extra space inserted after this control.
+         */
+        gapAfter?: number
+    }
+
+    /**
      * Options for a one-dimensional control collection.
      */
     export interface UiRowOptions<T> extends UiControlCollectionOptions<T> {
+        /**
+         * Caller-owned row control records in render order.
+         */
+        controls: UiRowControl<T>[]
+
         /**
          * Focus scope id for this row.
          */
@@ -49,7 +70,7 @@ namespace ui {
         public readonly finalRect: Rect
         public layoutDirty: boolean
         private scopeId_: UiFocusScopeId
-        private controls_: UiControl<T>[]
+        private controls_: UiRowControl<T>[]
         private defaultControlId_: string
         private scrollOwnerId_: UiFocusScrollOwnerId
         private controlWidth_: number
@@ -89,7 +110,7 @@ namespace ui {
         /**
          * Current caller-owned control array.
          */
-        public get controls(): UiControl<T>[] {
+        public get controls(): UiRowControl<T>[] {
             return this.controls_
         }
 
@@ -451,28 +472,32 @@ namespace ui {
             return height
         }
 
-        private controlWidth(control: UiControl<T>): number {
+        private controlWidth(control: UiRowControl<T>): number {
             return _uiControls.sizeWidth(
                 (<any>control).size,
                 this.controlWidth_,
             )
         }
 
-        private controlHeight(control: UiControl<T>): number {
+        private controlHeight(control: UiRowControl<T>): number {
             return _uiControls.sizeHeight(
                 (<any>control).size,
                 this.controlHeight_,
             )
         }
 
-        private controlGapBefore(control: UiControl<T>, index: number): number {
-            return _uiControls.sanitizeDimension(
-                control.gapBefore,
-                index ? this.gap_ : 0,
-            )
+        private controlGapBefore(
+            control: UiRowControl<T>,
+            index: number,
+        ): number {
+            const rowGap = index ? this.gap_ : 0
+            return rowGap + _uiControls.sanitizeDimension(control.gapBefore, 0)
         }
 
-        private controlGapAfter(control: UiControl<T>, index: number): number {
+        private controlGapAfter(
+            control: UiRowControl<T>,
+            index: number,
+        ): number {
             return _uiControls.sanitizeDimension(control.gapAfter, 0)
         }
 

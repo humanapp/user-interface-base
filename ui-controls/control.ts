@@ -115,16 +115,6 @@ namespace ui {
          * Typed value returned when this control is activated.
          */
         value: T
-
-        /**
-         * Extra space before this control in variable-size control collections.
-         */
-        gapBefore?: number
-
-        /**
-         * Extra space after this control in variable-size control collections.
-         */
-        gapAfter?: number
     }
 
     /**
