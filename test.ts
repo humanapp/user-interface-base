@@ -993,10 +993,9 @@ namespace ui {
         _uiControls.renderControl(
             surface,
             {
-                id: "selected",
-                value: "selected",
+                id: "control",
+                value: "control",
                 bitmap,
-                selected: true,
             },
             rect,
             buttonView,
@@ -1004,7 +1003,7 @@ namespace ui {
         )
         control.assert(
             surface.log.indexOf("fill:7;") < 0,
-            "selected control does not fill green",
+            "control render does not fill green",
         )
         control.assert(
             surface.log.indexOf("text:go;") < 0,
@@ -1194,7 +1193,7 @@ namespace ui {
             title: { text: "Save changes?", bitmapId: "known" },
             controls: [
                 { id: "cancel", value: "cancel", text: "Cancel" },
-                { id: "ok", value: "ok", text: "OK", selected: true },
+                { id: "ok", value: "ok", text: "OK" },
             ],
             defaultControlId: "ok",
             columnCount: 2,

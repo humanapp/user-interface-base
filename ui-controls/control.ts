@@ -125,11 +125,6 @@ namespace ui {
          * Extra space after this control in variable-size control collections.
          */
         gapAfter?: number
-
-        /**
-         * Whether default focus selection should prefer this control.
-         */
-        selected?: boolean
     }
 
     /**
@@ -200,10 +195,6 @@ namespace _uiControls {
 
     export function isVisible<T>(control: ui.UiControl<T>): boolean {
         return control.visible !== false
-    }
-
-    export function isSelected<T>(control: ui.UiControl<T>): boolean {
-        return control.selected || false
     }
 
     export function isFocusable<T>(control: ui.UiControl<T>): boolean {
@@ -304,16 +295,6 @@ namespace _uiControls {
         const explicit = findControlById(controls, defaultControlId)
         if (explicit && isVisible(explicit) && isFocusable(explicit))
             return targetId(scopeId, explicit.id)
-
-        for (let i = 0; i < controls.length; i++) {
-            const control = controls[i]
-            if (
-                isVisible(control) &&
-                isFocusable(control) &&
-                isSelected(control)
-            )
-                return targetId(scopeId, control.id)
-        }
 
         for (let i = 0; i < controls.length; i++) {
             const control = controls[i]

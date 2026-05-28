@@ -236,14 +236,14 @@ namespace ui {
         }
 
         /**
-         * Focuses the row's retained, default, selected, or first enabled control.
+         * Focuses the row's retained, default, or first enabled control.
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
             return focus.setActiveScope(this.scopeId_)
         }
 
         /**
-         * Returns the target id chosen by default-control and selected-control rules.
+         * Returns the target id chosen by default-control rules.
          */
         public resolvePreferredTargetId(): UiFocusId | undefined {
             return _uiControls.preferredControlId(

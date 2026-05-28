@@ -430,6 +430,7 @@ namespace ui {
                 modalScopeId: options,
                 title,
                 controls,
+                defaultControlId: this.defaultChoiceControlId(controls),
                 columnCount: Math.max(1, controls.length),
                 controlSize: {
                     width: this.choiceControlWidth(controls),
@@ -452,13 +453,18 @@ namespace ui {
                         id: "choice-" + i,
                         value: <any>choice,
                         text: choice,
-                        selected: i == choices.length - 1,
                     })
                 } else {
                     controls.push(choice)
                 }
             }
             return controls
+        }
+
+        private defaultChoiceControlId(controls: UiControl<T>[]): string {
+            return controls && controls.length
+                ? controls[controls.length - 1].id
+                : undefined
         }
 
         private choiceControlWidth(controls: UiControl<T>[]): number {
