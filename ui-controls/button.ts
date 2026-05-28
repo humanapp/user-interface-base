@@ -29,7 +29,7 @@ namespace ui {
      */
     export interface UiButtonStyle {
         /**
-         * Fill color for the button background.
+         * Fill color for the button background and rounded-shadow edge.
          */
         backgroundColor?: number
 
@@ -47,11 +47,6 @@ namespace ui {
          * Color used for rectangle and rounded-rectangle frames.
          */
         borderColor?: number
-
-        /**
-         * Edge color used for one-pixel rounded shadow frames.
-         */
-        edgeColor?: number
 
         /**
          * Shadow color used for one-pixel rounded shadow frames.
@@ -149,8 +144,7 @@ namespace ui {
             if (frame == "roundedShadow") {
                 const shadowBackground =
                     background !== undefined ? background : 1
-                const edge =
-                    style.edgeColor !== undefined ? style.edgeColor : 1
+                const edge = shadowBackground
                 const shadow =
                     style.shadowColor !== undefined ? style.shadowColor : 11
 
@@ -816,7 +810,6 @@ namespace ui {
          */
         export const LightShadowedWhite: UiButtonStyle = {
             backgroundColor: 1,
-            edgeColor: 1,
             shadowColor: 11,
             frame: "roundedShadow",
         }
@@ -826,7 +819,6 @@ namespace ui {
          */
         export const ShadowedWhite: UiButtonStyle = {
             backgroundColor: 1,
-            edgeColor: 1,
             shadowColor: 12,
             frame: "roundedShadow",
         }
@@ -870,7 +862,6 @@ namespace ui {
         if (source.frame !== undefined) target.frame = source.frame
         if (source.borderColor !== undefined)
             target.borderColor = source.borderColor
-        if (source.edgeColor !== undefined) target.edgeColor = source.edgeColor
         if (source.shadowColor !== undefined)
             target.shadowColor = source.shadowColor
         if (source.font !== undefined) target.font = source.font
